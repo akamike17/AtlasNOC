@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # ─── Application ────────────────────────────────────────────────────────────
+  atlasnoc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atlasnoc-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=atlasnoc;User=atlasnoc;Password=${MYSQL_PASSWORD}
+      - ConnectionStrings__Redis=redis:6379
+      - AtlasNoc__RequireHttps=false
+      - AtlasNoc__ApplyMigrationsOnStartup=true
+      - Serilog__MinimumLevel__Default=Information
+      - Serilog__WriteTo__Seq__ServerUrl=http://seq:5341
+      - OpenTelemetry__Endpoint=http://otel-collector:4317
+      - Cors__AllowedOrigins__0=https://your-domain.com
+      - Cors__AllowedOrigins__1=https://admin.your-domain.com
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - atlasnoc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ─── MySQL Database ────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: atlasnoc-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=atlasnoc
+      - MYSQL_USER=atlasnoc
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - atlasnoc-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ─── Redis Cache ───────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: atlasnoc-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - atlasnoc-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # ─── OpenTelemetry Collector ───────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.106.0
+    container_name: atlasnoc-otel
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics
+    networks:
+      - atlasnoc-network
+
+  # ─── Seq Log Server ────────────────────────────────────────────────────────
+  seq:
+    image: datalust/seq:latest
+    container_name: atlasnoc-seq
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_API_CANONICALURI=http://seq:5341
+    volumes:
+      - seq-data:/data
+    ports:
+      - "5341:80"
+    networks:
+      - atlasnoc-network
+
+  # ─── Nginx Reverse Proxy (Production) ──────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: atlasnoc-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - atlasnoc
+    networks:
+      - atlasnoc-network
+
+networks:
+  atlasnoc-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  seq-data:

@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/AtlasNOC.Domain.Tests/AtlasNOC.Domain.Tests.csproj" />
+  </Folder>
+  <Project Path="AtlasNOC.csproj" />
+  <Project Path="AtlasNOC.Domain/AtlasNOC.Domain.csproj" />
+</Solution>

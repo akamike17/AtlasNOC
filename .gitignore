@@ -1,0 +1,49 @@
+# ─── Build Output ─────────────────────────────────────────────────────────────
+bin/
+obj/
+publish/
+
+# ─── IDE / Editor ─────────────────────────────────────────────────────────────
+.vs/
+.idea/
+*.swp
+*.swo
+.vscode/
+*.suo
+*.user
+
+# ─── Test Results ─────────────────────────────────────────────────────────────
+TestResults/
+*.trx
+*.coverage
+coverage/
+*.xml
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Secrets / Config ─────────────────────────────────────────────────────────
+appsettings.Production.json
+appsettings.Development.json
+appsettings.Local.json
+*.pfx
+*.pem
+*.key
+*.crt
+*.cert
+secrets.json
+
+# ─── Docker ───────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+.docker/
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+*.cache
+*.bak
+*.tmp
+*.temp

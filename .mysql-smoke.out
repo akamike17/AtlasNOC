@@ -1,0 +1,9 @@
+[02:13:25 INF] Applying database migrations... {"SourceContext": "Program"}
+[02:13:26 INF] Database migrations applied successfully. {"SourceContext": "Program"}
+[02:13:27 WRN] No XML encryptor configured. Key {605c2d1c-e752-470b-b4c1-5c4e2d70e996} may be persisted to storage in unencrypted form. {"EventId": {"Id": 35, "Name": "NoXMLEncryptorConfiguredKeyMayBePersistedToStorageInUnencryptedForm"}, "SourceContext": "Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager"}
+[02:13:27 INF] Polling hosted service starting {"SourceContext": "AtlasNOC.Domain.Services.PollingHostedService"}
+[02:13:27 INF] Notification hosted service starting {"SourceContext": "AtlasNOC.Domain.Services.NotificationHostedService"}
+[02:13:27 INF] CVE Background Service started. Fetch interval: 1.00:00:00 {"SourceContext": "AtlasNOC.Services.CveBackgroundService"}
+[02:13:33 INF] HTTP GET /health/ready responded 200 in 44.2055 ms {"RequestHost": "127.0.0.1:5103", "RequestScheme": "http", "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.19045; es-MX) PowerShell/7.6.4", "SourceContext": "Serilog.AspNetCore.RequestLoggingMiddleware"}
+[02:13:33 INF] HTTP GET /health/live responded 200 in 2.6549 ms {"RequestHost": "127.0.0.1:5103", "RequestScheme": "http", "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.19045; es-MX) PowerShell/7.6.4", "SourceContext": "Serilog.AspNetCore.RequestLoggingMiddleware"}
+[02:13:57 INF] No active devices found, skipping CVE fetch {"SourceContext": "AtlasNOC.Services.CveBackgroundService"}
