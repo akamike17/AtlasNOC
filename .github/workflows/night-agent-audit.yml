@@ -1,105 +1,177 @@
-name: AtlasNOC Night Agent Audit
+name: AtlasNOC Overnight Audit
 
 on:
   workflow_dispatch:
-    inputs:
-      base_branch:
-        description: Branch created from the product baseline
-        required: true
-        default: audit-night-8f3838d
   schedule:
-    - cron: '15 8 * * *'
+    - cron: '0 * * * *'
 
 permissions:
   contents: read
   issues: write
   pull-requests: write
+  security-events: write
 
 concurrency:
-  group: atlasnoc-night-agent-audit
+  group: atlasnoc-overnight-audit
   cancel-in-progress: false
 
+env:
+  BASELINE_SHA: 8f3838daa94e6965c4306305e76512daa95f5299
+  AUDIT_BRANCH: audit-night-8f3838d
+
 jobs:
-  delegate-full-audit:
-    name: Delegate full product audit
+  deterministic-audit:
+    name: Deterministic full audit
     runs-on: ubuntu-latest
+    timeout-minutes: 55
     steps:
-      - name: Resolve audit branch
-        id: vars
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "branch=${{ inputs.base_branch }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "branch=audit-night-8f3838d" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.AUDIT_BRANCH }}
+          fetch-depth: 0
 
-      - name: Load audit contract from baseline branch
-        id: prompt
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+      - name: Verify baseline lineage
         shell: bash
         run: |
           set -euo pipefail
-          gh api "/repos/${GITHUB_REPOSITORY}/contents/AUDIT_AGENT_PROMPT.md?ref=${AUDIT_BRANCH}" \
-            --jq '.content' | tr -d '\n' | base64 --decode > audit-body.md
-          test -s audit-body.md
-          echo "Loaded $(wc -c < audit-body.md) bytes of audit instructions from ${AUDIT_BRANCH}."
+          git cat-file -e "${BASELINE_SHA}^{commit}"
+          git merge-base --is-ancestor "$BASELINE_SHA" HEAD
+          echo "Baseline $BASELINE_SHA is an ancestor of $(git rev-parse HEAD)."
 
-      - name: Avoid duplicate active audit
-        id: existing
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Capture environment
+        shell: bash
+        run: |
+          mkdir -p audit-output
+          {
+            echo "# AtlasNOC automated overnight audit"
+            echo
+            echo "Baseline: $BASELINE_SHA"
+            echo "Audit branch: $AUDIT_BRANCH"
+            echo "Audited SHA: $(git rev-parse HEAD)"
+            echo "Run: $GITHUB_RUN_ID / attempt $GITHUB_RUN_ATTEMPT"
+            echo "UTC: $(date -u --iso-8601=seconds)"
+            echo
+            echo "## dotnet --info"
+            echo '```'
+            dotnet --info
+            echo '```'
+          } > audit-output/AUTOMATED_AUDIT.md
+
+      - name: Restore
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet restore AtlasNOC.slnx 2>&1 | tee audit-output/restore.log
+
+      - name: Verify formatting
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet format AtlasNOC.slnx --no-restore --verify-no-changes 2>&1 | tee audit-output/format.log
+
+      - name: Release build with warnings as errors
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet build AtlasNOC.slnx --no-restore -c Release -warnaserror 2>&1 | tee audit-output/build.log
+
+      - name: Full test suite
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet test AtlasNOC.slnx --no-build -c Release --logger "trx;LogFileName=atlasnoc-night.trx" --results-directory audit-output/test-results 2>&1 | tee audit-output/tests.log
+
+      - name: Flake/regression repeat
         shell: bash
         run: |
           set -euo pipefail
-          TITLE="AtlasNOC overnight full-product audit — ${AUDIT_BRANCH}"
-          NUMBER=$(gh api "/repos/${GITHUB_REPOSITORY}/issues?state=open&per_page=100" \
-            --jq ".[] | select(.pull_request == null and .title == \"${TITLE}\") | .number" | head -n 1 || true)
-          if [ -n "$NUMBER" ]; then
-            echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
-            echo "created=false" >> "$GITHUB_OUTPUT"
-            echo "Reusing open audit issue #$NUMBER"
-          else
-            echo "created=true" >> "$GITHUB_OUTPUT"
-          fi
+          for i in 1 2 3; do
+            echo "=== regression pass $i ===" | tee -a audit-output/repeat-tests.log
+            dotnet test AtlasNOC.slnx --no-build -c Release --logger "console;verbosity=minimal" 2>&1 | tee -a audit-output/repeat-tests.log
+          done
 
-      - name: Create audit issue
-        if: steps.existing.outputs.created == 'true'
-        id: create
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+      - name: NuGet vulnerability inventory
         shell: bash
         run: |
-          set -euo pipefail
-          TITLE="AtlasNOC overnight full-product audit — ${AUDIT_BRANCH}"
-          jq -n \
-            --arg title "$TITLE" \
-            --rawfile body audit-body.md \
-            '{title:$title, body:$body}' > issue.json
-          NUMBER=$(gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues" \
-            --input issue.json --jq '.number')
-          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
-          echo "Created audit issue #$NUMBER"
+          set -o pipefail
+          dotnet list AtlasNOC.csproj package --vulnerable --include-transitive 2>&1 | tee audit-output/nuget-vulnerabilities.log
 
-      - name: Select issue number
-        id: issue
+      - name: NuGet outdated inventory
+        continue-on-error: true
         shell: bash
         run: |
-          if [ "${{ steps.existing.outputs.created }}" = "true" ]; then
-            echo "number=${{ steps.create.outputs.number }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "number=${{ steps.existing.outputs.number }}" >> "$GITHUB_OUTPUT"
-          fi
+          set -o pipefail
+          dotnet list AtlasNOC.csproj package --outdated --include-transitive 2>&1 | tee audit-output/nuget-outdated.log
 
-      - name: Assign GitHub cloud coding agent
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: audit-output/trivy.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Upload Trivy SARIF
+        if: always() && hashFiles('audit-output/trivy.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: audit-output/trivy.sarif
+
+      - name: Scan repository for obvious secret-file mistakes
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          {
+            echo "Tracked files with names that deserve manual review:"
+            git ls-files | grep -Ei '(^|/)(\.env($|\.)|.*secret.*|.*credential.*|.*password.*|.*private.*key.*|id_rsa|.*\.pfx$|.*\.p12$|.*\.pem$)' || true
+          } > audit-output/suspicious-filenames.log
+
+      - name: Write audit summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "## Repository status"
+            echo '```'
+            git status --short
+            echo '```'
+            echo
+            echo "## Artifacts"
+            echo "Restore/build/test/format/security logs are attached to this workflow run."
+            echo "The full human/agent contract is AUDIT_AGENT_PROMPT.md on $AUDIT_BRANCH."
+            echo "Tracking issue: #1"
+          } >> audit-output/AUTOMATED_AUDIT.md
+          cat audit-output/AUTOMATED_AUDIT.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload overnight audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlasnoc-overnight-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: audit-output/
+          if-no-files-found: error
+          retention-days: 14
+
+  delegate-cloud-agent:
+    name: Delegate issue to GitHub cloud coding agent
+    runs-on: ubuntu-latest
+    needs: deterministic-audit
+    if: always()
+    continue-on-error: true
+    steps:
+      - name: Attempt cloud-agent assignment
         env:
           GH_TOKEN: ${{ github.token }}
-          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
         shell: bash
         run: |
           set -euo pipefail
@@ -111,27 +183,16 @@ jobs:
               agent_assignment:{
                 target_repo:$repo,
                 base_branch:$branch,
-                custom_instructions:"Read AUDIT_AGENT_PROMPT.md in the base branch first. Execute the full audit contract autonomously. Continue from checkpoints; do not restart completed work. Fix safe defects, add regression tests, commit verified checkpoints, and leave AUDIT_REPORT.md plus AUDIT_CHECKPOINT.md.",
+                custom_instructions:"Read AUDIT_AGENT_PROMPT.md first. Execute the complete audit contract autonomously. Fix safe defects, add regression tests, maintain AUDIT_CHECKPOINT.md and AUDIT_REPORT.md, commit verified checkpoints, and continue from the last verified checkpoint rather than restarting.",
                 custom_agent:"",
                 model:""
               }
-            }' > assign.json
-          gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" \
-            --input assign.json
-          echo "Delegated issue #${ISSUE_NUMBER} to the GitHub cloud coding agent on ${AUDIT_BRANCH}."
+            }' > assignment.json
+          gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues/1/assignees" --input assignment.json
 
-      - name: Summary
-        env:
-          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
-          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+      - name: Delegation status
+        if: always()
         shell: bash
         run: |
-          {
-            echo "## AtlasNOC Night Agent Audit"
-            echo ""
-            echo "- Product baseline: \`8f3838daa94e6965c4306305e76512daa95f5299\`"
-            echo "- Audit branch: \`${AUDIT_BRANCH}\`"
-            echo "- Audit issue: #${ISSUE_NUMBER}"
-            echo "- Contract: \`AUDIT_AGENT_PROMPT.md\`"
-            echo "- Expected outputs: \`AUDIT_REPORT.md\`, \`AUDIT_CHECKPOINT.md\`, verified commits and agent PR"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Cloud-agent delegation was attempted for issue #1 on branch $AUDIT_BRANCH." >> "$GITHUB_STEP_SUMMARY"
+          echo "If the account/repository does not expose the GitHub cloud coding agent, the deterministic audit still runs independently every hour." >> "$GITHUB_STEP_SUMMARY"
