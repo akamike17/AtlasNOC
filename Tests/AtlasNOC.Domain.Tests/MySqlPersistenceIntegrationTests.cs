@@ -173,13 +173,19 @@ public sealed class MySqlPersistenceIntegrationTests
 
                 var map = await topology.RebuildTopologyAsync();
 
-                Assert.Equal(2, map.Nodes.Count);
-                Assert.Equal(DeviceStatus.Up, map.Nodes.Single(n => n.IpAddress == core.IpAddress).Status);
-                var link = Assert.Single(map.Links);
+                var testNodeIds = new[] { core.Id.Value, edge.Id.Value };
+                Assert.Equal(2, map.Nodes.Count(node => testNodeIds.Contains(node.DeviceId)));
+                Assert.Equal(DeviceStatus.Up, map.Nodes.Single(n => n.DeviceId == core.Id.Value).Status);
+                var link = Assert.Single(map.Links, candidate =>
+                    testNodeIds.Contains(candidate.SourceNodeId) &&
+                    testNodeIds.Contains(candidate.TargetNodeId));
                 Assert.Equal(LinkType.Lldp, link.Type);
                 // Deterministic + stable id between reconstructions (idempotent rebuild).
                 var map2 = await topology.RebuildTopologyAsync();
-                Assert.Equal(link.Id, map2.Links.Single().Id);
+                var rebuiltLink = Assert.Single(map2.Links, candidate =>
+                    testNodeIds.Contains(candidate.SourceNodeId) &&
+                    testNodeIds.Contains(candidate.TargetNodeId));
+                Assert.Equal(link.Id, rebuiltLink.Id);
             }
         }
         finally

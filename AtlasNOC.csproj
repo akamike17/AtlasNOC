@@ -72,6 +72,7 @@
   <ItemGroup>
     <Compile Remove="AtlasNOC.Domain\**" />
     <Compile Remove="Tests\**" />
+    <Content Remove="Tests\**" />
     <EmbeddedResource Remove="Tests\**" />
     <None Remove="Tests\**" />
   </ItemGroup>

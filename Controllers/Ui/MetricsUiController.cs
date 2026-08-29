@@ -45,7 +45,7 @@ public sealed class MetricsUiController : Controller
 
         try
         {
-            var page = await _history.QueryAsync(DeviceId.From(deviceId), fromU, toU, 1, 2000, ct);
+            var page = await _history.QueryAsync(DeviceId.From(deviceId), fromU, toU, 1, 500, ct);
             return Json(new { total = page.TotalCount, items = page.Items });
         }
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }

@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using AtlasNOC.Domain.Entities;
 using AtlasNOC.Domain.Services.Interfaces;
 using AtlasNOC.Domain.ValueObjects;
@@ -62,6 +64,11 @@ public class DevicesController : ControllerBase
         {
             _logger.LogWarning(ex, "Device creation failed: {Message}", ex.Message);
             return BadRequest(new { error = ex.Message });
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is MySqlException { Number: 1062 })
+        {
+            _logger.LogInformation(ex, "Device creation rejected because IP {IpAddress} already exists", request.IpAddress);
+            return Conflict(new { error = "A device with this IP address already exists." });
         }
     }
 

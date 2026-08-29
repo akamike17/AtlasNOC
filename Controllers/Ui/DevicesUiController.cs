@@ -6,6 +6,8 @@ using AtlasNOC.Services.Ui;
 using AtlasNOC.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using System.Security.Claims;
 
 namespace AtlasNOC.Web.Controllers.Ui;
@@ -94,6 +96,14 @@ public sealed class DevicesUiController : Controller
         {
             ModelState.AddModelError(string.Empty, ex.Message);
             ViewData["Nav"] = "Devices";
+            return View(request);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is MySqlException { Number: 1062 })
+        {
+            _logger.LogInformation(ex, "Device creation rejected because IP {IpAddress} already exists", request.IpAddress);
+            ModelState.AddModelError(nameof(request.IpAddress), "Ya existe un dispositivo con esta dirección IP.");
+            ViewData["Nav"] = "Devices";
+            Response.StatusCode = StatusCodes.Status409Conflict;
             return View(request);
         }
     }

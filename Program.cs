@@ -582,24 +582,11 @@ app.UseSerilogRequestLogging(options =>
 app.UseCors(app.Environment.IsDevelopment() ? "Development" : "Production");
 
 app.UseRateLimiter();
+// Static assets are intentionally public and must be served before the
+// fallback authorization policy. MVC pages and API endpoints continue through
+// authentication and authorization below.
+app.UseStaticFiles();
 app.UseAuthentication();
-
-// Exempt public, non-secret assets (and /swagger in Development) from the global
-// fallback authorization policy. The UI consumes these over an authenticated
-// cookie session, but stylesheets/scripts must load before login. API endpoints
-// and MVC pages remain protected (FallbackPolicy stays intact).
-app.Use(async (context, next) =>
-{
-    if (AtlasNocUiAuth.IsPublicAssetPath(context.Request.Path, app.Environment.IsDevelopment()))
-    {
-        context.SetEndpoint(new Endpoint(
-            _ => Task.CompletedTask,
-            new EndpointMetadataCollection(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute()),
-            "public-asset"));
-    }
-    await next();
-});
-
 app.UseAuthorization();
 
 // ─── Swagger UI ────────────────────────────────────────────────────────────────

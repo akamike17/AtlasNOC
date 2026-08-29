@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\AtlasNOC.Domain\AtlasNOC.Domain.csproj" />
+    <ProjectReference Include="..\..\AtlasNOC.csproj" />
   </ItemGroup>
 
 </Project>
