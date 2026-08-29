@@ -34,6 +34,9 @@ logs/
 Thumbs.db
 
 # ─── Secrets / Config ─────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
 appsettings.Production.json
 appsettings.Development.json
 appsettings.Local.json
