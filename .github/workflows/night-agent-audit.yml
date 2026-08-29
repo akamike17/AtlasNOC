@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
   security-events: write
 
 concurrency:
@@ -64,45 +62,60 @@ jobs:
           } > audit-output/AUTOMATED_AUDIT.md
 
       - name: Restore
+        id: restore
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           dotnet restore AtlasNOC.slnx 2>&1 | tee audit-output/restore.log
 
       - name: Verify formatting
+        id: format
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           dotnet format AtlasNOC.slnx --no-restore --verify-no-changes 2>&1 | tee audit-output/format.log
 
       - name: Release build with warnings as errors
+        id: build
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           dotnet build AtlasNOC.slnx --no-restore -c Release -warnaserror 2>&1 | tee audit-output/build.log
 
       - name: Full test suite
+        id: tests
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          dotnet test AtlasNOC.slnx --no-build -c Release --logger "trx;LogFileName=atlasnoc-night.trx" --results-directory audit-output/test-results 2>&1 | tee audit-output/tests.log
+          dotnet test AtlasNOC.slnx -c Release --logger "trx;LogFileName=atlasnoc-night.trx" --results-directory audit-output/test-results 2>&1 | tee audit-output/tests.log
 
-      - name: Flake/regression repeat
+      - name: Flake and regression repeat
+        id: repeat
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          rc=0
           for i in 1 2 3; do
             echo "=== regression pass $i ===" | tee -a audit-output/repeat-tests.log
-            dotnet test AtlasNOC.slnx --no-build -c Release --logger "console;verbosity=minimal" 2>&1 | tee -a audit-output/repeat-tests.log
+            dotnet test AtlasNOC.slnx -c Release --logger "console;verbosity=minimal" 2>&1 | tee -a audit-output/repeat-tests.log || rc=1
           done
+          exit $rc
 
       - name: NuGet vulnerability inventory
+        id: nuget_vuln
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           dotnet list AtlasNOC.csproj package --vulnerable --include-transitive 2>&1 | tee audit-output/nuget-vulnerabilities.log
 
       - name: NuGet outdated inventory
+        id: nuget_outdated
         continue-on-error: true
         shell: bash
         run: |
@@ -110,6 +123,8 @@ jobs:
           dotnet list AtlasNOC.csproj package --outdated --include-transitive 2>&1 | tee audit-output/nuget-outdated.log
 
       - name: Trivy filesystem scan
+        id: trivy
+        continue-on-error: true
         uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297
         with:
           scan-type: fs
@@ -121,35 +136,53 @@ jobs:
 
       - name: Upload Trivy SARIF
         if: always() && hashFiles('audit-output/trivy.sarif') != ''
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: audit-output/trivy.sarif
 
-      - name: Scan repository for obvious secret-file mistakes
+      - name: Scan tracked filenames for obvious secret mistakes
         if: always()
         shell: bash
         run: |
-          set +e
           {
             echo "Tracked files with names that deserve manual review:"
             git ls-files | grep -Ei '(^|/)(\.env($|\.)|.*secret.*|.*credential.*|.*password.*|.*private.*key.*|id_rsa|.*\.pfx$|.*\.p12$|.*\.pem$)' || true
           } > audit-output/suspicious-filenames.log
 
-      - name: Write audit summary
+      - name: Record step outcomes
         if: always()
         shell: bash
+        env:
+          RESTORE: ${{ steps.restore.outcome }}
+          FORMAT: ${{ steps.format.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          REPEAT: ${{ steps.repeat.outcome }}
+          NUGET_VULN: ${{ steps.nuget_vuln.outcome }}
+          NUGET_OUTDATED: ${{ steps.nuget_outdated.outcome }}
+          TRIVY: ${{ steps.trivy.outcome }}
         run: |
           {
+            echo
+            echo "## Step outcomes"
+            echo "- Restore: $RESTORE"
+            echo "- Format: $FORMAT"
+            echo "- Release build: $BUILD"
+            echo "- Tests: $TESTS"
+            echo "- Repeat tests: $REPEAT"
+            echo "- NuGet vulnerabilities: $NUGET_VULN"
+            echo "- NuGet outdated inventory: $NUGET_OUTDATED"
+            echo "- Trivy HIGH/CRITICAL: $TRIVY"
             echo
             echo "## Repository status"
             echo '```'
             git status --short
             echo '```'
             echo
-            echo "## Artifacts"
-            echo "Restore/build/test/format/security logs are attached to this workflow run."
-            echo "The full human/agent contract is AUDIT_AGENT_PROMPT.md on $AUDIT_BRANCH."
-            echo "Tracking issue: #1"
+            echo "## Notes"
+            echo "This workflow intentionally does not attempt GitHub Copilot/cloud-agent assignment because this repository/account rejected that assignment repeatedly."
+            echo "The full audit contract remains in AUDIT_AGENT_PROMPT.md on $AUDIT_BRANCH."
           } >> audit-output/AUTOMATED_AUDIT.md
           cat audit-output/AUTOMATED_AUDIT.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -162,37 +195,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  delegate-cloud-agent:
-    name: Delegate issue to GitHub cloud coding agent
-    runs-on: ubuntu-latest
-    needs: deterministic-audit
-    if: always()
-    continue-on-error: true
-    steps:
-      - name: Attempt cloud-agent assignment
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          jq -n \
-            --arg repo "$GITHUB_REPOSITORY" \
-            --arg branch "$AUDIT_BRANCH" \
-            '{
-              assignees:["copilot-swe-agent[bot]"],
-              agent_assignment:{
-                target_repo:$repo,
-                base_branch:$branch,
-                custom_instructions:"Read AUDIT_AGENT_PROMPT.md first. Execute the complete audit contract autonomously. Fix safe defects, add regression tests, maintain AUDIT_CHECKPOINT.md and AUDIT_REPORT.md, commit verified checkpoints, and continue from the last verified checkpoint rather than restarting.",
-                custom_agent:"",
-                model:""
-              }
-            }' > assignment.json
-          gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues/1/assignees" --input assignment.json
-
-      - name: Delegation status
+      - name: Final audit gate
         if: always()
         shell: bash
+        env:
+          RESTORE: ${{ steps.restore.outcome }}
+          FORMAT: ${{ steps.format.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          REPEAT: ${{ steps.repeat.outcome }}
+          NUGET_VULN: ${{ steps.nuget_vuln.outcome }}
+          TRIVY: ${{ steps.trivy.outcome }}
         run: |
-          echo "Cloud-agent delegation was attempted for issue #1 on branch $AUDIT_BRANCH." >> "$GITHUB_STEP_SUMMARY"
-          echo "If the account/repository does not expose the GitHub cloud coding agent, the deterministic audit still runs independently every hour." >> "$GITHUB_STEP_SUMMARY"
+          rc=0
+          for value in "$RESTORE" "$FORMAT" "$BUILD" "$TESTS" "$REPEAT" "$NUGET_VULN" "$TRIVY"; do
+            if [ "$value" != "success" ]; then rc=1; fi
+          done
+          if [ "$rc" -ne 0 ]; then
+            echo "One or more audit gates failed. Evidence was uploaded; inspect the corresponding logs."
+            exit 1
+          fi
+          echo "All deterministic audit gates passed."
