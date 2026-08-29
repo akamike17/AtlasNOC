@@ -1,48 +1,153 @@
-@model AtlasNOC.Application.Dtos.TopologyGraphDto
 @{
     ViewData["Title"] = "Topología";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Topología</h1>
-    <span class="text-secondary small">@Model.Nodes.Count nodos · @Model.Edges.Count enlaces confirmados · @Model.UnlinkedNodeCount sin relación</span>
+    <div class="d-flex gap-2">
+        <select id="siteFilter" class="form-select form-select-sm bg-dark text-light" style="width:auto">
+            <option value="">Todos los sitios</option>
+        </select>
+        <button id="refreshBtn" class="btn btn-outline-light btn-sm">Recargar</button>
+    </div>
 </div>
 
-<div id="cy" class="noc-card" style="height: 60vh;"></div>
+<div class="noc-card p-0" style="height:70vh; overflow:hidden">
+    <div id="cy" style="width:100%; height:100%"></div>
+</div>
 
-<p class="text-secondary small mt-2">La topología se construye con relaciones persistidas (LLDP/CDP/inalámbrico), nunca por proximidad visual.</p>
+<div id="legend" class="d-flex gap-3 mt-2 text-secondary small"></div>
 
 @section Scripts {
-<script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
-<script>
-    const nodeData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Nodes));
-    const edgeData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Edges));
+    <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/elkjs@0.9.3/lib/elk.bundled.js"></script>
+    <script>
+        (function () {
+            var cy = null;
+            var state = { nodes: [], edges: [], groups: [] };
 
-    const elements = [
-        ...nodeData.map(n => ({ data: { id: n.id.toString(), label: n.label, status: n.status } })),
-        ...edgeData.map(e => ({ data: { id: e.id.toString(), source: e.source.toString(), target: e.target.toString() } }))
-    ];
+            function colorForStatus(s) {
+                return { 1: '#2ea043', 2: '#f85149', 3: '#d29922', 4: '#8b949e' }[s] || '#8b949e';
+            }
+            function hintForVendor(v) {
+                return { 1: '#f97316', 2: '#22d3ee', 3: '#38bdf8' }[v] || '#a5b4fc';
+            }
 
-    const statusColor = s => s === 1 ? '#2ea043' : s === 2 ? '#f85149' : '#8b949e';
+            function buildElements() {
+                var els = [];
+                // Group nodes (site compound parents)
+                state.groups.forEach(function (g) {
+                    els.push({ group: 'nodes', data: { id: 'site:' + g.siteId, label: g.label }, classes: 'site-group' });
+                });
+                state.nodes.forEach(function (n) {
+                    els.push({
+                        group: 'nodes',
+                        data: {
+                            id: n.id, label: n.label, ip: n.ip,
+                            deviceType: n.deviceType, vendor: n.vendor,
+                            status: n.status, parent: n.siteId ? ('site:' + n.siteId) : undefined
+                        }
+                    });
+                });
+                state.edges.forEach(function (e) {
+                    els.push({ group: 'edges', data: { id: e.id, source: e.source, target: e.target, confirmed: e.isConfirmed, linkType: e.linkType } });
+                });
+                return els;
+            }
 
-    const cy = cytoscape({
-        container: document.getElementById('cy'),
-        elements,
-        style: [
-            { selector: 'node', style: {
-                'label': 'data(label)',
-                'background-color': node => statusColor(node.data('status')),
-                'color': '#e6edf3',
-                'text-valign': 'center', 'text-halign': 'center',
-                'font-size': '10px',
-                'text-wrap': 'ellipsis', 'text-max-width': '80px'
-            }},
-            { selector: 'edge', style: {
-                'width': 1.5, 'line-color': '#58a6ff',
-                'target-arrow-color': '#58a6ff', 'target-arrow-shape': 'triangle'
-            }}
-        ],
-        layout: elementData.length ? { name: 'cose', padding: 20 } : { name: 'grid' }
-    });
-</script>
+            function legend() {
+                var box = [];
+                [{ s: 1, t: 'Up' }, { s: 2, t: 'Down' }, { s: 3, t: 'Mantenimiento' }, { s: 4, t: 'Inalcanzable' }].forEach(function (x) {
+                    box.push('<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + colorForStatus(x.s) + '"></span> ' + x.t + '</span>');
+                });
+                box.push('<span><span style="display:inline-block;width:12px;height:3px;background:#58a6ff"></span> Enlace</span>');
+                document.getElementById('legend').innerHTML = box.join('');
+            }
+
+            async function load() {
+                var siteId = document.getElementById('siteFilter').value;
+                var url = '/api/topology/graph' + (siteId ? ('?siteId=' + siteId) : '');
+                var resp = await fetch(url);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                var graph = await resp.json();
+                state.nodes = graph.nodes || [];
+                state.edges = graph.edges || [];
+                state.groups = graph.groups || [];
+
+                var siteSel = document.getElementById('siteFilter');
+                var cur = siteSel.value;
+                var opts = ['<option value="">Todos los sitios</option>'];
+                graph.groups.forEach(function (g) {
+                    var sel = g.siteId === cur ? ' selected' : '';
+                    opts.push('<option value="' + g.siteId + '"' + sel + '>' + g.label + '</option>');
+                });
+                siteSel.innerHTML = opts.join('');
+
+                draw();
+            }
+
+            function draw() {
+                if (cy) { cy.destroy(); }
+                cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    elements: buildElements(),
+                    style: [
+                        { selector: 'node', style: {
+                            'label': 'data(label)', 'color': '#e6edf3', 'text-valign': 'center',
+                            'text-halign': 'center', 'font-size': 9,
+                            'background-color': function (el) { return colorForStatus(el.data('status')); },
+                            'border-width': 2, 'border-color': function (el) { return hintForVendor(el.data('vendor')); },
+                            'width': 'mapData(ret, 0, 0, 28, 28)', 'height': 28
+                        }},
+                        { selector: 'node.site-group', style: {
+                            'background-opacity': 0, 'border-width': 1, 'border-color': '#30363d',
+                            'border-style': 'dashed', 'padding': 2, 'text-valign': 'top', 'text-margin-y': 52, 'font-size': 10
+                        }},
+                        { selector: 'edge', style: {
+                            'width': 2, 'line-color': '#58a6ff', 'target-arrow-color': '#58a6ff',
+                            'target-arrow-shape': 'triangle', 'curve-style': 'bezier'
+                        }},
+                        { selector: 'edge[confirmed = false]', style: { 'line-style': 'dashed', 'line-color': '#8b949e', 'target-arrow-color': '#8b949e' } }
+                    ],
+                    layout: { name: 'preset' }
+                });
+
+                var elk = new ELK();
+                var json = toElkJson();
+                elk.layout(json).then(function (laid) {
+                    applyElk(laid.children || []);
+                    cy.fit(undefined, 40);
+                });
+            }
+
+            function toElkJson() {
+                var children = [];
+                state.groups.forEach(function (g) {
+                    children.push({ id: 'site:' + g.siteId, layoutOptions: { 'elk.direction': 'DOWN' } });
+                });
+                state.nodes.forEach(function (n) {
+                    children.push({ id: n.id, width: 30, height: 30 });
+                });
+                var edges = state.edges.map(function (e) { return { id: e.id, sources: [e.source], targets: [e.target] }; });
+                return { id: 'root', children: children, edges: edges,
+                    layoutOptions: { 'elk.algorithm': 'layered', 'elk.direction': 'DOWN', 'elk.spacing.nodeNode': '24', 'elk.layered.spacing.nodeNodeBetweenLayers': '48' } };
+            }
+
+            function applyElk(children) {
+                var map = {};
+                (function walk(list) {
+                    list.forEach(function (c) {
+                        if (c.x !== undefined && c.y !== undefined) map[c.id] = { x: c.x, y: c.y };
+                        if (c.children) { walk(c.children); }
+                    });
+                })(children || []);
+                cy.nodes().forEach(function (n) { var p = map[n.id()]; if (p) n.position({ x: p.x, y: p.y }); });
+            }
+
+            document.getElementById('refreshBtn').addEventListener('click', load);
+            document.getElementById('siteFilter').addEventListener('change', load);
+            legend();
+            load().catch(function (e) { console.error(e); });
+        })();
+    </script>
 }
