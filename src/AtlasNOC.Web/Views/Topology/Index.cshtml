@@ -1,0 +1,48 @@
+@model AtlasNOC.Application.Dtos.TopologyGraphDto
+@{
+    ViewData["Title"] = "Topología";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Topología</h1>
+    <span class="text-secondary small">@Model.Nodes.Count nodos · @Model.Edges.Count enlaces confirmados · @Model.UnlinkedNodeCount sin relación</span>
+</div>
+
+<div id="cy" class="noc-card" style="height: 60vh;"></div>
+
+<p class="text-secondary small mt-2">La topología se construye con relaciones persistidas (LLDP/CDP/inalámbrico), nunca por proximidad visual.</p>
+
+@section Scripts {
+<script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<script>
+    const nodeData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Nodes));
+    const edgeData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Edges));
+
+    const elements = [
+        ...nodeData.map(n => ({ data: { id: n.id.toString(), label: n.label, status: n.status } })),
+        ...edgeData.map(e => ({ data: { id: e.id.toString(), source: e.source.toString(), target: e.target.toString() } }))
+    ];
+
+    const statusColor = s => s === 1 ? '#2ea043' : s === 2 ? '#f85149' : '#8b949e';
+
+    const cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements,
+        style: [
+            { selector: 'node', style: {
+                'label': 'data(label)',
+                'background-color': node => statusColor(node.data('status')),
+                'color': '#e6edf3',
+                'text-valign': 'center', 'text-halign': 'center',
+                'font-size': '10px',
+                'text-wrap': 'ellipsis', 'text-max-width': '80px'
+            }},
+            { selector: 'edge', style: {
+                'width': 1.5, 'line-color': '#58a6ff',
+                'target-arrow-color': '#58a6ff', 'target-arrow-shape': 'triangle'
+            }}
+        ],
+        layout: elementData.length ? { name: 'cose', padding: 20 } : { name: 'grid' }
+    });
+</script>
+}

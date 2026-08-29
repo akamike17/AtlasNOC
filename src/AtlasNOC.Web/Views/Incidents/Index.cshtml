@@ -1,0 +1,36 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.IncidentDto>
+@{
+    ViewData["Title"] = "Incidentes";
+}
+
+<h1 class="h4 mb-3">Incidentes</h1>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Título</th><th>Estado</th><th>Causa raíz</th><th>Creado</th><th></th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="5" class="text-secondary">Sin incidentes activos.</td></tr>
+        }
+        @foreach (var i in Model)
+        {
+            <tr>
+                <td>@i.Title</td>
+                <td>@((AtlasNOC.Domain.Enums.IncidentStatus)i.Status)</td>
+                <td>@(i.IsRootCauseCandidate ? "Sí" : "—")</td>
+                <td>@i.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                <td>
+                    @if (i.Status < 3)
+                    {
+                        <form asp-action="Resolve" method="post">
+                            <input type="hidden" name="id" value="@i.Id" />
+                            <button class="btn btn-outline-success btn-sm">Resolver</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

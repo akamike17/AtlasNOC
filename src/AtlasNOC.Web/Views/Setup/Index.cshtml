@@ -1,0 +1,36 @@
+@model AtlasNOC.Application.Dtos.SetupRequest
+@{
+    ViewData["Title"] = "Configuración inicial";
+    Layout = "_AuthLayout";
+}
+
+<div class="noc-card">
+    <h1 class="h4 mb-3">Configuración inicial</h1>
+    <p class="text-secondary small">Primer arranque: crea tu organización WISP y el usuario administrador.</p>
+
+    <div asp-validation-summary="All" class="text-danger small"></div>
+
+    <form asp-action="Index" method="post">
+        <div class="mb-3">
+            <label class="form-label" asp-for="WispName">Nombre del WISP</label>
+            <input class="form-control bg-dark text-light" asp-for="WispName" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" asp-for="AdminUserName">Usuario administrador</label>
+            <input class="form-control bg-dark text-light" asp-for="AdminUserName" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" asp-for="AdminDisplayName">Nombre completo</label>
+            <input class="form-control bg-dark text-light" asp-for="AdminDisplayName" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" asp-for="Password">Contraseña</label>
+            <input class="form-control bg-dark text-light" asp-for="Password" type="password" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" asp-for="ConfirmPassword">Confirmar contraseña</label>
+            <input class="form-control bg-dark text-light" asp-for="ConfirmPassword" type="password" />
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Crear y continuar</button>
+    </form>
+</div>

@@ -1,0 +1,68 @@
+using AtlasNOC.Application.Devices;
+using AtlasNOC.Application.Probes;
+using AtlasNOC.Application.Repositories;
+using AtlasNOC.Application.Services;
+using AtlasNOC.Infrastructure.Devices;
+using AtlasNOC.Infrastructure.Persistence;
+using AtlasNOC.Infrastructure.Persistence.Repositories;
+using AtlasNOC.Infrastructure.Probes;
+using AtlasNOC.Infrastructure.Security;
+using AtlasNOC.Infrastructure.Services;
+using AtlasNOC.Infrastructure.Workers;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace AtlasNOC.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    {
+        // Persistence
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<ISiteRepository, SiteRepository>();
+        services.AddScoped<ILinkRepository, LinkRepository>();
+        services.AddScoped<IInterfaceRepository, InterfaceRepository>();
+        services.AddScoped<IMetricRepository, MetricRepository>();
+        services.AddScoped<IAlertRepository, AlertRepository>();
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddScoped<ICredentialRepository, CredentialRepository>();
+        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+        services.AddScoped<IDiscoveryRunRepository, DiscoveryRunRepository>();
+        services.AddScoped<INeighborObservationRepository, NeighborObservationRepository>();
+        services.AddScoped<IAuditRepository, AuditRepository>();
+
+        // Security
+        services.AddScoped<ICredentialProtector, CredentialProtector>();
+
+        // Probes / drivers
+        services.AddSingleton<IIcmpProbe, IcmpProbe>();
+        services.AddSingleton<ISnmpProbe, SnmpProbe>();
+        services.AddSingleton<IDeviceDriver, SimulatedNetworkDriver>();
+        services.AddSingleton<IDeviceDriver, GenericSnmpDriver>();
+        services.AddSingleton<IDeviceDriverRegistry, DeviceDriverRegistry>();
+
+        // Application services
+        services.AddScoped<ISetupService, SetupService>();
+        services.AddScoped<IUserAdministrationService, UserAdministrationService>();
+        services.AddScoped<ISiteService, SiteService>();
+        services.AddScoped<IDeviceService, DeviceService>();
+        services.AddScoped<ILinkService, LinkService>();
+        services.AddScoped<ITopologyService, TopologyService>();
+        services.AddScoped<IDiscoveryService, DiscoveryService>();
+        services.AddScoped<IPollingService, PollingService>();
+        services.AddScoped<IMetricWriter, MetricWriter>();
+        services.AddScoped<IMetricQueryService, MetricQueryService>();
+        services.AddScoped<IAlertService, AlertService>();
+        services.AddScoped<IIncidentService, IncidentService>();
+        services.AddScoped<IApiKeyService, ApiKeyService>();
+        services.AddScoped<ICredentialService, CredentialService>();
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<ISystemHealthService, SystemHealthService>();
+
+        // Workers (register as hosted services where the host chooses)
+        services.AddHostedService<PollingWorker>();
+
+        return services;
+    }
+}

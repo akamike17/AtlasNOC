@@ -1,0 +1,10 @@
+body.noc-body { background-color: #0d1117; color: #e6edf3; min-height: 100vh; }
+.noc-nav { border-bottom: 1px solid #30363d; }
+a { color: #58a6ff; }
+.noc-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 1.5rem; }
+.noc-auth { display: flex; align-items: center; justify-content: center; }
+.noc-auth-card { max-width: 420px; width: 100%; }
+.noc-auth-card .noc-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 1.75rem; }
+.badge.bg-up { background-color: #2ea043; }
+.badge.bg-down { background-color: #f85149; }
+.badge.bg-unknown { background-color: #8b949e; }

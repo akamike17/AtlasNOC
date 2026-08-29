@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — AtlasNOC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
+</head>
+<body class="noc-body">
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark noc-nav">
+        <div class="container-fluid">
+            <a class="navbar-brand" asp-controller="Dashboard" asp-action="Index">AtlasNOC</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="nav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" asp-controller="Dashboard" asp-action="Index">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="Sites" asp-action="Index">Sitios</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="Devices" asp-action="Index">Dispositivos</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="Topology" asp-action="Index">Topología</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="Alerts" asp-action="Index">Alertas</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="Incidents" asp-action="Index">Incidentes</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item"><span class="navbar-text me-3">@User.Identity?.Name</span></li>
+                    <li class="nav-item">
+                        <form asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="btn btn-outline-light btn-sm">Salir</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+}
+<main class="container-fluid py-3">
+    @RenderBody()
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

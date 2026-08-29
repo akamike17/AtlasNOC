@@ -1,0 +1,35 @@
+@model AtlasNOC.Application.Dtos.SystemHealthDto
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">Dashboard</h1>
+    <a asp-controller="Sites" asp-action="Create" class="btn btn-primary btn-sm">Agregar sitio</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="noc-card">
+            <div class="text-secondary small">Dispositivos</div>
+            <div class="display-6">@Model.DeviceCount</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="noc-card">
+            <div class="text-secondary small">Alertas abiertas</div>
+            <div class="display-6">@Model.OpenAlertCount</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="noc-card">
+            <div class="text-secondary small">Base de datos</div>
+            <div class="display-6">
+                @if (Model.DatabaseOk) { <span class="badge bg-up">OK</span> }
+                else { <span class="badge bg-down">ERROR</span> }
+            </div>
+        </div>
+    </div>
+</div>
+
+<p class="text-secondary small mt-4">Agrega un sitio y descubre tu red para comenzar a construir la topología.</p>

@@ -1,0 +1,45 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.AlertDto>
+@{
+    ViewData["Title"] = "Alertas";
+}
+
+<h1 class="h4 mb-3">Alertas</h1>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Recurso</th><th>Métrica</th><th>Valor</th><th>Umbral</th><th>Severidad</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="7" class="text-secondary">Sin alertas abiertas.</td></tr>
+        }
+        @foreach (var a in Model)
+        {
+            <tr>
+                <td>@a.ResourceType/@a.ResourceId</td>
+                <td>@a.MetricName</td>
+                <td>@a.Value</td>
+                <td>@a.Threshold</td>
+                <td>@((AtlasNOC.Domain.Enums.AlertSeverity)a.Severity)</td>
+                <td>@((AtlasNOC.Domain.Enums.AlertState)a.State)</td>
+                <td>
+                    @if (a.State == 0)
+                    {
+                        <form asp-action="Acknowledge" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="@a.Id" />
+                            <button class="btn btn-outline-light btn-sm">Reconocer</button>
+                        </form>
+                    }
+                    @if (a.State != 2)
+                    {
+                        <form asp-action="Resolve" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="@a.Id" />
+                            <button class="btn btn-outline-success btn-sm">Resolver</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

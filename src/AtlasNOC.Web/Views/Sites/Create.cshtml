@@ -1,0 +1,45 @@
+@model AtlasNOC.Application.Dtos.CreateSiteRequest
+@{
+    ViewData["Title"] = "Nuevo sitio";
+}
+
+<div class="noc-card" style="max-width:560px">
+    <h1 class="h5 mb-3">Nuevo sitio</h1>
+    <form asp-action="Create" method="post">
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input class="form-control bg-dark text-light" asp-for="Name" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Código</label>
+            <input class="form-control bg-dark text-light" asp-for="Code" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-select bg-dark text-light" asp-for="SiteType">
+                <option value="1">Torre</option>
+                <option value="0">POP</option>
+                <option value="2">DataCenter</option>
+                <option value="3">Gabinete</option>
+                <option value="4">Nodo remoto</option>
+                <option value="5">Oficina</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Dirección</label>
+            <input class="form-control bg-dark text-light" asp-for="Address" />
+        </div>
+        <div class="row">
+            <div class="col mb-3">
+                <label class="form-label">Latitud</label>
+                <input class="form-control bg-dark text-light" asp-for="Latitude" type="number" step="any" />
+            </div>
+            <div class="col mb-3">
+                <label class="form-label">Longitud</label>
+                <input class="form-control bg-dark text-light" asp-for="Longitude" type="number" step="any" />
+            </div>
+        </div>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+</div>

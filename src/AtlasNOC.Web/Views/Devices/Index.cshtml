@@ -1,0 +1,32 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.DeviceDto>
+@{
+    ViewData["Title"] = "Dispositivos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Dispositivos</h1>
+    <a asp-action="Create" class="btn btn-primary btn-sm">Nuevo dispositivo</a>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Hostname</th><th>IP</th><th>Tipo</th><th>Estado</th><th>Última vez visto</th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="5" class="text-secondary">Sin dispositivos. Usa Descubrimiento para encontrarlos.</td></tr>
+        }
+        @foreach (var d in Model)
+        {
+            var badge = d.Status == 1 ? "bg-up" : d.Status == 2 ? "bg-down" : "bg-unknown";
+            <tr>
+                <td><a asp-action="Detail" asp-route-id="@d.Id">@d.Hostname</a></td>
+                <td>@d.ManagementIp</td>
+                <td>@((AtlasNOC.Domain.Enums.DeviceType)d.DeviceType)</td>
+                <td><span class="badge @badge">@((AtlasNOC.Domain.Enums.DeviceStatus)d.Status)</span></td>
+                <td>@(d.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "—")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

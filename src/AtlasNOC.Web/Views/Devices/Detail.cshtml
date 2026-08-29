@@ -1,0 +1,24 @@
+@model AtlasNOC.Application.Dtos.DeviceDto
+@{
+    ViewData["Title"] = "Dispositivo — " + Model.Hostname;
+    var status = (AtlasNOC.Domain.Enums.DeviceStatus)Model.Status;
+    var badge = Model.Status == 1 ? "bg-up" : Model.Status == 2 ? "bg-down" : "bg-unknown";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">@Model.Hostname</h1>
+    <span class="badge @badge">@status</span>
+</div>
+
+<div class="noc-card mb-3">
+    <dl class="row mb-0">
+        <dt class="col-sm-2">IP gestión</dt><dd class="col-sm-10">@Model.ManagementIp</dd>
+        <dt class="col-sm-2">Tipo</dt><dd class="col-sm-10">@((AtlasNOC.Domain.Enums.DeviceType)Model.DeviceType)</dd>
+        <dt class="col-sm-2">Vendor</dt><dd class="col-sm-10">@((AtlasNOC.Domain.Enums.Vendor)Model.Vendor)</dd>
+        <dt class="col-sm-2">Modelo</dt><dd class="col-sm-10">@(Model.Model ?? "—")</dd>
+        <dt class="col-sm-2">Última vez visto</dt><dd class="col-sm-10">@(Model.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
+        <dt class="col-sm-2">Gestionado</dt><dd class="col-sm-10">@(Model.IsManaged ? "Sí" : "No")</dd>
+    </dl>
+</div>
+
+<a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>

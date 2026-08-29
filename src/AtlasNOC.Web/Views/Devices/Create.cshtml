@@ -1,0 +1,45 @@
+@model AtlasNOC.Application.Dtos.CreateDeviceRequest
+@{
+    ViewData["Title"] = "Nuevo dispositivo";
+}
+
+<div class="noc-card" style="max-width:560px">
+    <h1 class="h5 mb-3">Nuevo dispositivo</h1>
+    <form asp-action="Create" method="post">
+        <div class="mb-3">
+            <label class="form-label">Hostname</label>
+            <input class="form-control bg-dark text-light" asp-for="Hostname" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">IP de gestión</label>
+            <input class="form-control bg-dark text-light" asp-for="ManagementIp" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-select bg-dark text-light" asp-for="DeviceType">
+                <option value="1">Router</option>
+                <option value="2">Switch</option>
+                <option value="4">Core</option>
+                <option value="5">Distribución</option>
+                <option value="6">AP</option>
+                <option value="7">Backhaul</option>
+                <option value="8">CPE</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Vendor</label>
+            <select class="form-select bg-dark text-light" asp-for="Vendor">
+                <option value="1">MikroTik</option>
+                <option value="2">Ubiquiti</option>
+                <option value="3">Cisco</option>
+                <option value="99">Genérico</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Modelo</label>
+            <input class="form-control bg-dark text-light" asp-for="Model" />
+        </div>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+</div>
