@@ -1,10 +1,12 @@
 using System;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
@@ -76,6 +78,39 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "ConnectionStrings:DefaultConnection is not configured. " +
         "Add it to appsettings.json, environment variables, or user secrets.");
 }
+
+// ─── Reverse Proxy / Forwarded Headers ─────────────────────────────────────────
+var knownProxyValues = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()
+    ?.Where(value => !string.IsNullOrWhiteSpace(value))
+    .Select(value => value.Trim())
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray()
+    ?? Array.Empty<string>();
+
+if (!builder.Environment.IsDevelopment() && knownProxyValues.Length == 0)
+{
+    throw new InvalidOperationException(
+        "ForwardedHeaders:KnownProxies must contain at least one trusted reverse-proxy IP outside Development.");
+}
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+
+    foreach (var proxyValue in knownProxyValues)
+    {
+        if (!IPAddress.TryParse(proxyValue, out var proxyAddress))
+        {
+            throw new InvalidOperationException(
+                $"ForwardedHeaders:KnownProxies contains invalid IP address '{proxyValue}'.");
+        }
+
+        options.KnownProxies.Add(proxyAddress);
+    }
+});
 
 // ─── DbContext (MySQL via Pomelo) ──────────────────────────────────────────────
 builder.Services.AddDbContext<AtlasNOCDbContext>(options =>
@@ -437,6 +472,9 @@ if (builder.Configuration.GetValue<bool>("AtlasNoc:ApplyMigrationsOnStartup"))
     }
 }
 
+// Forwarded headers must run before logging, HTTPS redirection and rate limiting.
+app.UseForwardedHeaders();
+
 // ─── Global Error Handling Middleware ──────────────────────────────────────────
 app.Use(async (context, next) =>
 {
@@ -521,6 +559,7 @@ app.UseSerilogRequestLogging(options =>
     {
         diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value!);
         diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+        diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString());
         diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.FirstOrDefault());
     };
 });
