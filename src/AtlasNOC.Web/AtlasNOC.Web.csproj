@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AtlasNOC.Web</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AtlasNOC.Application\AtlasNOC.Application.csproj" />
+    <ProjectReference Include="..\AtlasNOC.Infrastructure\AtlasNOC.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

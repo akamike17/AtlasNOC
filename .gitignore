@@ -1,0 +1,50 @@
+# Build output
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+
+# NuGet
+*.nupkg
+packages/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+appsettings.*.json
+!appsettings.json
+!appsettings.Example.json
+secrets.json
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Node (Playwright / frontend tooling)
+node_modules/
+playwright-report/
+test-results/
+
+# OS
+.DS_Store
+Thumbs.db
