@@ -17,6 +17,7 @@ services:
       - AtlasNoc__ApplyMigrationsOnStartup=true
       - DataProtection__CertificatePath=/run/secrets/atlasnoc-dataprotection.pfx
       - DataProtection__CertificatePassword=${DATA_PROTECTION_CERTIFICATE_PASSWORD}
+      - ForwardedHeaders__KnownProxies__0=172.28.0.10
       - Serilog__MinimumLevel__Default=Information
       - Serilog__WriteTo__Seq__ServerUrl=http://seq:5341
       - OpenTelemetry__Endpoint=http://otel-collector:4317
@@ -146,11 +147,15 @@ services:
     depends_on:
       - atlasnoc
     networks:
-      - atlasnoc-network
+      atlasnoc-network:
+        ipv4_address: 172.28.0.10
 
 networks:
   atlasnoc-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   mysql-data:
