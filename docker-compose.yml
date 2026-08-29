@@ -25,8 +25,8 @@ services:
       - Cors__AllowedOrigins__1=${CORS_ORIGIN_2}
     volumes:
       - ${DATA_PROTECTION_CERTIFICATE_PATH}:/run/secrets/atlasnoc-dataprotection.pfx:ro
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -55,8 +55,8 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     volumes:
       - mysql-data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    expose:
+      - "3306"
     networks:
       - atlasnoc-network
     healthcheck:
@@ -84,8 +84,8 @@ services:
     command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
       - redis-data:/data
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     networks:
       - atlasnoc-network
     healthcheck:
@@ -111,10 +111,10 @@ services:
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "8888:8888"
+    expose:
+      - "4317"
+      - "4318"
+      - "8888"
     networks:
       - atlasnoc-network
 
@@ -128,8 +128,8 @@ services:
       - SEQ_API_CANONICALURI=http://seq:5341
     volumes:
       - seq-data:/data
-    ports:
-      - "5341:80"
+    expose:
+      - "80"
     networks:
       - atlasnoc-network
 
