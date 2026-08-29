@@ -1,0 +1,137 @@
+name: AtlasNOC Night Agent Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch created from the product baseline
+        required: true
+        default: audit-night-8f3838d
+  schedule:
+    - cron: '15 8 * * *'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: atlasnoc-night-agent-audit
+  cancel-in-progress: false
+
+jobs:
+  delegate-full-audit:
+    name: Delegate full product audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve audit branch
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "branch=${{ inputs.base_branch }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=audit-night-8f3838d" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Load audit contract from baseline branch
+        id: prompt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/contents/AUDIT_AGENT_PROMPT.md?ref=${AUDIT_BRANCH}" \
+            --jq '.content' | tr -d '\n' | base64 --decode > audit-body.md
+          test -s audit-body.md
+          echo "Loaded $(wc -c < audit-body.md) bytes of audit instructions from ${AUDIT_BRANCH}."
+
+      - name: Avoid duplicate active audit
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TITLE="AtlasNOC overnight full-product audit — ${AUDIT_BRANCH}"
+          NUMBER=$(gh api "/repos/${GITHUB_REPOSITORY}/issues?state=open&per_page=100" \
+            --jq ".[] | select(.pull_request == null and .title == \"${TITLE}\") | .number" | head -n 1 || true)
+          if [ -n "$NUMBER" ]; then
+            echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "Reusing open audit issue #$NUMBER"
+          else
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create audit issue
+        if: steps.existing.outputs.created == 'true'
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TITLE="AtlasNOC overnight full-product audit — ${AUDIT_BRANCH}"
+          jq -n \
+            --arg title "$TITLE" \
+            --rawfile body audit-body.md \
+            '{title:$title, body:$body}' > issue.json
+          NUMBER=$(gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues" \
+            --input issue.json --jq '.number')
+          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Created audit issue #$NUMBER"
+
+      - name: Select issue number
+        id: issue
+        shell: bash
+        run: |
+          if [ "${{ steps.existing.outputs.created }}" = "true" ]; then
+            echo "number=${{ steps.create.outputs.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ steps.existing.outputs.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Assign GitHub cloud coding agent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg branch "$AUDIT_BRANCH" \
+            '{
+              assignees:["copilot-swe-agent[bot]"],
+              agent_assignment:{
+                target_repo:$repo,
+                base_branch:$branch,
+                custom_instructions:"Read AUDIT_AGENT_PROMPT.md in the base branch first. Execute the full audit contract autonomously. Continue from checkpoints; do not restart completed work. Fix safe defects, add regression tests, commit verified checkpoints, and leave AUDIT_REPORT.md plus AUDIT_CHECKPOINT.md.",
+                custom_agent:"",
+                model:""
+              }
+            }' > assign.json
+          gh api --method POST "/repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/assignees" \
+            --input assign.json
+          echo "Delegated issue #${ISSUE_NUMBER} to the GitHub cloud coding agent on ${AUDIT_BRANCH}."
+
+      - name: Summary
+        env:
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+          AUDIT_BRANCH: ${{ steps.vars.outputs.branch }}
+        shell: bash
+        run: |
+          {
+            echo "## AtlasNOC Night Agent Audit"
+            echo ""
+            echo "- Product baseline: \`8f3838daa94e6965c4306305e76512daa95f5299\`"
+            echo "- Audit branch: \`${AUDIT_BRANCH}\`"
+            echo "- Audit issue: #${ISSUE_NUMBER}"
+            echo "- Contract: \`AUDIT_AGENT_PROMPT.md\`"
+            echo "- Expected outputs: \`AUDIT_REPORT.md\`, \`AUDIT_CHECKPOINT.md\`, verified commits and agent PR"
+          } >> "$GITHUB_STEP_SUMMARY"
