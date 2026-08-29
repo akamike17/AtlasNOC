@@ -21,11 +21,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore AtlasNOC.slnx
       - name: Check Format
-        run: dotnet format --no-restore --verify-no-changes
+        run: dotnet format AtlasNOC.slnx --no-restore --verify-no-changes
       - name: Run Analyzers
-        run: dotnet build --no-restore -c Release -warnaserror
+        run: dotnet build AtlasNOC.slnx --no-restore -c Release -warnaserror
 
   test:
     name: Unit Tests
@@ -37,11 +37,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore AtlasNOC.slnx
       - name: Build
-        run: dotnet build --no-restore -c Release -warnaserror
+        run: dotnet build AtlasNOC.slnx --no-restore -c Release -warnaserror
       - name: Test
-        run: dotnet test --no-build -c Release --collect:"XPlat Code Coverage" --logger trx
+        run: dotnet test AtlasNOC.slnx --no-build -c Release --collect:"XPlat Code Coverage" --logger trx
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
         with:
@@ -61,7 +61,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore AtlasNOC.slnx
       - name: Audit NuGet packages
         run: dotnet list AtlasNOC.csproj package --vulnerable --include-transitive
       - name: Run Trivy
