@@ -15,11 +15,15 @@ services:
       - ConnectionStrings__Redis=redis:6379
       - AtlasNoc__RequireHttps=false
       - AtlasNoc__ApplyMigrationsOnStartup=true
+      - DataProtection__CertificatePath=/run/secrets/atlasnoc-dataprotection.pfx
+      - DataProtection__CertificatePassword=${DATA_PROTECTION_CERTIFICATE_PASSWORD}
       - Serilog__MinimumLevel__Default=Information
       - Serilog__WriteTo__Seq__ServerUrl=http://seq:5341
       - OpenTelemetry__Endpoint=http://otel-collector:4317
-      - Cors__AllowedOrigins__0=https://your-domain.com
-      - Cors__AllowedOrigins__1=https://admin.your-domain.com
+      - Cors__AllowedOrigins__0=${CORS_ORIGIN_1}
+      - Cors__AllowedOrigins__1=${CORS_ORIGIN_2}
+    volumes:
+      - ${DATA_PROTECTION_CERTIFICATE_PATH}:/run/secrets/atlasnoc-dataprotection.pfx:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -105,9 +109,9 @@ services:
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8888:8888"   # Prometheus metrics
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
     networks:
       - atlasnoc-network
 
