@@ -12,7 +12,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=atlasnoc;User=atlasnoc;Password=${MYSQL_PASSWORD}
-      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD},abortConnect=False,connectTimeout=5000,syncTimeout=5000
       - AtlasNoc__RequireHttps=false
       - AtlasNoc__ApplyMigrationsOnStartup=true
       - DataProtection__CertificatePath=/run/secrets/atlasnoc-dataprotection.pfx
@@ -78,7 +78,9 @@ services:
     image: redis:7-alpine
     container_name: atlasnoc-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
       - redis-data:/data
     ports:
@@ -86,7 +88,7 @@ services:
     networks:
       - atlasnoc-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
