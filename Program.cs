@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
@@ -114,6 +115,28 @@ if (OperatingSystem.IsWindows())
 {
     dataProtection.ProtectKeysWithDpapi(protectToLocalMachine: true);
 }
+else if (!builder.Environment.IsDevelopment())
+{
+    var certificatePath = builder.Configuration["DataProtection:CertificatePath"];
+    var certificatePassword = builder.Configuration["DataProtection:CertificatePassword"];
+    if (string.IsNullOrWhiteSpace(certificatePath) || string.IsNullOrWhiteSpace(certificatePassword))
+    {
+        throw new InvalidOperationException(
+            "Production on non-Windows hosts requires DataProtection:CertificatePath and DataProtection:CertificatePassword so persisted keys are encrypted at rest.");
+    }
+
+    var certificate = new X509Certificate2(
+        certificatePath,
+        certificatePassword,
+        X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.Exportable);
+    if (!certificate.HasPrivateKey)
+    {
+        certificate.Dispose();
+        throw new InvalidOperationException("The configured Data Protection certificate does not contain a private key.");
+    }
+
+    dataProtection.ProtectKeysWithCertificate(certificate);
+}
 
 // ─── HTTP Client for CVE Fetcher ──────────────────────────────────────────────
 builder.Services.AddHttpClient("NvdCve", client =>
@@ -220,38 +243,60 @@ if (!string.IsNullOrWhiteSpace(redisConnection))
 }
 
 // ─── OpenTelemetry ─────────────────────────────────────────────────────────────
-var otelEndpoint = builder.Configuration["OpenTelemetry:Endpoint"]
-    ?? builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
-    ?? "http://localhost:4317";
+var otelEndpointValue = builder.Configuration["OpenTelemetry:Endpoint"]
+    ?? builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+Uri? otelEndpoint = null;
+if (!string.IsNullOrWhiteSpace(otelEndpointValue)
+    && (!Uri.TryCreate(otelEndpointValue, UriKind.Absolute, out otelEndpoint)
+        || (otelEndpoint.Scheme != Uri.UriSchemeHttp && otelEndpoint.Scheme != Uri.UriSchemeHttps)))
+{
+    throw new InvalidOperationException("OpenTelemetry endpoint must be an absolute HTTP or HTTPS URI.");
+}
 
 var serviceName = builder.Configuration["OpenTelemetry:ServiceName"]
     ?? Assembly.GetExecutingAssembly().GetName().Name
     ?? "AtlasNOC";
 
-builder.Services.AddOpenTelemetry()
+var openTelemetry = builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
         .AddService(serviceName: serviceName, serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0")
         .AddAttributes(new Dictionary<string, object>
         {
             ["deployment.environment"] = builder.Environment.EnvironmentName,
             ["service.namespace"] = "AtlasNOC"
-        }))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation(options =>
+        }));
+
+openTelemetry.WithTracing(tracing =>
+{
+    tracing.AddAspNetCoreInstrumentation(options =>
         {
             options.RecordException = true;
-            options.Filter = (httpContext) => !httpContext.Request.Path.StartsWithSegments("/health");
+            options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health");
         })
         .AddHttpClientInstrumentation()
         .AddEntityFrameworkCoreInstrumentation()
-        .AddSource("AtlasNOC")
-        .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)))
-    .WithMetrics(metrics => metrics
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)))
-    .WithLogging(logging => logging
-        .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)));
+        .AddSource("AtlasNOC");
+    if (otelEndpoint is not null)
+    {
+        tracing.AddOtlpExporter(options => options.Endpoint = otelEndpoint);
+    }
+});
+
+openTelemetry.WithMetrics(metrics =>
+{
+    metrics.AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation();
+    if (otelEndpoint is not null)
+    {
+        metrics.AddOtlpExporter(options => options.Endpoint = otelEndpoint);
+    }
+});
+
+if (otelEndpoint is not null)
+{
+    openTelemetry.WithLogging(logging =>
+        logging.AddOtlpExporter(options => options.Endpoint = otelEndpoint));
+}
 
 // ─── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IRepository<Device>, EfCoreRepository<Device>>();
@@ -337,13 +382,24 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // ─── CORS ──────────────────────────────────────────────────────────────────────
+var productionAllowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim().TrimEnd('/'))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray()
+    ?? Array.Empty<string>();
+
+if (!builder.Environment.IsDevelopment() && productionAllowedOrigins.Length == 0)
+{
+    throw new InvalidOperationException(
+        "Cors:AllowedOrigins must contain at least one explicit origin outside Development.");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Production", policy =>
     {
-        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? new[] { "https://localhost:3000", "https://atlasnoc.example.com" };
-        policy.WithOrigins(allowedOrigins)
+        policy.WithOrigins(productionAllowedOrigins)
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()
