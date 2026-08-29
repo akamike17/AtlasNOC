@@ -1,0 +1,37 @@
+@model AtlasNOC.Application.Dtos.StartDiscoveryRequest
+@{
+    ViewData["Title"] = "Nuevo descubrimiento";
+}
+
+<div class="noc-card" style="max-width:560px">
+    <h1 class="h5 mb-3">Nuevo descubrimiento</h1>
+    <p class="text-secondary small">Alcance en CIDR (ej. 10.0.1.0/24) o lista de IPs separadas por coma.</p>
+    <form asp-action="Start" method="post">
+        <div class="mb-3">
+            <label class="form-label">Alcance (CIDR / IPs)</label>
+            <input class="form-control bg-dark text-light" asp-for="ScopeIp" placeholder="10.0.1.0/24" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Sitio objetivo</label>
+            <select class="form-select bg-dark text-light" asp-for="SiteId">
+                <option value="">— (sin sitio) —</option>
+                @foreach (var s in (IReadOnlyList<AtlasNOC.Application.Dtos.SiteDto>)ViewBag.Sites)
+                {
+                    <option value="@s.Id">@s.Name</option>
+                }
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Credencial</label>
+            <select class="form-select bg-dark text-light" asp-for="CredentialId">
+                <option value="">— (default SNMP v2) —</option>
+                @foreach (var c in (IReadOnlyList<AtlasNOC.Application.Services.CredentialDto>)ViewBag.Credentials)
+                {
+                    <option value="@c.Id">@c.Name</option>
+                }
+            </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Iniciar</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+</div>

@@ -1,0 +1,15 @@
+# Normalize line endings: text files to LF in repo, native on checkout.
+* text=auto
+
+*.cs text eol=lf
+*.csproj text eol=lf
+*.cshtml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.props text eol=lf
+*.css text eol=lf
+*.sln text eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary

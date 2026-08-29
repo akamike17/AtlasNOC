@@ -1,0 +1,33 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.DiscoveryRunDto>
+@{
+    ViewData["Title"] = "Descubrimiento";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Descubrimiento</h1>
+    <a asp-action="Start" class="btn btn-primary btn-sm">Nuevo descubrimiento</a>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Alcance</th><th>Estado</th><th>Inicio</th><th>Encontrados</th><th>Nuevos</th><th>Enlaces</th><th>Fallos</th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="7" class="text-secondary">Sin ejecuciones. Inicia el primero.</td></tr>
+        }
+        @foreach (var r in Model)
+        {
+            <tr>
+                <td>@r.ScopeIp</td>
+                <td>@((AtlasNOC.Domain.Enums.DiscoveryRunStatus)r.Status)</td>
+                <td>@r.StartedAtUtc.ToLocalTime().ToString("g")</td>
+                <td>@r.FoundCount</td>
+                <td>@r.NewCount</td>
+                <td>@r.ConfirmedLinkCount</td>
+                <td>@r.FailureCount</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

@@ -50,6 +50,9 @@ public static class DependencyInjection
         services.AddScoped<ILinkService, LinkService>();
         services.AddScoped<ITopologyService, TopologyService>();
         services.AddScoped<IDiscoveryService, DiscoveryService>();
+        services.AddScoped<IDiscoveryExecutor, DiscoveryExecutor>();
+        services.AddScoped<INetworkFingerprintService, NetworkFingerprintService>();
+        services.AddScoped<ITopologyCorrelationEngine, TopologyCorrelationEngine>();
         services.AddScoped<IPollingService, PollingService>();
         services.AddScoped<IMetricWriter, MetricWriter>();
         services.AddScoped<IMetricQueryService, MetricQueryService>();
@@ -62,6 +65,7 @@ public static class DependencyInjection
 
         // Workers (register as hosted services where the host chooses)
         services.AddHostedService<PollingWorker>();
+        services.AddHostedService<DiscoveryWorker>();
 
         return services;
     }
