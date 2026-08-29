@@ -1,4 +1,4 @@
-name: AtlasNOC CI/CD
+name: AtlasNOC CI
 
 on:
   push:
@@ -11,7 +11,6 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ─── Code Quality ─────────────────────────────────────────────────────────────
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
@@ -21,12 +20,13 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore
       - name: Check Format
-        run: dotnet format --verify-no-changes
+        run: dotnet format --no-restore --verify-no-changes
       - name: Run Analyzers
-        run: dotnet build --no-restore -warnaserror
+        run: dotnet build --no-restore -c Release -warnaserror
 
-  # ─── Tests ────────────────────────────────────────────────────────────────────
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
       - name: Restore
         run: dotnet restore
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build --no-restore -c Release -warnaserror
       - name: Test
         run: dotnet test --no-build -c Release --collect:"XPlat Code Coverage" --logger trx
       - name: Upload Coverage
@@ -48,12 +48,22 @@ jobs:
           files: ./Tests/**/coverage.cobertura.xml
           fail_ci_if_error: false
 
-  # ─── Security Scan ────────────────────────────────────────────────────────────
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore
+      - name: Audit NuGet packages
+        run: dotnet list AtlasNOC.csproj package --vulnerable --include-transitive
       - name: Run Trivy
         uses: aquasecurity/trivy-action@master
         with:
@@ -61,12 +71,14 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
       - name: Upload SARIF
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # ─── Docker Build ────────────────────────────────────────────────────────────
   docker:
     name: Build & Push Docker Image
     needs: [lint, test, security]
@@ -104,33 +116,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ─── Deploy Staging ──────────────────────────────────────────────────────────
-  deploy-staging:
-    name: Deploy to Staging
-    needs: docker
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - name: Deploy to Staging
-        run: |
-          echo "Deploying to staging environment..."
-          # Add your staging deployment commands here
-          # kubectl apply -f k8s-staging.yaml
-          # or docker-compose -f docker-compose.yml -f docker-compose.staging.yml up -d
-
-  # ─── Deploy Production ───────────────────────────────────────────────────────
-  deploy-production:
-    name: Deploy to Production
-    needs: docker
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Deploy to Production
-        run: |
-          echo "Deploying to production environment..."
-          # Add your production deployment commands here
-          # kubectl apply -f k8s-production.yaml
-          # or docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d

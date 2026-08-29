@@ -19,6 +19,12 @@ TestResults/
 coverage/
 *.xml
 
+# ─── Smoke / Runtime Test Artifacts ───────────────────────────────────────────
+.*smoke*.out
+.*smoke*.err
+.smoke-run.out
+.smoke-run.err
+
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 logs/
 *.log

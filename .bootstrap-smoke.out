@@ -1,9 +1,0 @@
-[02:15:58 INF] Applying database migrations... {"SourceContext": "Program"}
-[02:15:59 INF] Database migrations applied successfully. {"SourceContext": "Program"}
-[02:15:59 WRN] Initial administrator API key created for smoke-admin. Remove AtlasNoc:BootstrapAdminApiKey from the environment and rotate the key after first login. {"SourceContext": "AtlasNOC"}
-[02:15:59 INF] Polling hosted service starting {"SourceContext": "AtlasNOC.Domain.Services.PollingHostedService"}
-[02:15:59 INF] Notification hosted service starting {"SourceContext": "AtlasNOC.Domain.Services.NotificationHostedService"}
-[02:15:59 INF] CVE Background Service started. Fetch interval: 1.00:00:00 {"SourceContext": "AtlasNOC.Services.CveBackgroundService"}
-[02:16:06 INF] HTTP GET /health/ready responded 200 in 42.6341 ms {"RequestHost": "127.0.0.1:5103", "RequestScheme": "http", "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.19045; es-MX) PowerShell/7.6.4", "SourceContext": "Serilog.AspNetCore.RequestLoggingMiddleware"}
-[02:16:06 INF] HTTP GET /api/apikeys responded 200 in 60.7839 ms {"RequestHost": "127.0.0.1:5103", "RequestScheme": "http", "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.19045; es-MX) PowerShell/7.6.4", "SourceContext": "Serilog.AspNetCore.RequestLoggingMiddleware"}
-[02:16:06 INF] HTTP GET /api/devices responded 200 in 30.4285 ms {"RequestHost": "127.0.0.1:5103", "RequestScheme": "http", "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.19045; es-MX) PowerShell/7.6.4", "SourceContext": "Serilog.AspNetCore.RequestLoggingMiddleware"}
