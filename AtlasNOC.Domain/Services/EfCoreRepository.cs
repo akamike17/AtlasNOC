@@ -23,9 +23,21 @@ public class EfCoreRepository<T> : IRepository<T> where T : class
     }
 
     public async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
-    }
+        {
+            // Resolve the primary key to the entity's CLR key type. Entities whose key is a
+            // value object (DeviceId, AlertId, CredentialId) store a Guid via a value
+            // converter; FindAsync requires the model type (e.g. DeviceId), not the Guid.
+            object? keyValue = id;
+            var entityType = _dbContext.Model.FindEntityType(typeof(T));
+            var keyProperty = entityType?.FindPrimaryKey()?.Properties.FirstOrDefault();
+            var converter = keyProperty?.GetValueConverter();
+            if (converter is not null)
+            {
+                keyValue = converter.ConvertFromProvider(id);
+            }
+
+            return await _dbSet.FindAsync(new[] { keyValue }, cancellationToken);
+        }
 
     public async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {

@@ -1,0 +1,67 @@
+@{
+    ViewData["Title"] = "Salud del sistema";
+    ViewData["Nav"] = "Health";
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">Salud y diagnóstico</h2>
+    <button type="button" id="healthRefresh" class="noc-btn noc-btn-sm">Refrescar</button>
+</div>
+
+<div class="noc-stat-grid">
+    <div class="noc-stat"><div class="noc-stat-label">Aplicación (live)</div><div class="noc-stat-value" id="hLive">…</div></div>
+    <div class="noc-stat"><div class="noc-stat-label">Dependencias (ready)</div><div class="noc-stat-value" id="hReady">…</div></div>
+    <div class="noc-stat"><div class="noc-stat-label">Timestamp</div><div class="noc-stat-value" style="font-size:15px;" id="hTime">—</div></div>
+</div>
+
+<div class="noc-card">
+    <h2>Checks</h2>
+    <div id="healthTable"><div class="noc-spinner"></div></div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            function badgeClass(s) { return s === 'Healthy' ? 'Success' : s === 'Unhealthy' ? 'Danger' : 'Warning'; }
+            function render(el, txt, cls) {
+                el.textContent = txt;
+                el.className = 'noc-stat-value';
+                if (cls) {
+                    el.style.color = cls === 'Success' ? 'var(--noc-green)' : cls === 'Danger' ? 'var(--noc-red)' : 'var(--noc-yellow)';
+                }
+            }
+            function loadHealth() {
+                Promise.all([
+                    window.AtlasNoc.request('/health/live', {}, { showError: false, timeoutMs: 15000 }).then(function (r) { return r.json(); }),
+                    window.AtlasNoc.request('/health/ready', {}, { showError: false, timeoutMs: 15000 }).then(function (r) { return r.json(); })
+                ]).then(function (results) {
+                    var live = results[0], ready = results[1];
+                    render(document.getElementById('hLive'), live.status || '—', badgeClass(live.status));
+                    render(document.getElementById('hReady'), ready.status || '—', badgeClass(ready.status));
+                    document.getElementById('hTime').textContent = new Date().toLocaleTimeString();
+
+                    var checks = ready.checks || [];
+                    var html = '<div class="noc-table-wrap"><table class="noc-table"><thead><tr><th>Servicio</th><th>Estado</th><th>Descripción</th><th>Duración</th></tr></thead><tbody>';
+                    checks.forEach(function (c) {
+                        html += '<tr><td>' + window.AtlasNoc.escape(c.name || '') + '</td>' +
+                            '<td><span class="noc-badge ' + badgeClass(c.status) + '">' + window.AtlasNoc.escape(c.status || '') + '</span></td>' +
+                            '<td>' + window.AtlasNoc.escape(c.description || '—') + '</td>' +
+                            '<td>' + window.AtlasNoc.escape(c.duration || '') + '</td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    var container = document.getElementById('healthTable');
+                    if (!checks.length) { container.innerHTML = '<div class="noc-empty">Sin checks.</div>'; }
+                    else { container.innerHTML = html; }
+                }).catch(function () {
+                    render(document.getElementById('hLive'), 'Error', 'Danger');
+                    render(document.getElementById('hReady'), 'Error', 'Danger');
+                    document.getElementById('healthTable').innerHTML = '<div class="noc-empty">No se pudo consultar el estado de salud.</div>';
+                });
+            }
+            loadHealth();
+            var btn = document.getElementById('healthRefresh');
+            if (btn) btn.addEventListener('click', loadHealth);
+            window.setInterval(loadHealth, 30000);
+        })();
+    </script>
+}

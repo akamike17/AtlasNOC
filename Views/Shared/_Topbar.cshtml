@@ -1,0 +1,22 @@
+@{
+    var name = User.Identity?.Name ?? "operador";
+    var role = User.FindFirstValue(System.Security.Claims.ClaimTypes.Role) ?? "—";
+    var title = ViewData["Title"] is string t ? t : "";
+}
+<header class="noc-topbar">
+    <div class="noc-topbar-left">
+        <button type="button" class="noc-icon-btn" id="sidebarToggle" aria-label="Alternar menú lateral">
+            <span aria-hidden="true">☰</span>
+        </button>
+        <h1 class="noc-topbar-title">@title</h1>
+    </div>
+    <div class="noc-topbar-right">
+        <span class="noc-topbar-user" title="Usuario de la sesión" id="nocCurrentUserName">@name</span>
+        <span class="noc-badge noc-badge-role">@role</span>
+        <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" asp-antiforgery="true" class="noc-inline-form">
+            <button type="submit" class="noc-icon-btn" title="Cerrar sesión" aria-label="Cerrar sesión">
+                <span aria-hidden="true">⏻</span>
+            </button>
+        </form>
+    </div>
+</header>

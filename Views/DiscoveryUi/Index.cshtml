@@ -1,0 +1,138 @@
+@model DiscoveryIndexVm
+@{
+    ViewData["Title"] = "Descubrimiento";
+    ViewData["Nav"] = "Discovery";
+    var canManage = User.IsInRole("Administrator") || User.IsInRole("NocOperator");
+}
+
+@if (TempData["DiscoveryMessage"] is string dm)
+{
+    <div class="noc-card" style="border-color:var(--noc-green);"><div style="color:var(--noc-green);">@dm</div></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="noc-card" style="border-color:var(--noc-red);"><div style="color:var(--noc-red);">@err</div></div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="noc-card">
+            <h2>Iniciar descubrimiento</h2>
+            @if (canManage)
+            {
+                <form asp-area="" asp-controller="DiscoveryUi" asp-action="Start" method="post" class="noc-form">
+                    <label for="SubnetCidr">Subred (CIDR)</label>
+                    <input type="text" id="SubnetCidr" name="SubnetCidr" placeholder="192.168.1.0/24" required />
+
+                    <label>Credenciales SNMP activas</label>
+                    @if (Model.Credentials.Count == 0)
+                    {
+                        <div class="text-secondary" style="font-size:13px;">No hay credenciales activas. <a asp-area="" asp-controller="Administration" asp-action="Credentials">Crear una</a> (administrador).</div>
+                    }
+                    else
+                    {
+                        <div style="max-height:160px; overflow:auto; border:1px solid var(--noc-border); padding:8px; border-radius:6px;">
+                            @foreach (var c in Model.Credentials)
+                            {
+                                <label style="font-weight:400;">
+                                    <input type="checkbox" name="CredentialIds" value="@c.Id.Value" style="width:auto; margin-right:6px;" />
+                                    @c.Name (v@((int)c.Version >= 2 ? "3" : "2c"))
+                                </label>
+                            }
+                        </div>
+                    }
+
+                    <label for="MaxConcurrency">Concurrencia máx.</label>
+                    <input type="number" id="MaxConcurrency" name="MaxConcurrency" value="50" min="1" max="256" />
+
+                    <label style="font-weight:400;"><input type="checkbox" name="EnableLldp" value="true" checked style="width:auto; margin-right:6px;" /> LLDP</label>
+                    <label style="font-weight:400;"><input type="checkbox" name="EnableCdp" value="true" checked style="width:auto; margin-right:6px;" /> CDP</label>
+                    <label style="font-weight:400;"><input type="checkbox" name="EnableArp" value="true" checked style="width:auto; margin-right:6px;" /> ARP</label>
+
+                    <div style="margin-top:14px;"><button type="submit" class="noc-btn noc-btn-primary">Iniciar escaneo</button></div>
+                </form>
+            }
+            else
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">⌖</div><p>Solo un operador o administrador puede iniciar descubrimientos.</p></div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="noc-card">
+            <h2>Historial de descubrimientos (@Model.Runs.Count)</h2>
+            @if (Model.Runs.Count == 0)
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">⌖</div><p>No hay descubrimientos ejecutados todavía.</p></div>
+            }
+            else
+            {
+                <div class="noc-table-wrap">
+                    <table class="noc-table">
+                        <thead><tr><th>Subred</th><th>Estado</th><th>Objetivos</th><th>Alcanzables</th><th>Inicio</th><th>Fin</th></tr></thead>
+                        <tbody>
+                            @foreach (var r in Model.Runs)
+                            {
+                                <tr>
+                                    <td class="mono">@r.SubnetCidr</td>
+                                    <td><span class="noc-badge">@UiDisplay.DiscoveryStatusText(r.Status)</span></td>
+                                    <td>@r.TargetsScanned</td>
+                                    <td>@r.TargetsReachable</td>
+                                    <td>@UiDisplay.FormatDateTime(r.StartedAt)</td>
+                                    <td>@(r.CompletedAt.HasValue ? UiDisplay.FormatDateTime(r.CompletedAt) : "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div class="noc-card">
+            <h2>Resultados del último descubrimiento (@Model.Discovered.Count)</h2>
+            @if (Model.Discovered.Count == 0)
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">◉</div><p>Sin resultados. Inicie un descubrimiento para revisar equipos antes de monitorearlos.</p></div>
+            }
+            else
+            {
+                <div class="noc-table-wrap">
+                    <table class="noc-table">
+                        <thead><tr><th>IP</th><th>Hostname</th><th>Vendor</th><th>Tipo</th><th>Evidencia</th><th>Estado</th></tr></thead>
+                        <tbody>
+                            @foreach (var d in Model.Discovered)
+                            {
+                                var monitored = Model.MonitoredIps.Contains(d.IpAddress);
+                                <tr>
+                                    <td class="mono">@d.IpAddress</td>
+                                    <td>@(d.Hostname ?? "—")</td>
+                                    <td>@(d.Vendor ?? "—")</td>
+                                    <td>@(d.DeviceType.HasValue ? UiDisplay.TypeText(d.DeviceType.Value) : "—")</td>
+                                    <td>
+                                        @if (d.Evidence.HasPing) { <span class="noc-badge">Ping</span> }
+                                        @if (d.Evidence.HasSnmp) { <span class="noc-badge">SNMP</span> }
+                                        @if (d.Evidence.HasLldp) { <span class="noc-badge">LLDP</span> }
+                                    </td>
+                                    <td>
+                                        @if (monitored)
+                                        {
+                                            <span class="noc-badge Success">Monitoreado</span>
+                                        }
+                                        else if (canManage)
+                                        {
+                                            <form asp-area="" asp-controller="DiscoveryUi" asp-action="Promote" asp-route-id="@d.Id" method="post" asp-antiforgery="true" style="display:inline;"
+                                                  onsubmit="return confirm('¿Agregar @d.IpAddress a monitoreo?');">
+                                                <button type="submit" class="noc-btn noc-btn-sm">Agregar a monitoreo</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

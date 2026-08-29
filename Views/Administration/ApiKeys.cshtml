@@ -1,0 +1,97 @@
+@model System.Collections.Generic.IReadOnlyList<ApiKeyInfo>
+@{
+    ViewData["Title"] = "API Keys";
+    ViewData["Nav"] = "ApiKeys";
+    var roles = new[] { "Administrator", "NocOperator", "ReadOnly" };
+}
+
+@if (TempData["NewApiKey"] is string newKey)
+{
+    <div class="noc-card" style="border-color:var(--noc-yellow);">
+        <h2 class="noc-card-h">API key creada (muéstrese solo una vez)</h2>
+        <p style="margin:0 0 10px;">Guárdela de inmediato. No podrá recuperarse después.</p>
+        <div class="mono" style="background:var(--noc-bg-2); padding:10px; border-radius:6px; border:1px solid var(--noc-border); word-break:break-all;" id="newKeyValue">@newKey</div>
+        <button type="button" id="copyKeyBtn" class="noc-btn noc-btn-sm" style="margin-top:10px;">Copiar</button>
+    </div>
+}
+
+@if (TempData["Message"] is string msg)
+{
+    <div class="noc-card" style="border-color:var(--noc-green);"><div style="color:var(--noc-green);">@msg</div></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="noc-card" style="border-color:var(--noc-red);"><div style="color:var(--noc-red);">@err</div></div>
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">API Keys</h2>
+    <button type="button" class="noc-btn noc-btn-sm" data-bs-toggle="modal" data-bs-target="#newKeyModal">+ Nueva API key</button>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="noc-empty"><div class="noc-empty-icon">⚿</div><p>No hay API keys activas.</p></div>
+}
+else
+{
+    <div class="noc-table-wrap">
+        <table class="noc-table">
+            <thead><tr><th>Propietario</th><th>Rol</th><th>Descripción</th><th>Creada</th><th style="text-align:right;">Acciones</th></tr></thead>
+            <tbody>
+                @foreach (var k in Model)
+                {
+                    <tr>
+                        <td>@k.Owner</td>
+                        <td><span class="noc-badge noc-badge-role">@k.Role</span></td>
+                        <td>@(k.Description ?? "—")</td>
+                        <td title="@UiDisplay.FormatDateTime(k.CreatedAt)">@UiDisplay.FormatAge(k.CreatedAt)</td>
+                        <td style="text-align:right;">
+                            <form asp-area="" asp-controller="Administration" asp-action="RevokeApiKey" asp-route-id="@k.Id" method="post" asp-antiforgery="true"
+                                  onsubmit="return confirm('¿Revocar la API key de @k.Owner? Esta acción no se puede deshacer.');" style="display:inline;">
+                                <button type="submit" class="danger">Revocar</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="modal fade" id="newKeyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content" style="background:var(--noc-surface); color:var(--noc-text); border:1px solid var(--noc-border);">
+        <form asp-area="" asp-controller="Administration" asp-action="CreateApiKey" method="post" class="noc-form" style="padding:16px;">
+            <div class="modal-header" style="border-bottom:1px solid var(--noc-border);"><h5 class="modal-title">Nueva API key</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+            <div class="modal-body">
+                <label>Propietario</label><input type="text" name="Owner" maxlength="100" required />
+                <label>Rol</label>
+                <select name="Role">
+                    @foreach (var r in roles)
+                    {
+                        <option value="@r">@r</option>
+                    }
+                </select>
+                <label>Descripción</label><input type="text" name="Description" maxlength="500" />
+            </div>
+            <div class="modal-footer" style="border-top:1px solid var(--noc-border);"><button type="button" class="noc-btn" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="noc-btn noc-btn-primary">Crear</button></div>
+        </form>
+    </div></div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var btn = document.getElementById('copyKeyBtn');
+            var val = document.getElementById('newKeyValue');
+            if (btn && val) btn.addEventListener('click', function () {
+                var range = document.createRange();
+                range.selectNodeContents(val);
+                var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+                try { document.execCommand('copy'); window.AtlasNoc.toast('Clave copiada al portapapeles.', 'success'); }
+                catch (e) { window.AtlasNoc.toast('No se pudo copiar.', 'warning'); }
+                sel.removeAllRanges();
+            });
+        })();
+    </script>
+}

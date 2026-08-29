@@ -1,0 +1,66 @@
+@model AuditIndexVm
+@{
+    ViewData["Title"] = "Auditoría";
+    ViewData["Nav"] = "Audit";
+    string ResultBadge(AuditResult r) => r switch
+    {
+        AuditResult.Success => "Success",
+        AuditResult.Failure => "Danger",
+        AuditResult.Denied => "Warning",
+        _ => "Secondary"
+    };
+    var categories = Model.Items.Select(i => i.Category).Distinct().OrderBy(c => c).ToList();
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">Auditoría de eventos (@Model.Items.Count)</h2>
+</div>
+
+<form method="get" class="noc-filters" asp-area="" asp-controller="Administration" asp-action="Audit">
+    <div class="noc-form">
+        <label for="category">Categoría</label>
+        <select id="category" name="category">
+            <option value="">Todas</option>
+            @foreach (var cat in categories)
+            {
+                <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
+            }
+        </select>
+    </div>
+    <div class="noc-form">
+        <label for="count">Resultados</label>
+        <select id="count" name="count">
+            <option value="50" selected="@(Model.Count == 50)">50</option>
+            <option value="100" selected="@(Model.Count == 100)">100</option>
+            <option value="200" selected="@(Model.Count == 200)">200</option>
+        </select>
+    </div>
+    <button type="submit" class="noc-btn noc-btn-sm">Filtrar</button>
+    <a asp-area="" asp-controller="Administration" asp-action="Audit" class="noc-btn noc-btn-sm">Limpiar</a>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="noc-empty"><div class="noc-empty-icon">🕒</div><p>No hay eventos de auditoría que coincidan.</p></div>
+}
+else
+{
+    <div class="noc-table-wrap">
+        <table class="noc-table">
+            <thead><tr><th>Fecha</th><th>Resultado</th><th>Acción</th><th>Usuario</th><th>Recurso</th><th>IP</th></tr></thead>
+            <tbody>
+                @foreach (var e in Model.Items)
+                {
+                    <tr>
+                        <td style="white-space:nowrap;" title="@e.Timestamp.ToString("yyyy-MM-dd HH:mm:ss zzz")">@e.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td><span class="noc-badge @ResultBadge(e.Result)">@e.Result</span></td>
+                        <td>@e.Action</td>
+                        <td>@e.UserId</td>
+                        <td>@(e.TargetResourceType ?? "") @(e.TargetResource ?? "")</td>
+                        <td class="mono">@(e.IpAddress ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

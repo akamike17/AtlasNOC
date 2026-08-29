@@ -1,0 +1,101 @@
+@model DeviceDetailVm
+@{
+    ViewData["Title"] = Model.Device.Name;
+    ViewData["Nav"] = "Devices";
+    var d = Model.Device;
+    var canEdit = User.IsInRole("Administrator") || User.IsInRole("NocOperator");
+}
+
+<a asp-area="" asp-controller="DevicesUi" asp-action="Index" class="noc-back">← Volver a dispositivos</a>
+
+@if (TempData["Message"] is string msg)
+{
+    <div class="noc-card" style="border-color:var(--noc-green);"><div style="color:var(--noc-green);">@msg</div></div>
+}
+@if (TempData["Error"] is string derr)
+{
+    <div class="noc-card" style="border-color:var(--noc-red);"><div style="color:var(--noc-red);">@derr</div></div>
+}
+
+<div class="noc-toolbar">
+    <div>
+        <h2 class="mb-0">
+            <span class="status-dot @UiDisplay.StatusDot(d.Status)"></span>@d.Name
+            <span class="noc-badge @UiDisplay.StatusClass(d.Status)" style="text-transform:capitalize;">@UiDisplay.StatusText(d.Status)</span>
+        </h2>
+        <span class="mono text-secondary">@d.IpAddress · @UiDisplay.TypeText(d.Type)</span>
+    </div>
+    @if (canEdit)
+    {
+        <div style="display:flex; gap:8px;">
+            <a asp-area="" asp-controller="DevicesUi" asp-action="Edit" asp-route-id="@d.Id.Value" class="noc-btn noc-btn-sm">Editar</a>
+            <form asp-area="" asp-controller="DevicesUi" asp-action="Poll" asp-route-id="@d.Id.Value" method="post" asp-antiforgery="true">
+                <button type="submit" class="noc-btn noc-btn-sm">Polling ahora</button>
+            </form>
+            @if (d.IsActive)
+            {
+                <form asp-area="" asp-controller="DevicesUi" asp-action="Deactivate" asp-route-id="@d.Id.Value" method="post" asp-antiforgery="true"
+                      onsubmit="return confirm('¿Desactivar el dispositivo @d.Name?');">
+                    <button type="submit" class="noc-btn noc-btn-sm noc-btn-danger">Desactivar</button>
+                </form>
+            }
+            else
+            {
+                <form asp-area="" asp-controller="DevicesUi" asp-action="Reactivate" asp-route-id="@d.Id.Value" method="post" asp-antiforgery="true">
+                    <button type="submit" class="noc-btn noc-btn-sm">Reactivar</button>
+                </form>
+            }
+        </div>
+    }
+</div>
+
+<dl class="noc-meta">
+    <div><dt>Estado</dt><dd>@UiDisplay.StatusText(d.Status)</dd></div>
+    <div><dt>Tipo</dt><dd>@UiDisplay.TypeText(d.Type)</dd></div>
+    <div><dt>Ubicación</dt><dd>@(d.Location ?? "—")</dd></div>
+    <div><dt>Activo</dt><dd>@(d.IsActive ? "Sí" : "No")</dd></div>
+    <div><dt>Última respuesta</dt><dd>@UiDisplay.FormatDateTime(d.LastCheckedAt)</dd></div>
+    <div><dt>Creado</dt><dd>@UiDisplay.FormatDateTime(d.CreatedAt)</dd></div>
+    <div><dt>Por</dt><dd>@d.CreatedBy</dd></div>
+    <div><dt>IP</dt><dd class="mono">@d.IpAddress</dd></div>
+</dl>
+
+@if (!string.IsNullOrEmpty(d.Description))
+{
+    <div class="noc-card"><h2>Descripción</h2><p style="margin:0;">@d.Description</p></div>
+}
+
+<div class="noc-card">
+    <h2>Alertas asociadas (@Model.Alerts.Count)</h2>
+    @if (Model.Alerts.Count == 0)
+    {
+        <div class="noc-empty"><div class="noc-empty-icon">✓</div><p>No hay alertas para este dispositivo.</p></div>
+    }
+    else
+    {
+        <div class="noc-table-wrap">
+            <table class="noc-table">
+                <thead><tr><th>Severidad</th><th>Mensaje</th><th>Ocurrió</th><th>Estado</th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.Alerts.Take(20))
+                    {
+                        <tr>
+                            <td><span class="noc-badge @UiDisplay.SevClass(a.Severity)">@UiDisplay.SevText(a.Severity)</span></td>
+                            <td>@a.Message</td>
+                            <td>@UiDisplay.FormatAge(a.OccurredAt)</td>
+                            <td>@(a.IsActive ? "Activa" : "Resuelta")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="noc-card">
+    <h2>Acciones</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a asp-area="" asp-controller="MetricsUi" asp-action="Index" asp-route-deviceId="@d.Id.Value" class="noc-btn noc-btn-sm">Ver métricas</a>
+        <a asp-area="" asp-controller="AlertsUi" asp-action="Index" asp-route-deviceId="@d.Id.Value" class="noc-btn noc-btn-sm">Alertas del dispositivo</a>
+    </div>
+</div>

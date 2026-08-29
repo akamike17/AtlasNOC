@@ -1,0 +1,32 @@
+@model EditDeviceUiRequest
+@{
+    ViewData["Title"] = "Editar dispositivo";
+    ViewData["Nav"] = "Devices";
+    var id = (Guid)ViewData["DeviceId"]!;
+}
+<a asp-area="" asp-controller="DevicesUi" asp-action="Index" class="noc-back">← Volver a dispositivos</a>
+<h2>Editar dispositivo</h2>
+
+<form asp-area="" asp-controller="DevicesUi" asp-action="Edit" asp-route-id="@id" method="post" class="noc-form noc-card">
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+    <label asp-for="Name">Nombre</label>
+    <input asp-for="Name" autofocus />
+    <span asp-validation-for="Name" class="field-validation-error"></span>
+
+    <label asp-for="Location">Ubicación</label>
+    <input asp-for="Location" />
+    <span asp-validation-for="Location" class="field-validation-error"></span>
+
+    <label asp-for="Description">Descripción</label>
+    <textarea asp-for="Description" rows="3"></textarea>
+
+    <div style="margin-top:16px;">
+        <button type="submit" class="noc-btn noc-btn-primary">Guardar</button>
+        <a asp-area="" asp-controller="DevicesUi" asp-action="Index" class="noc-btn">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

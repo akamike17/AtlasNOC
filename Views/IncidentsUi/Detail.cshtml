@@ -1,0 +1,114 @@
+@model Incident
+@{
+    ViewData["Title"] = Model.Title;
+    ViewData["Nav"] = "Incidents";
+    var canManage = User.IsInRole("Administrator") || User.IsInRole("NocOperator");
+}
+
+@if (TempData["Message"] is string msg)
+{
+    <div class="noc-card" style="border-color:var(--noc-green);"><div style="color:var(--noc-green);">@msg</div></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="noc-card" style="border-color:var(--noc-red);"><div style="color:var(--noc-red);">@err</div></div>
+}
+
+<a asp-area="" asp-controller="IncidentsUi" asp-action="Index" class="noc-back">← Volver a incidentes</a>
+
+<div class="noc-toolbar">
+    <div>
+        <h2 class="mb-0">@Model.Title <span class="noc-badge">@UiDisplay.IncidentStatusText(Model.Status)</span></h2>
+        <span class="mono text-secondary">@Model.Id.ToString("N")</span>
+    </div>
+    @if (canManage && Model.Status != IncidentStatus.Resolved && Model.Status != IncidentStatus.Closed)
+    {
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            @if (Model.Status == IncidentStatus.New)
+            {
+                <form asp-area="" asp-controller="IncidentsUi" asp-action="ToInvestigating" asp-route-id="@Model.Id" method="post" asp-antiforgery="true">
+                    <button type="submit" class="noc-btn noc-btn-sm">En investigación</button>
+                </form>
+            }
+            @if (Model.Status is IncidentStatus.Investigating or IncidentStatus.New or IncidentStatus.Reopened)
+            {
+                <form asp-area="" asp-controller="IncidentsUi" asp-action="ToMonitoring" asp-route-id="@Model.Id" method="post" asp-antiforgery="true">
+                    <button type="submit" class="noc-btn noc-btn-sm">Monitoreando</button>
+                </form>
+            }
+            <button type="button" id="incidentResolveBtn" class="noc-btn noc-btn-sm noc-btn-danger" data-bs-toggle="modal" data-bs-target="#resolveIncidentModal">Resolver</button>
+        </div>
+    }
+</div>
+
+<dl class="noc-meta">
+    <div><dt>Folio</dt><dd class="mono">@Model.Id.ToString("N")</dd></div>
+    <div><dt>Estado</dt><dd>@UiDisplay.IncidentStatusText(Model.Status)</dd></div>
+    <div><dt>Creado</dt><dd>@UiDisplay.FormatDateTime(Model.CreatedAt)</dd></div>
+    <div><dt>Creado por</dt><dd>@Model.CreatedBy</dd></div>
+    <div><dt>Resuelto</dt><dd>@UiDisplay.FormatDateTime(Model.ResolvedAt)</dd></div>
+    <div><dt>Resuelto por</dt><dd>@(Model.ResolvedBy ?? "—")</dd></div>
+</dl>
+
+<div class="noc-card">
+    <h2>Descripción</h2>
+    <p style="margin:0; white-space:pre-wrap;">@Model.Description</p>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ResolutionNotes))
+{
+    <div class="noc-card">
+        <h2>Notas de resolución</h2>
+        <p style="margin:0; white-space:pre-wrap;">@Model.ResolutionNotes</p>
+    </div>
+}
+
+<div class="noc-card">
+    <h2>Alertas relacionadas (@Model.RelatedAlerts.Count)</h2>
+    @if (Model.RelatedAlerts.Count == 0)
+    {
+        <div class="noc-empty"><div class="noc-empty-icon">✓</div><p>No hay alertas vinculadas a este incidente.</p></div>
+    }
+    else
+    {
+        <div class="noc-table-wrap">
+            <table class="noc-table">
+                <thead><tr><th>Severidad</th><th>Mensaje</th><th>Ocurrió</th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.RelatedAlerts)
+                    {
+                        <tr>
+                            <td><span class="noc-badge @UiDisplay.SevClass(a.Severity)">@UiDisplay.SevText(a.Severity)</span></td>
+                            <td>@a.Message</td>
+                            <td>@UiDisplay.FormatAge(a.OccurredAt)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (canManage && Model.Status != IncidentStatus.Resolved && Model.Status != IncidentStatus.Closed)
+{
+    <div class="modal fade" id="resolveIncidentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background:var(--noc-surface); color:var(--noc-text); border:1px solid var(--noc-border);">
+                <form asp-area="" asp-controller="IncidentsUi" asp-action="Resolve" asp-route-id="@Model.Id" method="post" class="noc-form" style="padding:16px;">
+                    <div class="modal-header" style="border-bottom:1px solid var(--noc-border);">
+                        <h5 class="modal-title">Resolver incidente</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="resolveNotes">Notas de resolución</label>
+                        <textarea id="resolveNotes" name="notes" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <div class="modal-footer" style="border-top:1px solid var(--noc-border);">
+                        <button type="button" class="noc-btn" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="noc-btn noc-btn-danger">Resolver</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

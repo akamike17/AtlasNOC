@@ -1,0 +1,65 @@
+@{
+    var active = (ViewData["Nav"] as string) ?? "";
+    var isAdmin = User.IsInRole("Administrator");
+
+    bool Is(string nav) => string.Equals(active, nav, StringComparison.OrdinalIgnoreCase);
+}
+<aside class="noc-sidebar" id="nocSidebar">
+    <div class="noc-sidebar-brand">
+        <span class="noc-sidebar-logo" aria-hidden="true">◎</span>
+        <span class="noc-sidebar-title">Atlas<span>NOC</span></span>
+    </div>
+
+    <nav class="noc-sidebar-nav" aria-label="Navegación principal">
+        <div class="noc-nav-group">Operación</div>
+        <a class="noc-nav-item @(Is("Dashboard") ? "active" : "")" asp-area="" asp-controller="Dashboard" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">◫</span><span>Dashboard</span>
+        </a>
+        <a class="noc-nav-item @(Is("Devices") ? "active" : "")" asp-area="" asp-controller="DevicesUi" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">▤</span><span>Dispositivos</span>
+        </a>
+        <a class="noc-nav-item @(Is("Topology") ? "active" : "")" asp-area="" asp-controller="TopologyUi" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">⬡</span><span>Topología</span>
+        </a>
+        <a class="noc-nav-item @(Is("Discovery") ? "active" : "")" asp-area="" asp-controller="DiscoveryUi" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">⌖</span><span>Descubrimiento</span>
+        </a>
+        <a class="noc-nav-item @(Is("Metrics") ? "active" : "")" asp-area="" asp-controller="MetricsUi" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">▨</span><span>Métricas</span>
+        </a>
+
+        <div class="noc-nav-group">Eventos</div>
+        <a class="noc-nav-item @(Is("Alerts") ? "active" : "")" asp-area="" asp-controller="AlertsUi" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">▲</span><span>Alertas</span>
+        </a>
+        <a class="noc-nav-item @(Is("Incidents") ? "active" : "")" asp-area="" asp-controller="IncidentsUi" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">◈</span><span>Incidentes</span>
+        </a>
+        <a class="noc-nav-item @(Is("Cves") ? "active" : "")" asp-area="" asp-controller="CvesUi" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">✚</span><span>CVEs</span>
+        </a>
+
+        @if (isAdmin)
+        {
+            <div class="noc-nav-group">Administración</div>
+            <a class="noc-nav-item @(Is("Credentials") ? "active" : "")" asp-area="" asp-controller="Administration" asp-action="Credentials">
+                <span class="noc-nav-icon" aria-hidden="true">⛉</span><span>Credenciales</span>
+            </a>
+            <a class="noc-nav-item @(Is("ApiKeys") ? "active" : "")" asp-area="" asp-controller="Administration" asp-action="ApiKeys">
+                <span class="noc-nav-icon" aria-hidden="true">⚿</span><span>API Keys</span>
+            </a>
+            <a class="noc-nav-item @(Is("Audit") ? "active" : "")" asp-area="" asp-controller="Administration" asp-action="Audit">
+                <span class="noc-nav-icon" aria-hidden="true">🕒</span><span>Auditoría</span>
+            </a>
+        }
+
+        <div class="noc-nav-group">Sistema</div>
+        <a class="noc-nav-item @(Is("Health") ? "active" : "")" asp-area="" asp-controller="Health" asp-action="Index">
+            <span class="noc-nav-icon" aria-hidden="true">♥</span><span>Salud</span>
+        </a>
+    </nav>
+
+    <div class="noc-sidebar-footer">
+        <span class="noc-sidebar-role">@((User.FindFirstValue(System.Security.Claims.ClaimTypes.Role)) ?? "—")</span>
+    </div>
+</aside>

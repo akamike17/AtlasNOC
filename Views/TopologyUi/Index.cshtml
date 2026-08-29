@@ -1,0 +1,68 @@
+@{
+    ViewData["Title"] = "Topología";
+    ViewData["Nav"] = "Topology";
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">Topología de red</h2>
+    <div class="noc-topology-toolbar" style="justify-content:flex-end; margin:0;">
+        <input type="search" id="topoSearch" class="noc-form" placeholder="Buscar hostname/IP" style="max-width:220px; padding:6px 10px; background:var(--noc-bg-2); border:1px solid var(--noc-border-2); border-radius:6px; color:var(--noc-text);" />
+        <button type="button" id="topoSearchBtn" class="noc-btn noc-btn-sm">Buscar</button>
+        <select id="topoStatusFilter" style="padding:6px; background:var(--noc-bg-2); border:1px solid var(--noc-border-2); border-radius:6px; color:var(--noc-text);">
+            <option value="">Todos los estados</option>
+            <option value="Up">Up</option>
+            <option value="Down">Down</option>
+            <option value="Degraded">Degraded</option>
+            <option value="Unknown">Unknown</option>
+        </select>
+    </div>
+</div>
+
+<div class="noc-topology-toolbar" style="justify-content:space-between;">
+    <div style="display:flex; gap:8px;">
+        <button type="button" id="topoFit" class="noc-btn noc-btn-sm">Ajustar</button>
+        <button type="button" id="topoZoomIn" class="noc-btn noc-btn-sm">+</button>
+        <button type="button" id="topoZoomOut" class="noc-btn noc-btn-sm">−</button>
+        <button type="button" id="topoCenter" class="noc-btn noc-btn-sm">Centrar</button>
+        <button type="button" id="topoRefresh" class="noc-btn noc-btn-sm">Refrescar</button>
+    </div>
+    @if (User.IsInRole("Administrator") || User.IsInRole("NocOperator"))
+    {
+        <form asp-area="" asp-controller="TopologyUi" asp-action="Rebuild" method="post" asp-antiforgery="true"
+              onsubmit="return confirm('¿Reconstruir la topología desde los datos persistidos?');">
+            <button type="submit" class="noc-btn noc-btn-sm">Reconstruir</button>
+        </form>
+    }
+</div>
+
+<div class="noc-topology-wrap" style="position:relative;">
+    <div id="topologyCy"></div>
+    <div class="noc-spinner" id="topoSkeleton"></div>
+    <div id="topoDetail" class="noc-card" style="position:absolute; top:12px; right:12px; width:300px; z-index:30;" hidden></div>
+</div>
+
+<div class="noc-legend">
+    <span>· Tipo: <span style="color:#d29922">Router</span> · <span style="color:#39c5cf">Switch</span> · <span style="color:#f85149">Firewall</span> · <span style="color:#bc8cff">Servidor</span> · <span style="color:#58a6ff">AP</span></span>
+    <span>· Estado (borde): <span class="status-dot up"></span>Up <span class="status-dot down"></span>Down <span class="status-dot unknown"></span>Unknown</span>
+</div>
+
+@section Scripts {
+    <script src="~/lib/cytoscape/cytoscape.min.js"></script>
+    <script src="~/js/topology.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var spinner = document.getElementById('topoSkeleton');
+            window.AtlasNoc.request('/topology/json', {}, { showError: false, timeoutMs: 20000 })
+                .then(function (r) { return r.json(); })
+                .then(function (map) {
+                    if (spinner) spinner.style.display = 'none';
+                    window.AtlasNocTopology.init(map);
+                })
+                .catch(function () {
+                    if (spinner) spinner.style.display = 'none';
+                    var el = document.getElementById('topologyCy');
+                    if (el) el.innerHTML = '<div class="noc-empty"><div class="noc-empty-icon">⬡</div><p>La topología no está disponible.</p></div>';
+                });
+        })();
+    </script>
+}

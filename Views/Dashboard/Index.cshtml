@@ -1,0 +1,230 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Nav"] = "Dashboard";
+    var healthy = Model.MySqlHealthy;
+}
+
+<div class="noc-toolbar">
+    <div>
+        <h2 class="mb-0">Estado de la infraestructura</h2>
+        <span class="text-secondary" style="font-size:12px;">Última actualización:
+            <span id="lastUpdateLabel">@UiDisplay.FormatDateTime(Model.LastDataUpdate)</span>
+        </span>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <span id="healthBadge" class="noc-badge @(healthy ? "Success" : "Danger")">@(healthy ? "MySQL OK" : "MySQL NO DISPONIBLE")</span>
+        <button type="button" class="noc-btn noc-btn-sm" id="refreshDashboard">Refrescar datos</button>
+    </div>
+</div>
+
+<div class="noc-stat-grid">
+    <div class="noc-stat">
+        <div class="noc-stat-label">Dispositivos</div>
+        <div class="noc-stat-value" id="sTotal">@Model.TotalDevices</div>
+        <div class="trend">@Model.Inactive inactivos</div>
+    </div>
+    <div class="noc-stat">
+        <div class="noc-stat-label">· Up</div>
+        <div class="noc-stat-value" style="color:var(--noc-green)" id="sUp">@Model.Up</div>
+    </div>
+    <div class="noc-stat @(Model.Down > 0 ? "hot" : "")">
+        <div class="noc-stat-label">· Down</div>
+        <div class="noc-stat-value" style="color:var(--noc-red)" id="sDown">@Model.Down</div>
+    </div>
+    <div class="noc-stat">
+        <div class="noc-stat-label">· Desconocidos</div>
+        <div class="noc-stat-value" id="sUnknown">@Model.Unknown</div>
+    </div>
+    <div class="noc-stat @(Model.ActiveAlerts > 0 ? "hot" : "")">
+        <div class="noc-stat-label">Alertas activas</div>
+        <div class="noc-stat-value" id="sAlerts">@Model.ActiveAlerts</div>
+        <div class="trend"><span style="color:var(--noc-red)">@Model.CriticalAlerts críticas</span></div>
+    </div>
+    <div class="noc-stat @(Model.OpenIncidents > 0 ? "hot" : "")">
+        <div class="noc-stat-label">Incidentes abiertos</div>
+        <div class="noc-stat-value" id="sIncidents">@Model.OpenIncidents</div>
+    </div>
+    <div class="noc-stat @(Model.CriticalCves > 0 ? "hot" : "")">
+        <div class="noc-stat-label">CVEs críticas</div>
+        <div class="noc-stat-value" style="color:var(--noc-red)">@Model.CriticalCves</div>
+        <div class="trend">@Model.TotalCves en total</div>
+    </div>
+    <div class="noc-stat">
+        <div class="noc-stat-label">Último polling</div>
+        <div class="noc-stat-value" style="font-size:16px; line-height:1.3" id="sLastPolled">@(Model.LastPolledAt.HasValue ? UiDisplay.FormatAge(Model.LastPolledAt.Value) : "—")</div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="noc-card">
+            <h2>Topología</h2>
+            @if (Model.TopologyKnown)
+            {
+                <div class="noc-stat-grid" style="grid-template-columns:repeat(3,1fr); gap:10px;">
+                    <div><div class="noc-stat-label">Nodos</div><div class="noc-stat-value" style="font-size:22px;">@Model.TopologyNodes</div></div>
+                    <div><div class="noc-stat-label">Enlaces</div><div class="noc-stat-value" style="font-size:22px;">@Model.TopologyLinks</div></div>
+                    <div>
+                        <div class="noc-stat-label">Estado</div>
+                        <div class="mt-1"><span class="noc-badge Success">@Model.TopologyUp up</span>
+                        <span class="noc-badge @(Model.TopologyDown > 0 ? "Danger" : "Secondary")">@Model.TopologyDown down</span></div>
+                    </div>
+                </div>
+                <a asp-area="" asp-controller="TopologyUi" asp-action="Index" class="noc-btn noc-btn-sm">Abrir topología</a>
+            }
+            else
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">⬡</div><p>La topología aún no se ha generado.</p>
+                <a asp-area="" asp-controller="TopologyUi" asp-action="Index" class="noc-btn noc-btn-sm">Ver topología</a></div>
+            }
+        </div>
+
+        <div class="noc-card">
+            <h2>Dispositivos Down</h2>
+            @if (Model.DownDevices.Count == 0)
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">✓</div><p>No hay dispositivos caídos.</p></div>
+            }
+            else
+            {
+                <table class="noc-table">
+                    <thead><tr><th>Dispositivo</th><th>IP</th><th>Abrir</th></tr></thead>
+                    <tbody>
+                        @foreach (var d in Model.DownDevices)
+                        {
+                            <tr>
+                                <td><span class="status-dot down"></span>@d.Name</td>
+                                <td class="mono">@d.IpAddress</td>
+                                <td><a asp-area="" asp-controller="DevicesUi" asp-action="Detail" asp-route-id="@d.Id.Value">Detalle</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="noc-card">
+            <h2>Actividad reciente</h2>
+            @if (Model.Activity.Count == 0)
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">◫</div><p>Aún no hay actividad. Agregue dispositivos o inicie un descubrimiento.</p>
+                <div style="display:flex; gap:8px; justify-content:center;">
+                    <a asp-area="" asp-controller="DevicesUi" asp-action="Create" class="noc-btn noc-btn-sm">Agregar dispositivo</a>
+                    <a asp-area="" asp-controller="DiscoveryUi" asp-action="Index" class="noc-btn noc-btn-sm">Iniciar descubrimiento</a>
+                </div></div>
+            }
+            else
+            {
+                <table class="noc-table">
+                    <tbody>
+                        @foreach (var a in Model.Activity)
+                        {
+                            <tr>
+                                <td class="noc-row-actions" style="padding-right:6px;">
+                                    @if (!string.IsNullOrEmpty(a.Link)) { <a href="@a.Link" aria-label="Abrir">›</a> }
+                                </td>
+                                <td>
+                                    <div>@a.Label</div>
+                                    <div class="text-secondary" style="font-size:12px;">@a.Subtext</div>
+                                </td>
+                                <td style="white-space:nowrap; text-align:right;">
+                                    <span class="noc-badge @a.SeverityBadge">@UiDisplay.FormatAge(a.At)</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="noc-card">
+            <h2>Descubrimientos recientes</h2>
+            @if (Model.RecentRuns.Count == 0)
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">⌖</div><p>No hay ejecuciones de descubrimiento.</p>
+                <a asp-area="" asp-controller="DiscoveryUi" asp-action="Index" class="noc-btn noc-btn-sm">Ir a descubrimiento</a></div>
+            }
+            else
+            {
+                <table class="noc-table">
+                    <thead><tr><th>Subred</th><th>Estado</th><th>Alcanzables</th><th>Inicio</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in Model.RecentRuns)
+                        {
+                            <tr>
+                                <td class="mono">@r.SubnetCidr</td>
+                                <td><span class="noc-badge">@UiDisplay.DiscoveryStatusText(r.Status)</span></td>
+                                <td>@r.TargetsReachable</td>
+                                <td>@UiDisplay.FormatAge(r.StartedAt)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="noc-card">
+            <h2>CVEs relevantes</h2>
+            @if (Model.CriticalCveSamples.Count == 0)
+            {
+                <div class="noc-empty"><div class="noc-empty-icon">✚</div><p>No hay CVEs críticas registradas.</p></div>
+            }
+            else
+            {
+                <table class="noc-table">
+                    <thead><tr><th>CVE</th><th>CVSS</th><th>Descripción</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in Model.CriticalCveSamples)
+                        {
+                            <tr>
+                                <td><span class="noc-badge Danger">@c.CveId</span></td>
+                                <td>@(c.CvssBaseScore?.ToString("0.0") ?? "—")</td>
+                                <td style="max-width:300px;">@UiDisplay.Truncate(c.Description, 90)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var els = { total: document.getElementById('sTotal'), up: document.getElementById('sUp'),
+                down: document.getElementById('sDown'), unknown: document.getElementById('sUnknown'),
+                alerts: document.getElementById('sAlerts'), incidents: document.getElementById('sIncidents'),
+                lastPolled: document.getElementById('sLastPolled'), lastUpdate: document.getElementById('lastUpdateLabel'),
+                health: document.getElementById('healthBadge') };
+            var busy = false;
+            function refresh() {
+                if (busy) return;
+                busy = true;
+                window.AtlasNoc.request('/dashboard/summary', {}, { showError: false, timeoutMs: 15000 })
+                    .then(function (res) { return res.json(); })
+                    .then(function (s) {
+                        if (els.total) els.total.textContent = s.totalDevices;
+                        if (els.up) els.up.textContent = s.up;
+                        if (els.down) els.down.textContent = s.down;
+                        if (els.unknown) els.unknown.textContent = s.unknown;
+                        if (els.alerts) els.alerts.textContent = s.activeAlerts;
+                        if (els.incidents) els.incidents.textContent = s.openIncidents;
+                        if (els.lastPolled && s.lastPolled) els.lastPolled.textContent = window.AtlasNoc.formatAge(s.lastPolled);
+                        if (els.lastUpdate) els.lastUpdate.textContent = new Date().toLocaleString();
+                        if (els.health) { els.health.className = 'noc-badge Success'; els.health.textContent = 'MySQL OK'; }
+                    })
+                    .catch(function () {
+                        if (els.health) { els.health.className = 'noc-badge Danger'; els.health.textContent = 'MySQL NO DISPONIBLE'; }
+                    })
+                    .finally(function () { busy = false; });
+            }
+            var btn = document.getElementById('refreshDashboard');
+            if (btn) btn.addEventListener('click', refresh);
+            window.setInterval(refresh, 30000);
+        })();
+    </script>
+}

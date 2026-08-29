@@ -1,0 +1,28 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Acceso";
+    Layout = "_Layout";
+}
+<div class="noc-auth-card">
+    <div class="noc-auth-logo" aria-hidden="true">◎</div>
+    <div class="noc-auth-logo-noc">Atlas<span>NOC</span> · Network Operations Center</div>
+    <p class="noc-auth-hint">Use una API key válida del sistema.</p>
+
+    <form asp-area="" asp-controller="Account" asp-action="Login" method="post" novalidate>
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+        <div class="noc-form">
+            <label asp-for="ApiKey">API Key</label>
+            <input asp-for="ApiKey" type="password" autocomplete="current-password" autofocus placeholder="atlasnoc_…" />
+            <span asp-validation-for="ApiKey" class="field-validation-error"></span>
+        </div>
+
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+        <button type="submit" class="noc-btn noc-btn-primary">Entrar al NOC</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -32,8 +32,10 @@ using AtlasNOC.Domain.Services;
 using AtlasNOC.Domain.Services.Interfaces;
 using AtlasNOC.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Serilog;
+using AtlasNOC.Services.Ui;
 using System.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
@@ -185,8 +187,8 @@ builder.Services.AddHttpClient<INotificationService, NotificationService>(client
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
-// ─── Controllers with Versioning ───────────────────────────────────────────────
-builder.Services.AddControllers(options =>
+// ─── Controllers (API + MVC Views) with Versioning ──────────────────────────
+builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new ProducesAttribute("application/json"));
 })
@@ -380,7 +382,20 @@ builder.Services.AddHostedService<CveBackgroundService>();
 // ─── Authentication & Authorization ────────────────────────────────────────────
 builder.Services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
-        ApiKeyAuthenticationHandler.SchemeName, _ => { });
+        ApiKeyAuthenticationHandler.SchemeName, _ => { })
+    .AddCookie(AtlasNocUiAuth.UiScheme, options =>
+    {
+        options.LoginPath = AtlasNocUiAuth.LoginPath;
+        options.LogoutPath = AtlasNocUiAuth.LogoutPath;
+        options.AccessDeniedPath = AtlasNocUiAuth.AccessDeniedPath;
+        options.Cookie.Name = AtlasNocUiAuth.CookieName;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.SlidingExpiration = true;
+        options.ReturnUrlParameter = "returnUrl";
+    });
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -568,6 +583,23 @@ app.UseCors(app.Environment.IsDevelopment() ? "Development" : "Production");
 
 app.UseRateLimiter();
 app.UseAuthentication();
+
+// Exempt public, non-secret assets (and /swagger in Development) from the global
+// fallback authorization policy. The UI consumes these over an authenticated
+// cookie session, but stylesheets/scripts must load before login. API endpoints
+// and MVC pages remain protected (FallbackPolicy stays intact).
+app.Use(async (context, next) =>
+{
+    if (AtlasNocUiAuth.IsPublicAssetPath(context.Request.Path, app.Environment.IsDevelopment()))
+    {
+        context.SetEndpoint(new Endpoint(
+            _ => Task.CompletedTask,
+            new EndpointMetadataCollection(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute()),
+            "public-asset"));
+    }
+    await next();
+});
+
 app.UseAuthorization();
 
 // ─── Swagger UI ────────────────────────────────────────────────────────────────
@@ -612,7 +644,7 @@ app.MapControllers().RequireRateLimiting("api");
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Dashboard}/{action=Index}/{id?}");
 
 // ─── Run ───────────────────────────────────────────────────────────────────────
 app.Run();

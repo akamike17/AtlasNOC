@@ -1,0 +1,109 @@
+@model DeviceIndexVm
+@{
+    ViewData["Title"] = "Dispositivos";
+    ViewData["Nav"] = "Devices";
+    var canEdit = User.IsInRole("Administrator") || User.IsInRole("NocOperator");
+    int totalPages = Math.Max(1, (int)Math.Ceiling(Model.Total / (double)Model.PageSize));
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">Inventario de dispositivos</h2>
+    @if (canEdit)
+    {
+        <a asp-area="" asp-controller="DevicesUi" asp-action="Create" class="noc-btn noc-btn-primary">+ Agregar dispositivo</a>
+    }
+</div>
+
+<form method="get" class="noc-filters" asp-area="" asp-controller="DevicesUi" asp-action="Index">
+    <div class="noc-form">
+        <label for="search">Buscar</label>
+        <input type="text" id="search" name="search" value="@Model.Search" placeholder="nombre o IP" />
+    </div>
+    <div class="noc-form">
+        <label for="status">Estado</label>
+        <select id="status" name="status">
+            <option value="">Todos</option>
+            @foreach (var s in Enum.GetValues<DeviceStatus>())
+            {
+                <option value="@((int)s)" selected="@(Model.Status == s)">@UiDisplay.StatusText(s)</option>
+            }
+        </select>
+    </div>
+    <div class="noc-form">
+        <label for="type">Tipo</label>
+        <select id="type" name="type">
+            <option value="">Todos</option>
+            @foreach (var t in Enum.GetValues<DeviceType>())
+            {
+                <option value="@((int)t)" selected="@(Model.Type == t)">@UiDisplay.TypeText(t)</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="noc-btn noc-btn-sm">Filtrar</button>
+    @if (!string.IsNullOrEmpty(Model.Search) || Model.Status.HasValue || Model.Type.HasValue)
+    {
+        <a asp-area="" asp-controller="DevicesUi" asp-action="Index" class="noc-btn noc-btn-sm">Quitar filtros</a>
+    }
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="noc-empty">
+        <div class="noc-empty-icon">▤</div>
+        <p>No hay dispositivos monitoreados.</p>
+        @if (canEdit)
+        {
+            <div style="display:flex; gap:8px; justify-content:center;">
+                <a asp-area="" asp-controller="DevicesUi" asp-action="Create" class="noc-btn noc-btn-sm">Agregar dispositivo</a>
+                <a asp-area="" asp-controller="DiscoveryUi" asp-action="Index" class="noc-btn noc-btn-sm">Iniciar descubrimiento</a>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="noc-table-wrap">
+        <table class="noc-table">
+            <thead>
+                <tr>
+                    <th>Dispositivo</th><th>IP</th><th>Tipo</th><th>Estado</th><th>Última respuesta</th><th style="text-align:right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model.Items)
+                {
+                    <tr>
+                        <td>
+                            <span class="status-dot @UiDisplay.StatusDot(d.Status)"></span>
+                            <a asp-area="" asp-controller="DevicesUi" asp-action="Detail" asp-route-id="@d.Id.Value">@d.Name</a>
+                            @if (!d.IsActive) { <span class="noc-badge">inactivo</span> }
+                        </td>
+                        <td class="mono">@d.IpAddress</td>
+                        <td>@UiDisplay.TypeText(d.Type)</td>
+                        <td><span class="noc-badge @UiDisplay.StatusClass(d.Status)">@UiDisplay.StatusText(d.Status)</span></td>
+                        <td>@(d.LastCheckedAt.HasValue ? UiDisplay.FormatAge(d.LastCheckedAt.Value) : "—")</td>
+                        <td style="text-align:right; white-space:nowrap;">
+                            <a asp-area="" asp-controller="DevicesUi" asp-action="Detail" asp-route-id="@d.Id.Value">Detalle</a>
+                            <a asp-area="" asp-controller="MetricsUi" asp-action="Index" asp-route-deviceId="@d.Id.Value">Métricas</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <nav aria-label="Paginación" style="margin-top:12px;">
+            <ul class="pagination pagination-sm">
+                @for (int p = 1; p <= totalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link" asp-area="" asp-controller="DevicesUi" asp-action="Index"
+                           asp-route-page="@p" asp-route-search="@Model.Search" asp-route-status="@Model.Status" asp-route-type="@Model.Type">@p</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+}

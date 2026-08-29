@@ -1,0 +1,89 @@
+@model CvesIndexVm
+@{
+    ViewData["Title"] = "CVEs";
+    ViewData["Nav"] = "Cves";
+    var canManage = User.IsInRole("Administrator") || User.IsInRole("NocOperator");
+    string ScoreText(double? s) => s.HasValue ? s.Value.ToString("0.0") : "—";
+}
+
+@if (TempData["Message"] is string msg)
+{
+    <div class="noc-card" style="border-color:var(--noc-green);"><div style="color:var(--noc-green);">@msg</div></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="noc-card" style="border-color:var(--noc-red);"><div style="color:var(--noc-red);">@err</div></div>
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">Vulnerabilidades (CVE)</h2>
+    @if (canManage)
+    {
+        <form asp-area="" asp-controller="CvesUi" asp-action="Fetch" method="post" asp-antiforgery="true">
+            <button type="submit" class="noc-btn noc-btn-sm">Sincronizar desde NVD</button>
+        </form>
+    }
+</div>
+
+<div class="noc-stat-grid">
+    <div class="noc-stat"><div class="noc-stat-label">Total</div><div class="noc-stat-value">@Model.Stats.Total</div></div>
+    <div class="noc-stat @(Model.Stats.Critical > 0 ? "hot" : "")"><div class="noc-stat-label">Críticas</div><div class="noc-stat-value" style="color:var(--noc-red)">@Model.Stats.Critical</div></div>
+    <div class="noc-stat"><div class="noc-stat-label">Altas</div><div class="noc-stat-value" style="color:var(--noc-yellow)">@Model.Stats.High</div></div>
+    <div class="noc-stat"><div class="noc-stat-label">Medias</div><div class="noc-stat-value">@Model.Stats.Medium</div></div>
+    <div class="noc-stat"><div class="noc-stat-label">Bajas</div><div class="noc-stat-value">@Model.Stats.Low</div></div>
+    @if (Model.Stats.LastFetched.HasValue)
+    {
+        <div class="noc-stat"><div class="noc-stat-label">Última sincronización</div><div class="noc-stat-value" style="font-size:15px;">@UiDisplay.FormatAge(Model.Stats.LastFetched.Value)</div></div>
+    }
+</div>
+
+<form method="get" class="noc-filters" asp-area="" asp-controller="CvesUi" asp-action="Index">
+    <div class="noc-form">
+        <label for="keyword">Buscar</label>
+        <input type="text" id="keyword" name="keyword" value="@Model.Keyword" placeholder="CVE-2024-xxxx o término" />
+    </div>
+    <div class="noc-form">
+        <label for="severity">Severidad</label>
+        <select id="severity" name="severity">
+            <option value="">Todas</option>
+            <option value="CRITICAL" selected="@(Model.Severity == "CRITICAL")">CRITICAL</option>
+            <option value="HIGH" selected="@(Model.Severity == "HIGH")">HIGH</option>
+            <option value="MEDIUM" selected="@(Model.Severity == "MEDIUM")">MEDIUM</option>
+            <option value="LOW" selected="@(Model.Severity == "LOW")">LOW</option>
+        </select>
+    </div>
+    <button type="submit" class="noc-btn noc-btn-sm">Filtrar</button>
+    <a asp-area="" asp-controller="CvesUi" asp-action="Index" class="noc-btn noc-btn-sm">Limpiar</a>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="noc-empty"><div class="noc-empty-icon">✚</div><p>No hay registros CVE que coincidan con los filtros.</p></div>
+}
+else
+{
+    <div class="noc-table-wrap">
+        <table class="noc-table">
+            <thead><tr><th>CVE</th><th>CVSS</th><th>Severidad</th><th>Descripción</th><th>Publicada</th><th>Estado</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model.Items)
+                {
+                    var sev = (c.CvssBaseSeverity ?? "").ToUpperInvariant();
+                    var sevClass = sev switch
+                    {
+                        "CRITICAL" => "Danger", "HIGH" => "High", "MEDIUM" => "Medium", "LOW" => "Low", _ => "Secondary"
+                    };
+                    <tr>
+                        <td><span class="mono">@c.CveId</span></td>
+                        <td>@ScoreText(c.CvssBaseScore)</td>
+                        <td><span class="noc-badge @sevClass">@(string.IsNullOrEmpty(sev) ? "N/A" : sev)</span></td>
+                        <td style="max-width:380px;">@UiDisplay.Truncate(c.Description, 110)</td>
+                        <td style="white-space:nowrap;" title="@UiDisplay.FormatDateTime(c.PublishedDate)">@UiDisplay.FormatAge(c.PublishedDate)</td>
+                        <td>@c.VulnStatus</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="text-secondary" style="font-size:12px; margin-top:8px;">@Model.Items.Count registro(s).</p>
+}

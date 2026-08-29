@@ -1,0 +1,28 @@
+@model CreateIncidentUiRequest
+@{
+    ViewData["Title"] = "Nuevo incidente";
+    ViewData["Nav"] = "Incidents";
+}
+<a asp-area="" asp-controller="IncidentsUi" asp-action="Index" class="noc-back">← Volver a incidentes</a>
+<h2>Nuevo incidente</h2>
+
+<form asp-area="" asp-controller="IncidentsUi" asp-action="CreateRequest" method="post" class="noc-form noc-card">
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+    <label asp-for="Title">Título</label>
+    <input asp-for="Title" autofocus />
+    <span asp-validation-for="Title" class="field-validation-error"></span>
+
+    <label asp-for="Description">Descripción</label>
+    <textarea asp-for="Description" rows="4"></textarea>
+    <span asp-validation-for="Description" class="field-validation-error"></span>
+
+    <div style="margin-top:16px;">
+        <button type="submit" class="noc-btn noc-btn-primary">Crear incidente</button>
+        <a asp-area="" asp-controller="IncidentsUi" asp-action="Index" class="noc-btn">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,165 @@
+@model AlertsIndexVm
+@{
+    ViewData["Title"] = "Alertas";
+    ViewData["Nav"] = "Alerts";
+    var canManage = User.IsInRole("Administrator") || User.IsInRole("NocOperator");
+    var deviceName = new System.Collections.Generic.Dictionary<Guid, string>();
+    foreach (var d in Model.Devices) deviceName[d.Id.Value] = d.Name;
+}
+
+@if (TempData["Message"] is string msg)
+{
+    <div class="noc-card" style="border-color:var(--noc-green);"><div style="color:var(--noc-green);">@msg</div></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="noc-card" style="border-color:var(--noc-red);"><div style="color:var(--noc-red);">@err</div></div>
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">Alertas</h2>
+    @if (canManage && Model.Devices.Count > 0)
+    {
+        <button type="button" class="noc-btn noc-btn-sm" data-bs-toggle="modal" data-bs-target="#newAlertModal">+ Nueva alerta</button>
+    }
+</div>
+
+<form method="get" class="noc-filters" asp-area="" asp-controller="AlertsUi" asp-action="Index">
+    <div class="noc-form">
+        <label for="severity">Severidad</label>
+        <select id="severity" name="severity">
+            <option value="">Todas</option>
+            @foreach (var s in Enum.GetValues<AlertSeverity>())
+            {
+                <option value="@((int)s)" selected="@(Model.Severity == s)">@UiDisplay.SevText(s)</option>
+            }
+        </select>
+    </div>
+    <div class="noc-form">
+        <label for="deviceId">Dispositivo</label>
+        <select id="deviceId" name="deviceId">
+            <option value="">Todos</option>
+            @foreach (var d in Model.Devices)
+            {
+                <option value="@d.Id.Value" selected="@(Model.DeviceId == d.Id.Value)">@d.Name</option>
+            }
+        </select>
+    </div>
+    <div class="noc-form">
+        <label for="onlyActive">Estado</label>
+        <select id="onlyActive" name="onlyActive">
+            <option value="">Todos</option>
+            <option value="true" selected="@(Model.OnlyActive == true)">Solo activas</option>
+        </select>
+    </div>
+    <button type="submit" class="noc-btn noc-btn-sm">Filtrar</button>
+    <a asp-area="" asp-controller="AlertsUi" asp-action="Index" class="noc-btn noc-btn-sm">Limpiar</a>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="noc-empty"><div class="noc-empty-icon">✓</div><p>No hay alertas que coincidan con los filtros.</p></div>
+}
+else
+{
+    <div class="noc-table-wrap">
+        <table class="noc-table">
+            <thead>
+                <tr><th>Severidad</th><th>Dispositivo</th><th>Mensaje</th><th>Ocurrió</th><th>Estado</th><th style="text-align:right;">Acciones</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Model.Items)
+                {
+                    var open = a.IsActive;
+                    <tr>
+                        <td><span class="noc-badge @UiDisplay.SevClass(a.Severity)">@UiDisplay.SevText(a.Severity)</span></td>
+                        <td>
+                            @if (deviceName.TryGetValue(a.DeviceId.Value, out var dn))
+                            {
+                                <a asp-area="" asp-controller="DevicesUi" asp-action="Detail" asp-route-id="@a.DeviceId.Value">@dn</a>
+                            }
+                            else
+                            {
+                                <span class="text-secondary">—</span>
+                            }
+                        </td>
+                        <td style="max-width:340px;">@a.Message</td>
+                        <td style="white-space:nowrap;" title="@UiDisplay.FormatDateTime(a.OccurredAt)">@UiDisplay.FormatAge(a.OccurredAt)</td>
+                        <td>
+                            @if (a.IsActive)
+                            {
+                                <span class="noc-badge">Activa</span>
+                            }
+                            else
+                            {
+                                <span class="noc-badge Success">Resuelta</span>
+                            }
+                        </td>
+                        <td style="text-align:right; white-space:nowrap;" class="noc-row-actions">
+                            @if (canManage && open)
+                            {
+                                @if (a.AcknowledgedAt == null)
+                                {
+                                    <form asp-area="" asp-controller="AlertsUi" asp-action="Acknowledge" asp-route-id="@a.Id.Value" method="post" asp-antiforgery="true" style="display:inline;">
+                                        <button type="submit">Reconocer</button>
+                                    </form>
+                                }
+                                <form asp-area="" asp-controller="AlertsUi" asp-action="Resolve" asp-route-id="@a.Id.Value" method="post" asp-antiforgery="true"
+                                      onsubmit="return confirm('¿Resolver esta alerta?');" style="display:inline;">
+                                    <button type="submit" class="danger">Resolver</button>
+                                </form>
+                                <form asp-area="" asp-controller="AlertsUi" asp-action="ToIncident" asp-route-id="@a.Id.Value" method="post" asp-antiforgery="true" style="display:inline;">
+                                    <button type="submit" title="Crear incidente desde la alerta">Incidente</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-secondary" style="font-size:12px;">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (canManage && Model.Devices.Count > 0)
+{
+    <div class="modal fade" id="newAlertModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background:var(--noc-surface); color:var(--noc-text); border:1px solid var(--noc-border);">
+                <form asp-area="" asp-controller="AlertsUi" asp-action="Create" method="post" class="noc-form" style="padding:16px;">
+                    <div class="modal-header" style="border-bottom:1px solid var(--noc-border);">
+                        <h5 class="modal-title">Nueva alerta manual</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label>Dispositivo</label>
+                        <select name="DeviceId" required>
+                            @foreach (var d in Model.Devices)
+                            {
+                                <option value="@d.Id.Value">@d.Name (@d.IpAddress)</option>
+                            }
+                        </select>
+                        <label>Severidad</label>
+                        <select name="Severity">
+                            @foreach (var s in Enum.GetValues<AlertSeverity>())
+                            {
+                                <option value="@((int)s)">@UiDisplay.SevText(s)</option>
+                            }
+                        </select>
+                        <label>Mensaje</label>
+                        <textarea name="Message" rows="2" maxlength="500" required></textarea>
+                        <label>Origen</label>
+                        <input type="text" name="Source" value="ui" />
+                    </div>
+                    <div class="modal-footer" style="border-top:1px solid var(--noc-border);">
+                        <button type="button" class="noc-btn" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="noc-btn noc-btn-primary">Crear</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

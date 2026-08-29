@@ -1,0 +1,64 @@
+@model IncidentsIndexVm
+@{
+    ViewData["Title"] = "Incidentes";
+    ViewData["Nav"] = "Incidents";
+    var canManage = User.IsInRole("Administrator") || User.IsInRole("NocOperator");
+}
+
+@if (TempData["Message"] is string msg)
+{
+    <div class="noc-card" style="border-color:var(--noc-green);"><div style="color:var(--noc-green);">@msg</div></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="noc-card" style="border-color:var(--noc-red);"><div style="color:var(--noc-red);">@err</div></div>
+}
+
+<div class="noc-toolbar">
+    <h2 class="mb-0">Incidentes</h2>
+    @if (canManage)
+    {
+        <a asp-area="" asp-controller="IncidentsUi" asp-action="CreateRequest" class="noc-btn noc-btn-sm">+ Nuevo incidente</a>
+    }
+</div>
+
+<form method="get" class="noc-filters" asp-area="" asp-controller="IncidentsUi" asp-action="Index">
+    <div class="noc-form">
+        <label for="status">Estado</label>
+        <select id="status" name="status">
+            <option value="">Todos</option>
+            @foreach (var s in Enum.GetValues<IncidentStatus>())
+            {
+                <option value="@((int)s)" selected="@(Model.Status == s)">@UiDisplay.IncidentStatusText(s)</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="noc-btn noc-btn-sm">Filtrar</button>
+    <a asp-area="" asp-controller="IncidentsUi" asp-action="Index" class="noc-btn noc-btn-sm">Limpiar</a>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="noc-empty"><div class="noc-empty-icon">◈</div><p>No hay incidentes que coincidan con los filtros.</p></div>
+}
+else
+{
+    <div class="noc-table-wrap">
+        <table class="noc-table">
+            <thead><tr><th>Folio</th><th>Título</th><th>Estado</th><th>Creado</th><th>Responsable</th></tr></thead>
+            <tbody>
+                @foreach (var i in Model.Items)
+                {
+                    <tr>
+                        <td class="mono">@i.Id.ToString("N").Substring(0, 8)</td>
+                        <td><a asp-area="" asp-controller="IncidentsUi" asp-action="Detail" asp-route-id="@i.Id">@i.Title</a></td>
+                        <td><span class="noc-badge">@UiDisplay.IncidentStatusText(i.Status)</span></td>
+                        <td title="@UiDisplay.FormatDateTime(i.CreatedAt)">@UiDisplay.FormatAge(i.CreatedAt)</td>
+                        <td>@i.CreatedBy</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="text-secondary" style="font-size:12px; margin-top:8px;">@Model.Items.Count incidente(s).</p>
+}
