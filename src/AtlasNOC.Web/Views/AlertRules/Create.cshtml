@@ -1,0 +1,46 @@
+@model AtlasNOC.Application.Dtos.CreateAlertRuleRequest
+@{
+    ViewData["Title"] = "Nueva regla de alerta";
+}
+
+<div class="noc-card" style="max-width:560px">
+    <h1 class="h5 mb-3">Nueva regla de alerta</h1>
+    <form asp-action="Create" method="post">
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input class="form-control bg-dark text-light" asp-for="Name" placeholder="CPU alto" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Métrica</label>
+            <input class="form-control bg-dark text-light" asp-for="MetricName" placeholder="cpu_usage" />
+        </div>
+        <div class="row">
+            <div class="col mb-3">
+                <label class="form-label">Operador</label>
+                <select class="form-select bg-dark text-light" asp-for="ComparisonOperator">
+                    <option>&gt;</option><option>&gt;=</option><option>&lt;</option><option>&lt;=</option>
+                </select>
+            </div>
+            <div class="col mb-3">
+                <label class="form-label">Umbral</label>
+                <input type="number" step="any" class="form-control bg-dark text-light" asp-for="Threshold" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col mb-3">
+                <label class="form-label">Severidad</label>
+                <select class="form-select bg-dark text-light" asp-for="Severity">
+                    <option value="1">Info</option><option value="2">Low</option>
+                    <option value="3">Medium</option><option value="4">High</option><option value="5">Critical</option>
+                </select>
+            </div>
+            <div class="col mb-3">
+                <label class="form-label">Fallas consecutivas</label>
+                <input type="number" class="form-control bg-dark text-light" asp-for="ConsecutiveFaults" value="2" />
+            </div>
+        </div>
+        <div asp-validation-summary="All" class="text-danger small"></div>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+</div>

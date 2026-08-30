@@ -64,6 +64,10 @@ public static class DependencyInjection
         services.AddScoped<IMetricQueryService, MetricQueryService>();
         services.AddScoped<IAlertService, AlertService>();
         services.AddScoped<IIncidentService, IncidentService>();
+        services.AddScoped<IAlertEvaluationEngine, AlertEvaluationEngine>();
+        services.AddScoped<IIncidentCorrelationEngine, IncidentCorrelationEngine>();
+        services.AddScoped<IAlertRuleService, AlertRuleService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<ICredentialService, CredentialService>();
         services.AddScoped<IAuditService, AuditService>();
@@ -74,6 +78,8 @@ public static class DependencyInjection
         services.AddHostedService<DiscoveryWorker>();
         services.AddHostedService<TopologyCorrelationWorker>();
         services.AddHostedService<MetricRetentionWorker>();
+        services.AddHostedService<AlertEvaluationWorker>();
+        services.AddHostedService<NotificationWorker>();
 
         return services;
     }

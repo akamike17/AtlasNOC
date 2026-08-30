@@ -22,6 +22,7 @@ public class Alert
     public DateTime? AcknowledgedAtUtc { get; private set; }
     public string? ResolvedBy { get; private set; }
     public DateTime? ResolvedAtUtc { get; private set; }
+    public DateTime? NotificationSentAtUtc { get; private set; }
 
     private Alert() { }
 
@@ -61,4 +62,6 @@ public class Alert
         ResolvedAtUtc = DateTime.UtcNow;
         State = AlertState.Resolved;
     }
+
+    public void MarkNotified() => NotificationSentAtUtc = DateTime.UtcNow;
 }

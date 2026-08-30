@@ -27,4 +27,6 @@ public class AlertRule
         Severity = severity;
         ConsecutiveFaults = consecutiveFaults;
     }
+
+    public void SetEnabled(bool enabled) => IsEnabled = enabled;
 }

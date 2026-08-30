@@ -58,3 +58,9 @@ public sealed record ApiKeyLiteDto(Guid Id, string Name, string Description, str
     bool IsActive, DateTime CreatedAtUtc, DateTime? ExpiresAtUtc);
 
 public sealed record SystemHealthDto(bool DatabaseOk, int DeviceCount, int OpenAlertCount, DateTime CheckedAtUtc);
+
+public sealed record AlertRuleDto(Guid Id, string Name, string MetricName, string ComparisonOperator,
+    double Threshold, int Severity, int ConsecutiveFaults, bool IsEnabled);
+
+public sealed record CreateAlertRuleRequest(string Name, string MetricName, string ComparisonOperator,
+    double Threshold, int Severity, int ConsecutiveFaults);

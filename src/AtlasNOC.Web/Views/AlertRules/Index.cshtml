@@ -1,0 +1,39 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.AlertRuleDto>
+@{
+    ViewData["Title"] = "Reglas de alerta";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Reglas de alerta</h1>
+    <a asp-action="Create" class="btn btn-primary btn-sm">Nueva regla</a>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Nombre</th><th>Métrica</th><th>Condición</th><th>Umbral</th><th>Severidad</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="7" class="text-secondary">Sin reglas. Crea la primera.</td></tr>
+        }
+        @foreach (var r in Model)
+        {
+            <tr>
+                <td>@r.Name</td>
+                <td>@r.MetricName</td>
+                <td>@r.ComparisonOperator @r.Threshold</td>
+                <td>@r.Threshold</td>
+                <td>@((AtlasNOC.Domain.Enums.AlertSeverity)r.Severity)</td>
+                <td>@(r.IsEnabled ? "Activa" : "Desactivada")</td>
+                <td>
+                    <form asp-action="Toggle" method="post" class="d-inline">
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <input type="hidden" name="enabled" value="@(!r.IsEnabled)" />
+                        <button type="submit" class="btn btn-sm btn-outline-light">@(r.IsEnabled ? "Desactivar" : "Activar")</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

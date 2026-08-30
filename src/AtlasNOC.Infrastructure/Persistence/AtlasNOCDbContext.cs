@@ -45,6 +45,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));
         var siteIdConv = new ValueConverter<SiteId, Guid>(v => v.Value, v => SiteId.From(v));
+        var siteIdNullableConv = new ValueConverter<SiteId?, Guid>(v => v == null ? Guid.Empty : v.Value, v => v == Guid.Empty ? null : SiteId.From(v));
         var interfaceIdConv = new ValueConverter<InterfaceId, Guid>(v => v.Value, v => InterfaceId.From(v));
         var linkIdConv = new ValueConverter<LinkId, Guid>(v => v.Value, v => LinkId.From(v));
         var alertIdConv = new ValueConverter<AlertId, Guid>(v => v.Value, v => AlertId.From(v));
@@ -69,7 +70,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion(siteIdConv);
             e.Property(x => x.OrganizationId).HasConversion(orgIdConv);
-            e.Property(x => x.ParentSiteId).HasConversion(siteIdConv);
+            e.Property(x => x.ParentSiteId).HasConversion(siteIdNullableConv);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.Property(x => x.Code).IsRequired().HasMaxLength(50);
             e.Property(x => x.SiteType).HasConversion<int>();
@@ -83,7 +84,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.ToTable("Subscribers");
             e.HasKey(x => x.Id);
             e.Property(x => x.OrganizationId).HasConversion(orgIdConv);
-            e.Property(x => x.SiteId).HasConversion(siteIdConv);
+            e.Property(x => x.SiteId).HasConversion(siteIdNullableConv);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
         });
 
@@ -101,7 +102,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.ToTable("Devices");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion(deviceIdConv);
-            e.Property(x => x.SiteId).HasConversion(siteIdConv);
+            e.Property(x => x.SiteId).HasConversion(siteIdNullableConv);
             e.Property(x => x.Hostname).IsRequired().HasMaxLength(200);
             e.Property(x => x.ManagementIp).IsRequired().HasMaxLength(45);
             e.Property(x => x.DeviceType).HasConversion<int>();
