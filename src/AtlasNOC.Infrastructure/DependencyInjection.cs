@@ -38,8 +38,22 @@ public static class DependencyInjection
         // Probes / drivers (orden = especificidad; SnmpDriver genérico va al final como fallback)
         services.AddSingleton<IIcmpProbe, IcmpProbe>();
         services.AddSingleton<ISnmpProbe, SnmpProbe>();
-        services.AddHttpClient("mikrotik");
-        services.AddHttpClient("ubiquiti");
+
+        // ─── Fase 9: resiliencia HTTP (timeout + reintentos) para drivers ───
+        // Los drivers declaran su timeout en MikroTikOptions/UbiqutiOptions;
+        // aquí se aplica de verdad y se añade política de reintentos.
+        services.AddHttpClient("mikrotik", (sp, c) =>
+        {
+            var opts = sp.GetRequiredService<MikroTikOptions>();
+            c.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds > 0 ? opts.TimeoutSeconds : 10);
+        }).AddStandardResilienceHandler();
+
+        services.AddHttpClient("ubiquiti", (sp, c) =>
+        {
+            var opts = sp.GetRequiredService<UbiquitiOptions>();
+            c.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds > 0 ? opts.TimeoutSeconds : 10);
+        }).AddStandardResilienceHandler();
+
         services.AddSingleton(new MikroTikOptions());
         services.AddSingleton(new UbiquitiOptions());
         services.AddSingleton<IDeviceDriver, MikroTikDriver>();

@@ -2,6 +2,7 @@ using AtlasNOC.Application.Dtos;
 using AtlasNOC.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AtlasNOC.Web.Controllers.Api;
 
@@ -9,6 +10,7 @@ namespace AtlasNOC.Web.Controllers.Api;
 [ApiController]
 [Route("api/topology")]
 [Authorize]
+[EnableRateLimiting("api")]
 public class TopologyApiController : ControllerBase
 {
     private readonly ITopologyService _topology;

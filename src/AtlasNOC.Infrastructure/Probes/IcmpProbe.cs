@@ -13,10 +13,17 @@ public class IcmpProbe : IIcmpProbe
         try
         {
             using var ping = new System.Net.NetworkInformation.Ping();
-            var reply = await ping.SendPingAsync(ipAddress, timeoutMs);
+            // Encadena el timeout del ping con el token de cancelación del ciclo.
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(timeoutMs);
+            var reply = await ping.SendPingAsync(ipAddress, timeoutMs).WaitAsync(timeoutCts.Token);
             if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
                 return new PingResult(true, (double)reply.RoundtripTime, null);
             return new PingResult(false, null, reply.Status.ToString());
+        }
+        catch (OperationCanceledException)
+        {
+            return new PingResult(false, null, "timeout");
         }
         catch (Exception ex)
         {

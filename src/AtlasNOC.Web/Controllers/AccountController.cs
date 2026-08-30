@@ -4,6 +4,7 @@ using AtlasNOC.Domain.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AtlasNOC.Web.Controllers;
 
@@ -33,6 +34,7 @@ public class AccountController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login(string userName, string password, bool rememberMe, string? returnUrl = null)
     {
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrEmpty(password))

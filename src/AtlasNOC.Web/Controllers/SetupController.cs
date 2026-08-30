@@ -1,6 +1,7 @@
 using AtlasNOC.Application.Dtos;
 using AtlasNOC.Application.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AtlasNOC.Web.Controllers;
 
@@ -21,6 +22,7 @@ public class SetupController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("setup")]
     public async Task<IActionResult> Index(SetupRequest request)
     {
         if (!await _setup.IsSetupRequiredAsync())
