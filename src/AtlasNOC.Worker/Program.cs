@@ -21,7 +21,7 @@ builder.ConfigureServices((context, services) =>
             context.Configuration.GetConnectionString("DefaultConnection"),
             ServerVersion.Parse("8.0.36-mysql")));
 
-    services.AddInfrastructure();
+    services.AddInfrastructure(context.Configuration.GetValue<bool>("LabMode"));
 });
 
 var host = builder.Build();

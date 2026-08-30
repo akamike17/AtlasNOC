@@ -195,7 +195,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         {
             e.ToTable("DiscoveryRuns");
             e.HasKey(x => x.Id);
-            e.Property(x => x.ScopeIp).IsRequired().HasMaxLength(100);
+            e.Property(x => x.ScopeIp).IsRequired().HasMaxLength(4000);
             e.Property(x => x.TargetSiteId).HasMaxLength(64);
             e.Property(x => x.CredentialId).HasMaxLength(64);
             e.Property(x => x.Status).HasConversion<int>();

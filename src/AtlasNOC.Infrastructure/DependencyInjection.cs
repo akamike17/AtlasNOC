@@ -15,7 +15,7 @@ namespace AtlasNOC.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, bool labMode = false)
     {
         // Persistence
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
@@ -36,8 +36,13 @@ public static class DependencyInjection
         services.AddScoped<ICredentialProtector, CredentialProtector>();
 
         // Probes / drivers (orden = especificidad; SnmpDriver genérico va al final como fallback)
-        services.AddSingleton<IIcmpProbe, IcmpProbe>();
-        services.AddSingleton<ISnmpProbe, SnmpProbe>();
+        // ─── Modo LAB: Icmp/Snmp simulados; producción: probes reales ──────
+        services.AddSingleton<IcmpProbe>();
+        services.AddSingleton<SnmpProbe>();
+        services.AddSingleton<IIcmpProbe>(sp =>
+            new SimulatedIcmpProbe(labMode, sp.GetRequiredService<IcmpProbe>()));
+        services.AddSingleton<ISnmpProbe>(sp =>
+            new SimulatedSnmpProbe(labMode, sp.GetRequiredService<SnmpProbe>()));
 
         // ─── Fase 9: resiliencia HTTP (timeout + reintentos) para drivers ───
         // Los drivers declaran su timeout en MikroTikOptions/UbiqutiOptions;
@@ -56,9 +61,11 @@ public static class DependencyInjection
 
         services.AddSingleton(new MikroTikOptions());
         services.AddSingleton(new UbiquitiOptions());
+        // Orden = especificidad. Simulated primero: en modo LAB toma prioridad y no
+        // se dispara con fingerprints reales (solo VendorHint "simulated" o IPs 10.0.x).
+        services.AddSingleton<IDeviceDriver, SimulatedNetworkDriver>();
         services.AddSingleton<IDeviceDriver, MikroTikDriver>();
         services.AddSingleton<IDeviceDriver, UbiquitiDriver>();
-        services.AddSingleton<IDeviceDriver, SimulatedNetworkDriver>();
         services.AddSingleton<IDeviceDriver, GenericSnmpDriver>();
         services.AddSingleton<IDeviceDriverRegistry, DeviceDriverRegistry>();
 

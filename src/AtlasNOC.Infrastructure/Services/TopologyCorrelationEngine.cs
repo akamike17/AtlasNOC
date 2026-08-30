@@ -63,20 +63,15 @@ public class TopologyCorrelationEngine : ITopologyCorrelationEngine
             {
                 var a = observations[i];
                 var b = observations[j];
-                if (a.LocalDeviceId == b.LocalDeviceId) continue;
+                if (Normalize(a.LocalDeviceId) == Normalize(b.LocalDeviceId)) continue;
 
-                var aSeesB = Normalize(a.RemoteIdentity) == Normalize(b.LocalDeviceId)
-                    || Normalize(a.RemoteIdentity) == Normalize(b.RemoteIdentity);
-                var bSeesA = Normalize(b.RemoteIdentity) == Normalize(a.LocalDeviceId)
-                    || Normalize(b.RemoteIdentity) == Normalize(a.RemoteIdentity);
+                // Solo enlaces simétricos: A ve a B Y B ve a A (identidades que se referencian mutuamente).
+                var aSeesB = Normalize(a.RemoteIdentity) == Normalize(b.LocalDeviceId);
+                var bSeesA = Normalize(b.RemoteIdentity) == Normalize(a.LocalDeviceId);
 
-                if (aSeesB || bSeesA)
+                if (aSeesB && bSeesA)
                 {
-                    // Preferir match simétrico completo sobre parcial.
-                    var symmetrical = Normalize(a.RemoteIdentity) == Normalize(b.LocalDeviceId)
-                        && Normalize(b.RemoteIdentity) == Normalize(a.LocalDeviceId);
-                    if (symmetrical || aSeesB)
-                        pairs.Add((a, b));
+                    pairs.Add((a, b));
                 }
             }
         }

@@ -13,58 +13,70 @@ public class SimulatedNetworkDriver : IDeviceDriver
 
     public string DriverKey => "simulated";
 
-    // ── Topología LAB-01 (determinista) ────────────────────────────────────
-    public static IReadOnlyList<(string Hostname, string Ip, string Vendor)> LabDevices { get; } =
-        BuildLabDevices();
-
-    private static IReadOnlyList<(string, string, string)> BuildLabDevices()
-    {
-        var list = new List<(string, string, string)>
-        {
-            ("EdgeRouter-01", "10.0.0.1", "generic"),
-            ("CoreSwitch-01", "10.0.0.2", "generic"),
-            ("TowerA-Backhaul", "10.0.1.1", "generic"),
-            ("TowerA-Switch", "10.0.1.2", "generic"),
-            ("AP-A1", "10.0.1.10", "ubiquiti"),
-            ("AP-A2", "10.0.1.11", "ubiquiti"),
-            ("AP-A3", "10.0.1.12", "ubiquiti"),
-            ("TowerB-Backhaul", "10.0.2.1", "generic"),
-            ("TowerB-Switch", "10.0.2.2", "generic"),
-            ("AP-B1", "10.0.2.10", "ubiquiti"),
-            ("AP-B2", "10.0.2.11", "ubiquiti"),
-        };
-        // 10 CPE per AP => 50 CPE.
-        var apCounter = 0;
-        foreach (var ap in new[] { "AP-A1", "AP-A2", "AP-A3", "AP-B1", "AP-B2" })
-        {
-            apCounter++;
-            for (var i = 1; i <= 10; i++)
-                list.Add(($"CPE-{ap}-{i:D2}", $"10.0.{10 + apCounter}.{i}", "ubiquiti"));
-        }
-        return list;
-    }
-
     public bool CanHandle(DeviceFingerprint fingerprint)
-        => fingerprint.VendorHint == "simulated" || fingerprint.ManagementIp.StartsWith("10.0.");
+        => fingerprint.VendorHint == "simulated" || LabTopology.IsLabIp(fingerprint.ManagementIp);
 
     public Task<DeviceIdentity> GetIdentityAsync(string managementIp, CancellationToken ct)
     {
-        var host = managementIp.Replace('.', '-');
-        return Task.FromResult(new DeviceIdentity(host, "LAB-Model", "LAB-0001", "1.0.0", "1.3.6.1.4.1.LAB"));
+        var node = LabTopology.Find(managementIp);
+        if (node is null)
+            return Task.FromResult(new DeviceIdentity(managementIp, "LAB-Model", "LAB-0001", "1.0.0", "1.3.6.1.4.1.LAB"));
+
+        var identity = new DeviceIdentity(
+            node.Value.Hostname,
+            node.Value.DeviceType,
+            $"LAB-{node.Value.Hostname}",
+            "1.0.0",
+            node.Value.Vendor == "ubiquiti" ? "1.3.6.1.4.1.41112" : "1.3.6.1.4.1.LAB");
+        return Task.FromResult(identity);
     }
 
     public Task<IReadOnlyList<InterfaceData>> GetInterfacesAsync(string managementIp, CancellationToken ct)
     {
-        var result = new List<InterfaceData>
+        var node = LabTopology.Find(managementIp);
+        if (node is null)
+            return Task.FromResult<IReadOnlyList<InterfaceData>>(Array.Empty<InterfaceData>());
+
+        // Genera las interfaces que participan en enlaces LAB-01 (determinista),
+        // más un único ether1/ether2 por defecto cuando no hay puertos definidos.
+        var ports = LabTopology.Links
+            .Where(l => l.A == node.Value.Hostname || l.B == node.Value.Hostname)
+            .Select(l => l.A == node.Value.Hostname ? l.APort : l.BPort)
+            .Distinct()
+            .ToList();
+
+        if (ports.Count == 0)
+            ports.Add("ether1");
+
+        var result = new List<InterfaceData>();
+        var idx = 0;
+        foreach (var port in ports)
         {
-            new(1, "ether1", "uplink", "00:00:00:00:00:01", managementIp, 1, 1, 1_000_000_000UL, "ethernet"),
-            new(2, "ether2", "downlink", "00:00:00:00:00:02", null, 1, 1, 1_000_000_000UL, "ethernet"),
-        };
+            idx++;
+            var isWireless = port.StartsWith("sector", StringComparison.OrdinalIgnoreCase)
+                || port.StartsWith("wlan", StringComparison.OrdinalIgnoreCase);
+            result.Add(new InterfaceData(
+                idx,
+                port,
+                isWireless ? "wireless link" : "ethernet link",
+                $"00:00:00:00:00:{idx:D2}",
+                null,
+                1, 1,
+                isWireless ? 300_000_000UL : 1_000_000_000UL,
+                isWireless ? "wireless" : "ethernet"));
+        }
+
         return Task.FromResult<IReadOnlyList<InterfaceData>>(result);
     }
 
     public Task<IReadOnlyList<NeighborData>> GetNeighborsAsync(string managementIp, CancellationToken ct)
-        => Task.FromResult<IReadOnlyList<NeighborData>>(Array.Empty<NeighborData>());
+    {
+        var node = LabTopology.Find(managementIp);
+        if (node is null)
+            return Task.FromResult<IReadOnlyList<NeighborData>>(Array.Empty<NeighborData>());
+
+        return Task.FromResult(LabTopology.NeighborsFor(node.Value.Hostname));
+    }
 
     public Task<HealthData> GetHealthAsync(string managementIp, CancellationToken ct)
     {

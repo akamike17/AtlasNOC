@@ -99,22 +99,38 @@ public class DiscoveryExecutor : IDiscoveryExecutor
                     found++;
 
                     var interfaces = await driver.GetInterfacesAsync(ip, ct);
+                    // Interfaces ya conocidas del dispositivo para upsert idempotente.
+                    var existingInterfaces = await _context.DeviceInterfaces
+                        .Where(i => i.DeviceId == device.Id)
+                        .ToListAsync(ct);
                     foreach (var iface in interfaces)
                     {
-                        var ei = new DeviceInterface(device.Id, iface.IfIndex, iface.Name,
-                            iface.Description, iface.MacAddress, iface.IpAddress,
-                            (InterfaceAdminStatus)iface.AdminStatus, (InterfaceOperStatus)iface.OperStatus,
-                            iface.SpeedBps, iface.InterfaceType);
-                        _context.DeviceInterfaces.Add(ei);
-
-                        // Observaciones de vecinos.
-                        foreach (var neighbor in await driver.GetNeighborsAsync(ip, ct))
+                        var ei = existingInterfaces.FirstOrDefault(i => i.IfIndex == iface.IfIndex);
+                        if (ei is null)
                         {
-                            observations.Add(new NeighborObservationInput(
-                                device.Id.Value.ToString(), ei.Id.Value.ToString(),
-                                neighbor.RemoteIdentity, neighbor.RemotePortIdentity,
-                                neighbor.Protocol, neighbor.RawEvidenceHash));
+                            ei = new DeviceInterface(device.Id, iface.IfIndex, iface.Name,
+                                iface.Description, iface.MacAddress, iface.IpAddress,
+                                (InterfaceAdminStatus)iface.AdminStatus, (InterfaceOperStatus)iface.OperStatus,
+                                iface.SpeedBps, iface.InterfaceType);
+                            _context.DeviceInterfaces.Add(ei);
+                            existingInterfaces.Add(ei);
                         }
+                    }
+
+                    // Observaciones de vecinos: una sola vez por dispositivo y enlazadas
+                    // a la interfaz local correcta (por nombre de puerto).
+                    // LocalDeviceId usa el hostname (identidad estable que el vecino referencia
+                    // como RemoteIdentity); LocalInterfaceId usa el GUID de la interfaz persistida.
+                    foreach (var neighbor in await driver.GetNeighborsAsync(ip, ct))
+                    {
+                        var localIface = existingInterfaces.FirstOrDefault(
+                            i => i.Name.Equals(neighbor.LocalInterfaceName, StringComparison.OrdinalIgnoreCase));
+                        if (localIface is null) continue;
+
+                        observations.Add(new NeighborObservationInput(
+                            device.Hostname, localIface.Id.Value.ToString(),
+                            neighbor.RemoteIdentity, neighbor.RemotePortIdentity,
+                            neighbor.Protocol, neighbor.RawEvidenceHash));
                     }
                 }
                 catch (Exception ex)

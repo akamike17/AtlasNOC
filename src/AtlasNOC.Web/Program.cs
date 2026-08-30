@@ -117,7 +117,8 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<AtlasNOCDbContext>("database", tags: new[] { "ready" });
 
 // ─── Infraestructura (repositorios, servicios, workers, drivers) ───────────
-builder.Services.AddInfrastructure();
+var labMode = builder.Configuration.GetValue<bool>("LabMode");
+builder.Services.AddInfrastructure(labMode);
 
 var app = builder.Build();
 
