@@ -67,5 +67,7 @@ public class AccountController : Controller
     public IActionResult AccessDenied() => View();
 
     private IActionResult RedirectToLocal(string? returnUrl)
-        => Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl!) : RedirectToAction("Index", "Dashboard");
+        => !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? Redirect(returnUrl!)
+            : RedirectToAction("Index", "Dashboard");
 }

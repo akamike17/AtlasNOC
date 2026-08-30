@@ -182,3 +182,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Marcador para WebApplicationFactory (Mvc.Testing) en tests E2E.
+public partial class Program { }
