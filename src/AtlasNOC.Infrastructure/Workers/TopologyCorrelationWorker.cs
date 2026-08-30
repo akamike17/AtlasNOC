@@ -34,6 +34,7 @@ public class TopologyCorrelationWorker : BackgroundService
 
                 var pending = await db.NeighborObservations
                     .Where(o => !o.IsResolved)
+                    .OrderBy(o => o.Id)
                     .Take(500)
                     .ToListAsync(stoppingToken);
 

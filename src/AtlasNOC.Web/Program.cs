@@ -56,8 +56,28 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 // ─── Data Protection persistido en MySQL (necesario para cifrar credenciales) ─
-builder.Services.AddDataProtection()
+// Fase 9: anillo de claves aislado por aplicación. Si se configura un
+// certificado (DataProtection:KeyRingCertThumbprint), las claves en reposo
+// se cifran con él; sin certificado quedan en claro (sólo desarrollo).
+var dataProtection = builder.Services.AddDataProtection()
+    .SetApplicationName("AtlasNOC")
     .PersistKeysToDbContext<AtlasNOCDbContext>();
+
+var keyRingCertThumbprint = builder.Configuration["DataProtection:KeyRingCertThumbprint"];
+if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
+{
+    using var certStore = new System.Security.Cryptography.X509Certificates.X509Store(
+        System.Security.Cryptography.X509Certificates.StoreName.My,
+        System.Security.Cryptography.X509Certificates.StoreLocation.CurrentUser);
+    certStore.Open(System.Security.Cryptography.X509Certificates.OpenFlags.ReadOnly);
+    var cert = certStore.Certificates
+        .Find(System.Security.Cryptography.X509Certificates.X509FindType.FindByThumbprint,
+              keyRingCertThumbprint, validOnly: false)
+        .OfType<System.Security.Cryptography.X509Certificates.X509Certificate2>()
+        .FirstOrDefault();
+    if (cert is not null)
+        dataProtection.ProtectKeysWithCertificate(cert);
+}
 
 // ─── Fase 9: Rate limiting (anti fuerza bruta / anti abuso de API) ────────
 builder.Services.AddRateLimiter(options =>

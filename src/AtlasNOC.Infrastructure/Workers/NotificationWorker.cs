@@ -39,6 +39,7 @@ public class NotificationWorker : BackgroundService
                     .Where(a => a.State == AlertState.Open
                         && (a.Severity == AlertSeverity.High || a.Severity == AlertSeverity.Critical)
                         && a.NotificationSentAtUtc == null)
+                    .OrderBy(a => a.Id)
                     .Take(50)
                     .ToListAsync(stoppingToken);
 
