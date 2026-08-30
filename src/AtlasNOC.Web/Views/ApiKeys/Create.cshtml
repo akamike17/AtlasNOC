@@ -1,0 +1,29 @@
+@model AtlasNOC.Application.Dtos.CreateApiKeyRequest
+@{
+    ViewData["Title"] = "Nueva API key";
+}
+
+<div class="noc-card" style="max-width:560px">
+    <h1 class="h5 mb-3">Nueva API key</h1>
+    <p class="text-secondary small">Se destina a integraciones y automatización externas. Nunca la uses como login de operador.</p>
+    <form asp-action="Create" method="post">
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input class="form-control bg-dark text-light" asp-for="Name" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <input class="form-control bg-dark text-light" asp-for="Description" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Scopes</label>
+            <input class="form-control bg-dark text-light" asp-for="Scopes" placeholder="devices.read topology.read alerts.read" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Expira (UTC, opcional)</label>
+            <input class="form-control bg-dark text-light" asp-for="ExpiresAtUtc" type="datetime-local" />
+        </div>
+        <button class="btn btn-primary" type="submit">Crear</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+</div>

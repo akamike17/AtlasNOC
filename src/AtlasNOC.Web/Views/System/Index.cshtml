@@ -1,0 +1,54 @@
+@model AtlasNOC.Application.Dtos.SystemHealthDto
+@{
+    ViewData["Title"] = "Salud del sistema";
+}
+
+<h1 class="h4 mb-3">Salud del sistema</h1>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="noc-card">
+            <div class="text-secondary small">Base de datos</div>
+            <div class="h4 mb-0">
+                @if (Model.DatabaseOk)
+                {
+                    <span class="badge bg-up">Conectada</span>
+                }
+                else
+                {
+                    <span class="badge bg-down">No disponible</span>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="noc-card">
+            <div class="text-secondary small">Dispositivos inventariados</div>
+            <div class="h4 mb-0">@Model.DeviceCount</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="noc-card">
+            <div class="text-secondary small">Alertas abiertas</div>
+            <div class="h4 mb-0">@Model.OpenAlertCount</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="noc-card">
+            <div class="text-secondary small">Última verificación (UTC)</div>
+            <div class="h4 mb-0 smaller">@Model.CheckedAtUtc.ToString("g")</div>
+        </div>
+    </div>
+</div>
+
+<div class="noc-card">
+    <h2 class="h6 mb-2">Workers en segundo plano</h2>
+    <ul class="mb-0">
+        <li><strong>DiscoveryWorker</strong> — descubrimiento de inventario.</li>
+        <li><strong>PollingWorker</strong> — ICMP + drivers de estado/métricas.</li>
+        <li><strong>TopologyCorrelationWorker</strong> — correlación de vecinos.</li>
+        <li><strong>AlertEvaluationWorker</strong> — evaluación de reglas de alerta.</li>
+        <li><strong>NotificationWorker</strong> — despacho de notificaciones.</li>
+        <li><strong>MetricRetentionWorker</strong> — retención de muestras.</li>
+    </ul>
+</div>

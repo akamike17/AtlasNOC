@@ -1,0 +1,42 @@
+@model IReadOnlyList<AtlasNOC.Domain.Entities.AuditEvent>
+@{
+    ViewData["Title"] = "Auditoría";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Auditoría</h1>
+    <span class="text-secondary small">Últimas 500 acciones</span>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Fecha (UTC)</th><th>Categoría</th><th>Acción</th><th>Actuante</th><th>Rol</th><th>Recurso</th><th>Resultado</th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="7" class="text-secondary">Sin eventos de auditoría todavía.</td></tr>
+        }
+        @foreach (var e in Model)
+        {
+            <tr>
+                <td>@e.TimestampUtc.ToString("g")</td>
+                <td>@e.Category</td>
+                <td>@e.Action</td>
+                <td>@e.ActorEmail (@e.ActorUserId)</td>
+                <td>@e.ActorRole</td>
+                <td>@(e.TargetResourceType is not null ? $"{e.TargetResourceType}:{e.TargetResource}" : "—")</td>
+                <td>
+                    @if (e.Result == AtlasNOC.Domain.Enums.AuditResult.Success)
+                    {
+                        <span class="badge bg-up">OK</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-down">@e.Result</span>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

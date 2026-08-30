@@ -1,0 +1,38 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.UserLiteDto>
+@{
+    ViewData["Title"] = "Usuarios y roles";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Usuarios y roles</h1>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="4" class="text-secondary">Sin usuarios.</td></tr>
+        }
+        @foreach (var u in Model)
+        {
+            <tr>
+                <td>@u.UserName</td>
+                <td>@(u.DisplayName ?? "—")</td>
+                <td><span class="badge bg-unknown">@u.Role</span></td>
+                <td>
+                    @if (u.IsActive)
+                    {
+                        <span class="badge bg-up">Activo</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-down">Inactivo</span>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
