@@ -35,9 +35,15 @@ public static class DependencyInjection
         // Security
         services.AddScoped<ICredentialProtector, CredentialProtector>();
 
-        // Probes / drivers
+        // Probes / drivers (orden = especificidad; SnmpDriver genérico va al final como fallback)
         services.AddSingleton<IIcmpProbe, IcmpProbe>();
         services.AddSingleton<ISnmpProbe, SnmpProbe>();
+        services.AddHttpClient("mikrotik");
+        services.AddHttpClient("ubiquiti");
+        services.AddSingleton(new MikroTikOptions());
+        services.AddSingleton(new UbiquitiOptions());
+        services.AddSingleton<IDeviceDriver, MikroTikDriver>();
+        services.AddSingleton<IDeviceDriver, UbiquitiDriver>();
         services.AddSingleton<IDeviceDriver, SimulatedNetworkDriver>();
         services.AddSingleton<IDeviceDriver, GenericSnmpDriver>();
         services.AddSingleton<IDeviceDriverRegistry, DeviceDriverRegistry>();
