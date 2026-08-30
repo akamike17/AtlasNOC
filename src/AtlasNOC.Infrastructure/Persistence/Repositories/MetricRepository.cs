@@ -33,4 +33,9 @@ public class MetricRepository : IMetricRepository
             .OrderBy(m => m.TimestampUtc)
             .AsNoTracking()
             .ToListAsync(ct);
+
+    public async Task<int> PurgeOlderThanAsync(DateTime olderThanUtc, CancellationToken ct = default)
+        => await _context.MetricSamples
+            .Where(m => m.TimestampUtc < olderThanUtc)
+            .ExecuteDeleteAsync(ct);
 }

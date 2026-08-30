@@ -21,4 +21,54 @@
     </dl>
 </div>
 
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="noc-card">
+            <h2 class="h6">Latencia (RTT)</h2>
+            <canvas id="chartRtt" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="noc-card">
+            <h2 class="h6">CPU</h2>
+            <canvas id="chartCpu" height="120"></canvas>
+        </div>
+    </div>
+</div>
+
 <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var deviceId = '@Model.Id';
+            async function fetchSeries(metric) {
+                var resp = await fetch('/api/metrics?resourceType=Device&resourceId=' + deviceId + '&metric=' + metric);
+                if (!resp.ok) return [];
+                var pts = await resp.json();
+                return pts.map(function (p) { return { x: new Date(p.timestampUtc), y: p.value }; });
+            }
+            function render(elId, label, data, color) {
+                var el = document.getElementById(elId);
+                if (!el) return;
+                new Chart(el, {
+                    type: 'line',
+                    data: { datasets: [{ label: label, data: data, borderColor: color, backgroundColor: color + '22', tension: 0.2, pointRadius: 0, fill: true }] },
+                    options: {
+                        animation: false,
+                        scales: {
+                            x: { type: 'time', time: { unit: 'hour' }, grid: { color: '#30363d' }, ticks: { color: '#8b949e' } },
+                            y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
+                        },
+                        plugins: { legend: { labels: { color: '#e6edf3' } } }
+                    }
+                });
+            }
+            Promise.all([
+                fetchSeries('rtt').then(function (d) { render('chartRtt', 'RTT (ms)', d, '#58a6ff'); }),
+                fetchSeries('cpu_usage').then(function (d) { render('chartCpu', 'CPU (%)', d, '#f97316'); })
+            ]).catch(function (e) { console.error(e); });
+        })();
+    </script>
+}

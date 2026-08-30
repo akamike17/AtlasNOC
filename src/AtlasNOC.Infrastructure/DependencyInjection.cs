@@ -72,6 +72,8 @@ public static class DependencyInjection
         // Workers (register as hosted services where the host chooses)
         services.AddHostedService<PollingWorker>();
         services.AddHostedService<DiscoveryWorker>();
+        services.AddHostedService<TopologyCorrelationWorker>();
+        services.AddHostedService<MetricRetentionWorker>();
 
         return services;
     }
