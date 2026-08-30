@@ -33,7 +33,7 @@ public class AlertEvaluationWorker : BackgroundService
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { _logger.LogError(ex, "Error en AlertEvaluationWorker"); }
 
-            try { await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken); }
+            try { await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken); }
             catch (OperationCanceledException) { break; }
         }
     }

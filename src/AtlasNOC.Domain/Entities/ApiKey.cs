@@ -39,5 +39,9 @@ public class ApiKey
     public bool IsExpired => ExpiresAtUtc.HasValue && ExpiresAtUtc.Value < DateTime.UtcNow;
     public bool CanUse => IsActive && !IsExpired;
 
-    public void Revoke() => RevokedAtUtc = DateTime.UtcNow;
+    public void Revoke()
+    {
+        IsActive = false;
+        RevokedAtUtc = DateTime.UtcNow;
+    }
 }
