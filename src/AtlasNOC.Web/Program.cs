@@ -55,6 +55,22 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.Cookie.IsEssential = true;
+
+    // ─── Fase A4: invalidar la cookie si el usuario ya no existe o está
+    //      desactivado (IsActive). Se valida en cada petición autenticada. ───
+    options.Events.OnValidatePrincipal = async ctx =>
+    {
+        var signIn = ctx.HttpContext.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+        if (ctx.Principal is not null)
+        {
+            var user = await signIn.UserManager.GetUserAsync(ctx.Principal);
+            if (user is null || !user.IsActive)
+            {
+                ctx.RejectPrincipal();
+                await signIn.SignOutAsync();
+            }
+        }
+    };
 });
 
 // ─── Fase A2: autenticación por API key (sólo lectura X-Api-Key) ───────────

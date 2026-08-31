@@ -1,4 +1,3 @@
-using AtlasNOC.Application.Dtos;
 using AtlasNOC.Application.Services;
 using AtlasNOC.Domain.Identity;
 using Microsoft.AspNetCore.Authorization;
@@ -43,11 +42,42 @@ public class AccountController : Controller
             return View();
         }
 
-        var result = await _signInManager.PasswordSignInAsync(userName, password, rememberMe, lockoutOnFailure: false);
+        // ─── Fase A4: IsActive. No revelar si el usuario existe. ─────────────
+        var user = await _userManager.FindByNameAsync(userName);
+        if (user is not null && !user.IsActive)
+        {
+            // Resultado idéntico al de credenciales inválidas: no delata la cuenta.
+            ModelState.AddModelError(string.Empty, "Usuario o contraseña incorrectos.");
+            return View();
+        }
+
+        // ─── Fase A4: lockout habilitado de verdad. ──────────────────────────
+        var result = await _signInManager.PasswordSignInAsync(userName, password, rememberMe, lockoutOnFailure: true);
+
         if (result.Succeeded)
         {
             await _audit.RecordAsync("Auth", "Login", userName, userName, "—");
             return RedirectToLocal(returnUrl);
+        }
+
+        if (result.IsLockedOut)
+        {
+            await _audit.RecordAsync("Auth", "Lockout", userName, userName, "—");
+            ModelState.AddModelError(string.Empty, "Cuenta bloqueada por demasiados intentos fallidos. Intenta de nuevo más tarde.");
+            return View();
+        }
+
+        if (result.IsNotAllowed)
+        {
+            ModelState.AddModelError(string.Empty, "Usuario o contraseña incorrectos.");
+            return View();
+        }
+
+        if (result.RequiresTwoFactor)
+        {
+            // No se usa 2FA en esta versión, pero se gestiona explícitamente.
+            ModelState.AddModelError(string.Empty, "Se requiere un segundo factor de autenticación.");
+            return View();
         }
 
         ModelState.AddModelError(string.Empty, "Usuario o contraseña incorrectos.");
@@ -60,6 +90,7 @@ public class AccountController : Controller
     public async Task<IActionResult> Logout()
     {
         await _signInManager.SignOutAsync();
+        await _audit.RecordAsync("Auth", "Logout", User.Identity?.Name ?? "", User.Identity?.Name ?? "", "—");
         return RedirectToAction("Login", "Account");
     }
 
