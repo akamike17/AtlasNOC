@@ -1,5 +1,6 @@
 using AtlasNOC.Application.Dtos;
 using AtlasNOC.Application.Services;
+using AtlasNOC.Web.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -9,7 +10,7 @@ namespace AtlasNOC.Web.Controllers.Api;
 /// <summary>API de topología: expone el grafo normalizado (nodes+edges+groups) de relaciones persistidas.</summary>
 [ApiController]
 [Route("api/topology")]
-[Authorize]
+[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = ApiScopes.TopologyRead)]
 [EnableRateLimiting("api")]
 public class TopologyApiController : ControllerBase
 {

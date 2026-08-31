@@ -1,6 +1,8 @@
 using AtlasNOC.Domain.Identity;
 using AtlasNOC.Infrastructure;
 using AtlasNOC.Infrastructure.Persistence;
+using AtlasNOC.Web.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +55,20 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.Cookie.IsEssential = true;
+});
+
+// ─── Fase A2: autenticación por API key (sólo lectura X-Api-Key) ───────────
+// El esquema por defecto sigue siendo la cookie de Identity (login humano).
+// La API key es un esquema adicional; una API key jamás autoriza vistas MVC.
+builder.Services.AddScoped<ApiKeyAuthenticationHandler>();
+builder.Services.AddAuthentication()
+    .AddApiKeyAuthentication();
+
+// ─── Fase A2: políticas de scope para /api/* ───────────────────────────────
+builder.Services.AddScoped<IAuthorizationHandler, ApiScopeAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddApiScopePolicies();
 });
 
 // ─── Data Protection persistido en MySQL (necesario para cifrar credenciales) ─

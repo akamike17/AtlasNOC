@@ -1,5 +1,6 @@
 using AtlasNOC.Application.Dtos;
 using AtlasNOC.Application.Services;
+using AtlasNOC.Web.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -9,7 +10,7 @@ namespace AtlasNOC.Web.Controllers.Api;
 /// <summary>API de series de tiempo para gráficas (Chart.js).</summary>
 [ApiController]
 [Route("api/metrics")]
-[Authorize]
+[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = ApiScopes.MetricsRead)]
 [EnableRateLimiting("api")]
 public class MetricsApiController : ControllerBase
 {
