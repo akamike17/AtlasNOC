@@ -11,12 +11,15 @@ public class DiscoveryController : Controller
     private readonly IDiscoveryService _discovery;
     private readonly ISiteService _sites;
     private readonly ICredentialService _credentials;
+    private readonly IAuditService _audit;
 
-    public DiscoveryController(IDiscoveryService discovery, ISiteService sites, ICredentialService credentials)
+    public DiscoveryController(IDiscoveryService discovery, ISiteService sites, ICredentialService credentials,
+        IAuditService audit)
     {
         _discovery = discovery;
         _sites = sites;
         _credentials = credentials;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -36,6 +39,9 @@ public class DiscoveryController : Controller
     public async Task<IActionResult> Start(StartDiscoveryRequest request)
     {
         var id = await _discovery.StartDiscoveryAsync(request);
+        await _audit.RecordAsync("Discovery", "Start", User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole("Administrator") ? "Administrator" : "NocOperator",
+            id.ToString(), "DiscoveryRun");
         return RedirectToAction(nameof(Index));
     }
 }

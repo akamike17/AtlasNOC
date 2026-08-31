@@ -11,8 +11,13 @@ namespace AtlasNOC.Web.Controllers;
 public class SitesController : Controller
 {
     private readonly ISiteService _sites;
+    private readonly IAuditService _audit;
 
-    public SitesController(ISiteService sites) => _sites = sites;
+    public SitesController(ISiteService sites, IAuditService audit)
+    {
+        _sites = sites;
+        _audit = audit;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index()
@@ -27,7 +32,10 @@ public class SitesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateSiteRequest request)
     {
-        await _sites.CreateSiteAsync(request);
+        var site = await _sites.CreateSiteAsync(request);
+        await _audit.RecordAsync("Site", "Create", User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole(ApplicationRole.Administrator) ? ApplicationRole.Administrator : ApplicationRole.NocOperator,
+            site.Id.ToString(), "Site");
         return RedirectToAction(nameof(Index));
     }
 }

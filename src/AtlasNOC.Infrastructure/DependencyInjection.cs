@@ -34,6 +34,9 @@ public static class DependencyInjection
 
         // Security
         services.AddScoped<ICredentialProtector, CredentialProtector>();
+        // Necesario para que AuditService capture IP/User-Agent del actor (§25).
+        // En el Worker no hay HttpContext (null es manejado); en Web sí.
+        services.AddHttpContextAccessor();
 
         // Probes / drivers (orden = especificidad; SnmpDriver genérico va al final como fallback)
         // ─── Modo LAB: Icmp/Snmp simulados; producción: probes reales ──────

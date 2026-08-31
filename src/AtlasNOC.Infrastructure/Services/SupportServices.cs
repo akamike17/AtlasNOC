@@ -7,6 +7,7 @@ using AtlasNOC.Domain.Entities;
 using AtlasNOC.Domain.Enums;
 using AtlasNOC.Infrastructure.Persistence;
 using AtlasNOC.Infrastructure.Security;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace AtlasNOC.Infrastructure.Services;
@@ -183,19 +184,28 @@ public class AuditService : IAuditService
 {
     private readonly IAuditRepository _audits;
     private readonly AtlasNOCDbContext _context;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AuditService(IAuditRepository audits, AtlasNOCDbContext context)
+    public AuditService(IAuditRepository audits, AtlasNOCDbContext context,
+        IHttpContextAccessor httpContextAccessor)
     {
         _audits = audits;
         _context = context;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task RecordAsync(string category, string action, string actorUserId, string actorEmail,
         string actorRole, string? targetResource = null, string? targetResourceType = null,
         CancellationToken ct = default)
     {
+        // ─── Fase A6 (§25): captura IP efectiva y User-Agent del actor. ──────
+        var http = _httpContextAccessor.HttpContext;
+        var ipAddress = http?.Connection.RemoteIpAddress?.ToString();
+        var userAgent = http?.Request.Headers["User-Agent"].ToString();
+
         var evt = new AuditEvent(category, action, actorUserId, actorEmail, actorRole,
-            targetResource, targetResourceType);
+            targetResource, targetResourceType,
+            ipAddress: ipAddress, userAgent: userAgent);
         await _audits.AddAsync(evt, ct);
         await _context.SaveChangesAsync(ct);
     }

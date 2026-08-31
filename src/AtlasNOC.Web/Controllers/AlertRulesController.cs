@@ -9,8 +9,13 @@ namespace AtlasNOC.Web.Controllers;
 public class AlertRulesController : Controller
 {
     private readonly IAlertRuleService _rules;
+    private readonly IAuditService _audit;
 
-    public AlertRulesController(IAlertRuleService rules) => _rules = rules;
+    public AlertRulesController(IAlertRuleService rules, IAuditService audit)
+    {
+        _rules = rules;
+        _audit = audit;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index() => View(await _rules.ListRulesAsync());
@@ -28,6 +33,9 @@ public class AlertRulesController : Controller
             return View(request);
 
         await _rules.CreateRuleAsync(request);
+        await _audit.RecordAsync("AlertRule", "Create", User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole("Administrator") ? "Administrator" : "NocOperator",
+            null, "AlertRule");
         return RedirectToAction(nameof(Index));
     }
 
@@ -36,6 +44,10 @@ public class AlertRulesController : Controller
     public async Task<IActionResult> Toggle(Guid id, bool enabled)
     {
         await _rules.ToggleRuleAsync(id, enabled);
+        await _audit.RecordAsync("AlertRule", enabled ? "Enable" : "Disable",
+            User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole("Administrator") ? "Administrator" : "NocOperator",
+            id.ToString(), "AlertRule");
         return RedirectToAction(nameof(Index));
     }
 }

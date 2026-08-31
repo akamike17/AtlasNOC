@@ -10,8 +10,13 @@ namespace AtlasNOC.Web.Controllers;
 public class AlertsController : Controller
 {
     private readonly IAlertService _alerts;
+    private readonly IAuditService _audit;
 
-    public AlertsController(IAlertService alerts) => _alerts = alerts;
+    public AlertsController(IAlertService alerts, IAuditService audit)
+    {
+        _alerts = alerts;
+        _audit = audit;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index(bool openOnly = true)
@@ -23,6 +28,9 @@ public class AlertsController : Controller
     public async Task<IActionResult> Acknowledge(Guid id)
     {
         await _alerts.AcknowledgeAsync(id, User.Identity?.Name ?? "system");
+        await _audit.RecordAsync("Alert", "Acknowledge", User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole(ApplicationRole.Administrator) ? ApplicationRole.Administrator : ApplicationRole.NocOperator,
+            id.ToString(), "Alert");
         return RedirectToAction(nameof(Index));
     }
 
@@ -32,6 +40,9 @@ public class AlertsController : Controller
     public async Task<IActionResult> Resolve(Guid id)
     {
         await _alerts.ResolveAsync(id, User.Identity?.Name ?? "system");
+        await _audit.RecordAsync("Alert", "Resolve", User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole(ApplicationRole.Administrator) ? ApplicationRole.Administrator : ApplicationRole.NocOperator,
+            id.ToString(), "Alert");
         return RedirectToAction(nameof(Index));
     }
 }

@@ -10,8 +10,13 @@ namespace AtlasNOC.Web.Controllers;
 public class CredentialsController : Controller
 {
     private readonly ICredentialService _credentials;
+    private readonly IAuditService _audit;
 
-    public CredentialsController(ICredentialService credentials) => _credentials = credentials;
+    public CredentialsController(ICredentialService credentials, IAuditService audit)
+    {
+        _credentials = credentials;
+        _audit = audit;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index() => View(await _credentials.ListCredentialsAsync());
@@ -23,7 +28,10 @@ public class CredentialsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateCredentialRequest request)
     {
-        await _credentials.CreateCredentialAsync(request);
+        var id = await _credentials.CreateCredentialAsync(request);
+        await _audit.RecordAsync("Credential", "Create", User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole("Administrator") ? "Administrator" : "NocOperator",
+            id.ToString(), "Credential");
         return RedirectToAction(nameof(Index));
     }
 }
