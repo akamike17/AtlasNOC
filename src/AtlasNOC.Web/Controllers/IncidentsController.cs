@@ -1,10 +1,12 @@
 using AtlasNOC.Application.Services;
+using AtlasNOC.Domain.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AtlasNOC.Web.Controllers;
 
-[Authorize]
+// Lectura abierta a operadores y read-only; resolver restringido.
+[Authorize(Roles = ApplicationRole.Administrator + "," + ApplicationRole.NocOperator + "," + ApplicationRole.ReadOnly)]
 public class IncidentsController : Controller
 {
     private readonly IIncidentService _incidents;
@@ -16,6 +18,7 @@ public class IncidentsController : Controller
         => View(await _incidents.ListIncidentsAsync(activeOnly));
 
     [HttpPost]
+    [Authorize(Roles = ApplicationRole.Administrator + "," + ApplicationRole.NocOperator)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Resolve(Guid id)
     {

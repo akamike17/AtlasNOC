@@ -1,11 +1,13 @@
 using AtlasNOC.Application.Dtos;
 using AtlasNOC.Application.Services;
+using AtlasNOC.Domain.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AtlasNOC.Web.Controllers;
 
-[Authorize]
+// Lectura abierta a operadores y read-only; escritura restringida por acción.
+[Authorize(Roles = ApplicationRole.Administrator + "," + ApplicationRole.NocOperator + "," + ApplicationRole.ReadOnly)]
 public class SitesController : Controller
 {
     private readonly ISiteService _sites;
@@ -17,9 +19,11 @@ public class SitesController : Controller
         => View(await _sites.ListSitesAsync());
 
     [HttpGet]
+    [Authorize(Roles = ApplicationRole.Administrator + "," + ApplicationRole.NocOperator)]
     public IActionResult Create() => View();
 
     [HttpPost]
+    [Authorize(Roles = ApplicationRole.Administrator + "," + ApplicationRole.NocOperator)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateSiteRequest request)
     {
