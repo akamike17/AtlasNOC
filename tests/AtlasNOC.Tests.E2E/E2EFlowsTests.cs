@@ -4,6 +4,7 @@ using AtlasNOC.Application.Services;
 using AtlasNOC.Domain.Entities;
 using AtlasNOC.Domain.Enums;
 using AtlasNOC.Infrastructure.Persistence;
+using AtlasNOC.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
@@ -20,16 +21,18 @@ public class E2ECollection : ICollectionFixture<E2EFixture> { }
 
 public class E2EFixture : IAsyncLifetime
 {
-    public const string ConnectionString =
-        "Server=127.0.0.1;Port=3306;Database=atlasnoc_e2e_test;User=Admin;Password=RenacerGood17;";
     public const string BaseUrl = "http://127.0.0.1:5098";
 
     // Alcance LAB reducido para E2E: 4 dispositivos backbone y 3 enlaces.
     public const string LabScope = "10.0.0.1,10.0.0.2,10.0.1.1,10.0.1.2";
 
     private Process? _server;
+    private string? _skipReason;
     public IPlaywright Playwright { get; private set; } = null!;
     public IBrowser Browser { get; private set; } = null!;
+
+    /// <summary>Cadena de conexión de test resuelta vía <c>ATLASNOC_TEST_CONNECTION</c>.</summary>
+    public string? ConnectionString { get; private set; }
 
     public AtlasNOCDbContext NewDb()
     {
@@ -41,6 +44,15 @@ public class E2EFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        ConnectionString = TestDatabaseConfiguration.TryResolve();
+        if (ConnectionString is null)
+        {
+            _skipReason =
+                $"Omitting E2E tests: '{TestDatabaseConfiguration.EnvironmentVariableName}' " +
+                "environment variable is not set.";
+            return;
+        }
+
         // Mata cualquier servidor residual que ocupe el puerto (runs previos fallidos).
         KillPortListener();
 
@@ -151,8 +163,20 @@ public class E2EFixture : IAsyncLifetime
             await _server.WaitForExitAsync();
         }
 
-        await using var db = NewDb();
-        await db.Database.EnsureDeletedAsync();
+        if (ConnectionString is not null)
+        {
+            await using var db = NewDb();
+            await db.Database.EnsureDeletedAsync();
+        }
+    }
+
+    /// <summary>Razón de omisión, o <c>null</c> si hay base de test.</summary>
+    public string? SkipReason => _skipReason;
+
+    public bool IsSkipped(out string reason)
+    {
+        reason = _skipReason ?? string.Empty;
+        return _skipReason is not null;
     }
 }
 
@@ -163,9 +187,14 @@ public class E2EFlowsTests
     public E2EFlowsTests(E2EFixture fx) => _fx = fx;
 
     /// <summary>Flujos §19 completos, en orden (construyen estado secuencialmente).</summary>
-    [Fact(Timeout = 300_000)]
+    [SkippableFact(Timeout = 300_000)]
     public async Task Full_lifecycle_flows_1_through_18()
     {
+        if (_fx.IsSkipped(out var reason))
+        {
+            throw new SkipTestException(reason);
+        }
+
         var page = await _fx.NewPageAsync();
 
         // ── 1. Setup inicial ────────────────────────────────────────────────

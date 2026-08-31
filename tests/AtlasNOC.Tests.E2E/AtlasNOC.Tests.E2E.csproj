@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AtlasNOC.Web\AtlasNOC.Web.csproj" />
+    <ProjectReference Include="..\AtlasNOC.Tests.Shared\AtlasNOC.Tests.Shared.csproj" />
   </ItemGroup>
 
 </Project>

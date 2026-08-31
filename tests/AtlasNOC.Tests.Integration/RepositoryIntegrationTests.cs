@@ -4,6 +4,7 @@ using AtlasNOC.Domain.Enums;
 using AtlasNOC.Domain.ValueObjects;
 using AtlasNOC.Infrastructure;
 using AtlasNOC.Infrastructure.Persistence;
+using AtlasNOC.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -19,13 +20,23 @@ public class IntegrationCollection : ICollectionFixture<IntegrationFixture> { }
 
 public class IntegrationFixture : IAsyncLifetime
 {
-    public const string ConnectionString =
-        "Server=127.0.0.1;Port=3306;Database=atlasnoc_integration_test;User=Admin;Password=RenacerGood17;";
-
     public IServiceProvider Services { get; private set; } = null!;
+
+    private string? ConnectionString { get; set; }
+
+    private string? _skipReason;
 
     public async Task InitializeAsync()
     {
+        ConnectionString = TestDatabaseConfiguration.TryResolve();
+        if (ConnectionString is null)
+        {
+            _skipReason =
+                $"Omitting integration tests: '{TestDatabaseConfiguration.EnvironmentVariableName}' " +
+                "environment variable is not set.";
+            return;
+        }
+
         var options = new DbContextOptionsBuilder<AtlasNOCDbContext>()
             .UseMySql(ConnectionString, ServerVersion.Parse("8.0.36-mysql"))
             .Options;
@@ -45,12 +56,26 @@ public class IntegrationFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        var db = Services.GetRequiredService<AtlasNOCDbContext>();
-        await db.Database.EnsureDeletedAsync();
+        if (Services is not null)
+        {
+            var db = Services.GetRequiredService<AtlasNOCDbContext>();
+            await db.Database.EnsureDeletedAsync();
+        }
     }
+
+    /// <summary>Razón de omisión (cuando no hay base de test configurada), o <c>null</c>.</summary>
+    public string? SkipReason => _skipReason;
+
+    /// <summary><c>true</c> si los tests deben omitirse por falta de base de test.</summary>
+    public bool Skipped => _skipReason is not null;
 
     public async Task ResetAsync()
     {
+        if (Services is null)
+        {
+            return;
+        }
+
         var db = Services.GetRequiredService<AtlasNOCDbContext>();
         await db.Database.ExecuteSqlRawAsync(
             "DELETE FROM NetworkLinks; DELETE FROM DeviceInterfaces; DELETE FROM NeighborObservations;" +
@@ -58,6 +83,17 @@ public class IntegrationFixture : IAsyncLifetime
             " DELETE FROM DeviceCredentials; DELETE FROM ApiKeys; DELETE FROM Alerts; DELETE FROM Incidents;" +
             " DELETE FROM AlertRules; DELETE FROM Sites; DELETE FROM Organizations;");
         db.ChangeTracker.Clear();
+    }
+
+    /// <summary>
+    /// Lanza con un mensaje claro si la base de test no está disponible: los tests
+    /// de Integration/Runtime/E2E dependen de <c>ATLASNOC_TEST_CONNECTION</c>.
+    /// Cuando falta, el test se omite de forma explícita (no falla, no toca producción).
+    /// </summary>
+    public bool IsSkipped(out string reason)
+    {
+        reason = _skipReason ?? string.Empty;
+        return _skipReason is not null;
     }
 }
 
@@ -69,9 +105,18 @@ public class RepositoryIntegrationTests
 
     private AtlasNOCDbContext Db => _fx.Services.GetRequiredService<AtlasNOCDbContext>();
 
-    [Fact]
+    private void SkipIfNoDb()
+    {
+        if (_fx.IsSkipped(out var reason))
+        {
+            throw new SkipTestException(reason);
+        }
+    }
+
+    [SkippableFact]
     public async Task Device_repository_persists_and_roundtrips_value_object_id()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var repo = _fx.Services.GetRequiredService<IDeviceRepository>();
 
@@ -87,9 +132,10 @@ public class RepositoryIntegrationTests
         Assert.Equal(device.Id.Value, fetched.Id.Value);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Device_management_ip_is_unique()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var repo = _fx.Services.GetRequiredService<IDeviceRepository>();
 
@@ -101,9 +147,10 @@ public class RepositoryIntegrationTests
         await Assert.ThrowsAsync<DbUpdateException>(() => Db.SaveChangesAsync());
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Site_repository_persists_with_organization()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var sites = _fx.Services.GetRequiredService<ISiteRepository>();
         var org = new WispOrganization("WISP-Test", "WT");
@@ -120,9 +167,10 @@ public class RepositoryIntegrationTests
         Assert.Equal(org.Id.Value, fetched.OrganizationId.Value);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Link_repository_requires_distinct_interfaces()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var devices = _fx.Services.GetRequiredService<IDeviceRepository>();
         var a = new Device("a", "10.2.1.1", DeviceType.Switch, Vendor.Generic);
@@ -147,9 +195,10 @@ public class RepositoryIntegrationTests
         Assert.Equal(0.95, fetched.Confidence, 3);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Credential_stores_protected_secrets_not_plaintext()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var creds = _fx.Services.GetRequiredService<ICredentialRepository>();
 
@@ -164,9 +213,10 @@ public class RepositoryIntegrationTests
         Assert.True(fetched.IsActive);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task ApiKey_hashes_are_unique_and_lookup_by_hash_works()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var keys = _fx.Services.GetRequiredService<IApiKeyRepository>();
 

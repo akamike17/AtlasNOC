@@ -5,6 +5,7 @@ using AtlasNOC.Infrastructure;
 using AtlasNOC.Infrastructure.Devices;
 using AtlasNOC.Infrastructure.Persistence;
 using AtlasNOC.Infrastructure.Services;
+using AtlasNOC.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,14 +23,25 @@ public class LabRuntimeCollection : ICollectionFixture<LabRuntimeFixture> { }
 
 public class LabRuntimeFixture : IAsyncLifetime
 {
-    public const string ConnectionString =
-        "Server=127.0.0.1;Port=3306;Database=atlasnoc_test;User=Admin;Password=RenacerGood17;";
-
     public IServiceProvider Services { get; private set; } = null!;
     public AtlasNOCDbContext Db { get; private set; } = null!;
 
+    private string? _skipReason;
+
+    /// <summary>Cadena de conexión de test resuelta vía <c>ATLASNOC_TEST_CONNECTION</c>.</summary>
+    public string? ConnectionString { get; private set; }
+
     public async Task InitializeAsync()
     {
+        ConnectionString = TestDatabaseConfiguration.TryResolve();
+        if (ConnectionString is null)
+        {
+            _skipReason =
+                $"Omitting runtime tests: '{TestDatabaseConfiguration.EnvironmentVariableName}' " +
+                "environment variable is not set.";
+            return;
+        }
+
         // Base de datos de test dedicada, limpia en cada ejecución.
         var options = new DbContextOptionsBuilder<AtlasNOCDbContext>()
             .UseMySql(ConnectionString, ServerVersion.Parse("8.0.36-mysql"))
@@ -55,6 +67,15 @@ public class LabRuntimeFixture : IAsyncLifetime
         if (Db is not null)
             return Db.Database.EnsureDeletedAsync();
         return Task.CompletedTask;
+    }
+
+    /// <summary>Razón de omisión, o <c>null</c> si hay base de test.</summary>
+    public string? SkipReason => _skipReason;
+
+    public bool IsSkipped(out string reason)
+    {
+        reason = _skipReason ?? string.Empty;
+        return _skipReason is not null;
     }
 
     /// <summary>Reinicia el estado de inventario/topología (sin recrear la BD) para un test limpio.</summary>
@@ -91,9 +112,18 @@ public class LabDiscoveryTests
     private readonly LabRuntimeFixture _fx;
     public LabDiscoveryTests(LabRuntimeFixture fx) => _fx = fx;
 
-    [Fact]
+    private void SkipIfNoDb()
+    {
+        if (_fx.IsSkipped(out var reason))
+        {
+            throw new SkipTestException(reason);
+        }
+    }
+
+    [SkippableFact]
     public async Task Discovery_finds_all_61_nodes_without_loss()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var run = await _fx.RunDiscoveryAsync();
 
@@ -104,9 +134,10 @@ public class LabDiscoveryTests
         Assert.Equal(61, deviceCount);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Discovery_creates_expected_60_links_from_evidence()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         var run = await _fx.RunDiscoveryAsync();
 
@@ -119,9 +150,10 @@ public class LabDiscoveryTests
         Assert.Equal(50, wireless);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Discovery_produces_no_duplicate_ids_or_ips()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         await _fx.RunDiscoveryAsync();
 
@@ -132,9 +164,10 @@ public class LabDiscoveryTests
         Assert.Equal(ids.Count, ids.Distinct().Count());
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Discovery_is_idempotent_re_rerunning_does_not_duplicate()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         await _fx.RunDiscoveryAsync();
         var before = await _fx.Db.Devices.CountAsync();
@@ -149,16 +182,17 @@ public class LabDiscoveryTests
         Assert.Equal(60, linkCount);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Restart_preserves_inventory_and_topology()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         await _fx.RunDiscoveryAsync();
 
         // Simula "reinicio": nuevo proveedor de servicios sobre la misma BD.
         var services = new ServiceCollection();
         services.AddDbContext<AtlasNOCDbContext>(o =>
-            o.UseMySql(LabRuntimeFixture.ConnectionString, ServerVersion.Parse("8.0.36-mysql")));
+            o.UseMySql(_fx.ConnectionString, ServerVersion.Parse("8.0.36-mysql")));
         services.AddInfrastructure(labMode: true);
         using var newProvider = services.BuildServiceProvider();
         var db2 = newProvider.GetRequiredService<AtlasNOCDbContext>();
@@ -174,9 +208,18 @@ public class LabPollingAndAlertTests
     private readonly LabRuntimeFixture _fx;
     public LabPollingAndAlertTests(LabRuntimeFixture fx) => _fx = fx;
 
-    [Fact]
+    private void SkipIfNoDb()
+    {
+        if (_fx.IsSkipped(out var reason))
+        {
+            throw new SkipTestException(reason);
+        }
+    }
+
+    [SkippableFact]
     public async Task Polling_writes_metrics_for_managed_devices()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         await _fx.RunDiscoveryAsync();
 
@@ -195,9 +238,10 @@ public class LabPollingAndAlertTests
         Assert.All(metrics, m => Assert.Equal(100.0, m.ValueDouble));
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Alert_rule_creates_alert_from_metric()
     {
+        SkipIfNoDb();
         await _fx.ResetAsync();
         await _fx.RunDiscoveryAsync();
 

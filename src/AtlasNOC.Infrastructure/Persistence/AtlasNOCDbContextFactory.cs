@@ -12,8 +12,15 @@ public class AtlasNOCDbContextFactory : IDesignTimeDbContextFactory<AtlasNOCDbCo
     public AtlasNOCDbContext CreateDbContext(string[] args)
     {
         var connectionString =
-            Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? "Server=127.0.0.1;Port=3306;Database=atlasnoc_rebuild;User=Admin;Password=RenacerGood17;";
+            Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "No hay cadena de conexión configurada. Define la variable de entorno " +
+                "'ConnectionStrings__DefaultConnection' (o usa Secret Manager en desarrollo) " +
+                "antes de ejecutar 'dotnet ef'.");
+        }
 
         var options = new DbContextOptionsBuilder<AtlasNOCDbContext>()
             .UseMySql(connectionString, ServerVersion.Parse("8.0.36-mysql"))
