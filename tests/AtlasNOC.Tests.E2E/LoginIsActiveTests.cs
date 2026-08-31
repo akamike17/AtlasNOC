@@ -103,7 +103,8 @@ public class LoginTestFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var connectionString = TestDatabaseConfiguration.Resolve();
+        var connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(
+            TestDatabaseConfiguration.Resolve(), "_login");
         builder.UseSetting("LabMode", "true");
         builder.UseEnvironment("Development");
         builder.ConfigureServices(services =>

@@ -107,4 +107,35 @@ public static class TestDatabaseConfiguration
 
         return null;
     }
+
+    /// <summary>
+    /// Devuelve una copia de la cadena de conexión apuntando a una base de test
+    /// distinta (añade un sufijo al nombre), para aislar múltiples fixtures
+    /// (WebApplicationFactory) que de otro modo competirían por la misma base.
+    /// </summary>
+    public static string WithDatabaseSuffix(string connectionString, string suffix)
+    {
+        var database = ExtractDatabaseName(connectionString);
+        if (string.IsNullOrWhiteSpace(database))
+        {
+            throw new InvalidOperationException("No se pudo determinar el nombre de base para añadir un sufijo.");
+        }
+
+        return ReplaceKeyValue(connectionString, "Database", database + suffix);
+    }
+
+    private static string ReplaceKeyValue(string connectionString, string key, string newValue)
+    {
+        var parts = connectionString.Split(';');
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var idx = parts[i].IndexOf('=');
+            if (idx <= 0) continue;
+            if (string.Equals(parts[i][..idx].Trim(), key, StringComparison.OrdinalIgnoreCase))
+            {
+                parts[i] = key + "=" + newValue;
+            }
+        }
+        return string.Join(';', parts);
+    }
 }

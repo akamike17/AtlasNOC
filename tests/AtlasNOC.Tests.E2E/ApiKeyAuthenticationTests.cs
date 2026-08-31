@@ -117,7 +117,8 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        _connectionString = TestDatabaseConfiguration.Resolve();
+        _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(
+            TestDatabaseConfiguration.Resolve(), "_apikey");
 
         builder.UseSetting("LabMode", "true");
         builder.UseEnvironment("Development");
