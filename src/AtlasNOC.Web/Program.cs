@@ -4,6 +4,7 @@ using AtlasNOC.Infrastructure.Persistence;
 using AtlasNOC.Web.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -53,7 +54,11 @@ builder.Services.ConfigureApplicationCookie(options =>
     // ─── Fase 9: cookie hardening ────────────────────────────
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    // ─── Fase A5 (§24): en producción la cookie es exclusivamente HTTPS.
+    //      En desarrollo se permite SameAsRequest para arranques HTTP locales. ──
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
     options.Cookie.IsEssential = true;
 
     // ─── Fase A4: invalidar la cookie si el usuario ya no existe o está
@@ -158,6 +163,40 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/home/error");
     app.UseHsts();
+}
+
+// ─── Fase A5 (§24): ForwardedHeaders con proxies exclusivamente confiables.
+//      No se confía en cualquier X-Forwarded-For de Internet: sólo se procesan
+//      las IPs/redes declaradas en ForwardedHeaders:KnownProxies/KnownNetworks.
+//      Debe ir ANTES de autenticación y rate limiter (para IP efectiva validada). ──
+var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? Array.Empty<string>();
+var knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? Array.Empty<string>();
+
+if (knownProxies.Length > 0 || knownNetworks.Length > 0)
+{
+    var forwardedOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+
+    foreach (var ip in knownProxies)
+    {
+        if (System.Net.IPAddress.TryParse(ip, out var parsed))
+            forwardedOptions.KnownProxies.Add(parsed);
+    }
+
+    foreach (var network in knownNetworks)
+    {
+        var slash = network.IndexOf('/');
+        if (slash > 0
+            && System.Net.IPAddress.TryParse(network[..slash], out var prefix)
+            && int.TryParse(network[(slash + 1)..], out var prefixLength))
+        {
+            forwardedOptions.KnownNetworks.Add(new IPNetwork(prefix, prefixLength));
+        }
+    }
+
+    app.UseForwardedHeaders(forwardedOptions);
 }
 
 app.UseHttpsRedirection();
