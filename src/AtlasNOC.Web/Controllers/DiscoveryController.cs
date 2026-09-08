@@ -44,4 +44,14 @@ public class DiscoveryController : Controller
             id.ToString(), "DiscoveryRun");
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Cancel(Guid id)
+    {
+        await _discovery.CancelAsync(id);
+        await _audit.RecordAsync("Discovery", "Cancel", User.Identity?.Name ?? "", User.Identity?.Name ?? "",
+            User.IsInRole("Administrator") ? "Administrator" : "NocOperator", id.ToString(), "DiscoveryRun");
+        return RedirectToAction(nameof(Index));
+    }
 }

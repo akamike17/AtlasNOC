@@ -8,6 +8,13 @@ public sealed class CidrSubnet
     public IPAddress Network { get; }
     public int PrefixLength { get; }
     public IPAddress Broadcast { get; }
+    public ulong AddressCount => 1UL << (32 - PrefixLength);
+    public ulong UsableHostCount => PrefixLength switch
+    {
+        32 => 1,
+        31 => 2,
+        _ => AddressCount - 2
+    };
 
     private CidrSubnet(IPAddress network, int prefixLength, IPAddress broadcast)
     {
@@ -49,21 +56,29 @@ public sealed class CidrSubnet
     }
 
     /// <summary>Enumerar hosts utilizables (excluye network y broadcast).</summary>
-    public IReadOnlyList<IPAddress> ListIPAddress()
+    public IEnumerable<IPAddress> EnumerateHosts()
     {
         var start = ToUint(Network.GetAddressBytes());
         var end = ToUint(Broadcast.GetAddressBytes());
 
         if (PrefixLength == 32)
-            return new[] { Network };
-        if (end - start > 4096)
-            return Array.Empty<IPAddress>(); // evitar enumerar redes gigantes
+        {
+            yield return Network;
+            yield break;
+        }
 
-        var result = new List<IPAddress>();
+        if (PrefixLength == 31)
+        {
+            yield return Network;
+            yield return Broadcast;
+            yield break;
+        }
+
         for (var current = start + 1; current < end; current++)
-            result.Add(new IPAddress(UintToBytes(current)));
-        return result;
+            yield return new IPAddress(UintToBytes(current));
     }
+
+    public IReadOnlyList<IPAddress> ListIPAddress() => EnumerateHosts().ToList();
 
     private static uint ToUint(byte[] bytes)
     {

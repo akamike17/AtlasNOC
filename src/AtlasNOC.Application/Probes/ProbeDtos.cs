@@ -26,7 +26,11 @@ public sealed record InterfaceData(
     int AdminStatus,
     int OperStatus,
     ulong? SpeedBps,
-    string? InterfaceType);
+    string? InterfaceType,
+    ulong? InErrors = null,
+    ulong? OutErrors = null,
+    ulong? InDiscards = null,
+    ulong? OutDiscards = null);
 
 /// <summary>Vecino observado (evidencia cruda) adquirido por un adaptador.</summary>
 public sealed record NeighborData(

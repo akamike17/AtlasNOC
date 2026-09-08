@@ -4,7 +4,7 @@ using AtlasNOC.Application.Probes;
 namespace AtlasNOC.Infrastructure.Devices;
 
 /// <summary>Driver SNMP genérico: cubre cualquier equipo que exponga MIB-II estándar.</summary>
-public class GenericSnmpDriver : IDeviceDriver
+public class GenericSnmpDriver : IDeviceDriver, ISnmpCredentialAwareDriver
 {
     private readonly ISnmpProbe _snmp;
 
@@ -14,20 +14,34 @@ public class GenericSnmpDriver : IDeviceDriver
 
     public bool CanHandle(DeviceFingerprint fingerprint) => true;
 
+    // Sin credencial explícita: el driver genérico intenta el community por
+    // defecto del entorno (v2c). Los pipelines de discovery resuelven la
+    // credencial seleccionada y NO dependen de este fallback.
+    private static readonly SnmpConnectionOptions Fallback = SnmpConnectionOptions.Anonymous();
+
     public Task<DeviceIdentity> GetIdentityAsync(string managementIp, CancellationToken ct)
-        => _snmp.GetIdentityAsync(managementIp, "public", 2000, ct);
+        => _snmp.GetIdentityAsync(managementIp, Fallback, 2000, ct);
+
+    public Task<DeviceIdentity> GetIdentityAsync(string managementIp, SnmpConnectionOptions options, CancellationToken ct)
+        => _snmp.GetIdentityAsync(managementIp, options, 2000, ct);
 
     public Task<IReadOnlyList<InterfaceData>> GetInterfacesAsync(string managementIp, CancellationToken ct)
-        => _snmp.GetInterfacesAsync(managementIp, "public", 2000, ct);
+        => _snmp.GetInterfacesAsync(managementIp, Fallback, 2000, ct);
+
+    public Task<IReadOnlyList<InterfaceData>> GetInterfacesAsync(string managementIp, SnmpConnectionOptions options, CancellationToken ct)
+        => _snmp.GetInterfacesAsync(managementIp, options, 2000, ct);
 
     public Task<IReadOnlyList<NeighborData>> GetNeighborsAsync(string managementIp, CancellationToken ct)
-        => _snmp.GetLldpNeighborsAsync(managementIp, "public", 2000, ct);
+        => _snmp.GetLldpNeighborsAsync(managementIp, Fallback, 2000, ct);
+
+    public Task<IReadOnlyList<NeighborData>> GetNeighborsAsync(string managementIp, SnmpConnectionOptions options, CancellationToken ct)
+        => _snmp.GetLldpNeighborsAsync(managementIp, options, 2000, ct);
 
     public Task<HealthData> GetHealthAsync(string managementIp, CancellationToken ct)
-        => _snmp.GetHealthAsync(managementIp, "public", 2000, ct);
+        => _snmp.GetHealthAsync(managementIp, Fallback, 2000, ct);
 
     public Task<IReadOnlyList<MetricDatum>> GetMetricsAsync(string managementIp, CancellationToken ct)
-        => _snmp.GetHealthAsync(managementIp, "public", 2000, ct)
+        => _snmp.GetHealthAsync(managementIp, Fallback, 2000, ct)
             .ContinueWith(h => ToMetrics(h.Result), ct);
 
     public Task<IReadOnlyList<WirelessClientData>> GetWirelessAssociationsAsync(string managementIp, CancellationToken ct)

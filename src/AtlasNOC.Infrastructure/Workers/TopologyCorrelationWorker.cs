@@ -33,15 +33,23 @@ public class TopologyCorrelationWorker : BackgroundService
                 var engine = scope.ServiceProvider.GetRequiredService<ITopologyCorrelationEngine>();
 
                 var pending = await db.NeighborObservations
-                    .Where(o => !o.IsResolved)
+                    .Where(o => o.Status == NeighborObservationStatus.Pending
+                        || o.Status == NeighborObservationStatus.Ambiguous)
                     .OrderBy(o => o.Id)
                     .Take(500)
                     .ToListAsync(stoppingToken);
 
                 if (pending.Count > 0)
                 {
+                    var deviceIds = pending.Select(o => o.LocalDeviceId).Distinct().ToList();
+                    var localDevices = await db.Devices.Where(d => deviceIds.Contains(d.Id)).ToListAsync(stoppingToken);
+                    var allDevices = await db.Devices.AsNoTracking().ToListAsync(stoppingToken);
+                    var identityCounts = allDevices
+                        .GroupBy(d => Normalize(d.Hostname), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
                     var inputs = pending.Select(o => new NeighborObservationInput(
                         o.LocalDeviceId.Value.ToString(),
+                        localDevices.FirstOrDefault(d => d.Id == o.LocalDeviceId)?.Hostname ?? string.Empty,
                         o.LocalInterfaceId.Value.ToString(),
                         o.RemoteIdentity,
                         o.RemotePortIdentity,
@@ -52,10 +60,14 @@ public class TopologyCorrelationWorker : BackgroundService
 
                     foreach (var r in results)
                     {
-                        var exists = await db.NetworkLinks.AnyAsync(l =>
+                        var exists = await db.NetworkLinks.FirstOrDefaultAsync(l =>
                             (l.AInterfaceId.Value.ToString() == r.AInterfaceId && l.BInterfaceId.Value.ToString() == r.BInterfaceId)
                             || (l.AInterfaceId.Value.ToString() == r.BInterfaceId && l.BInterfaceId.Value.ToString() == r.AInterfaceId), stoppingToken);
-                        if (exists) continue;
+                        if (exists is not null)
+                        {
+                            exists.RefreshEvidence((LinkType)r.LinkType, (DiscoverySource)r.DiscoverySource, r.Confidence);
+                            continue;
+                        }
 
                         db.NetworkLinks.Add(new NetworkLink(
                             InterfaceId.From(Guid.Parse(r.AInterfaceId)),
@@ -65,7 +77,13 @@ public class TopologyCorrelationWorker : BackgroundService
                             r.Confidence));
                     }
 
-                    foreach (var o in pending) o.Resolve();
+                    var resolvedInterfaces = results
+                        .SelectMany(r => new[] { r.AInterfaceId, r.BInterfaceId })
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    foreach (var o in pending)
+                    {
+                        ClassifyObservation(o, identityCounts, resolvedInterfaces);
+                    }
                     await db.SaveChangesAsync(stoppingToken);
                 }
             }
@@ -75,5 +93,20 @@ public class TopologyCorrelationWorker : BackgroundService
             try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); }
             catch (OperationCanceledException) { break; }
         }
+    }
+
+    private static string Normalize(string value) => value.Trim().TrimEnd('.').ToLowerInvariant();
+
+    internal static void ClassifyObservation(NeighborObservation observation,
+        IReadOnlyDictionary<string, int> identityCounts, IReadOnlySet<string> resolvedInterfaces)
+    {
+        if (string.IsNullOrWhiteSpace(observation.RemoteIdentity) || string.IsNullOrWhiteSpace(observation.RawEvidenceHash))
+            observation.Reject();
+        else if (identityCounts.GetValueOrDefault(Normalize(observation.RemoteIdentity)) > 1)
+            observation.MarkAmbiguous();
+        else if (resolvedInterfaces.Contains(observation.LocalInterfaceId.Value.ToString()))
+            observation.Resolve();
+        else
+            observation.MarkPending();
     }
 }

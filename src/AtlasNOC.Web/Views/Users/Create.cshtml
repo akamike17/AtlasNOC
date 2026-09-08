@@ -1,0 +1,17 @@
+@model CreateUserRequest
+@{ ViewData["Title"] = "Nuevo usuario"; }
+<div class="noc-card" style="max-width:560px">
+    <h1 class="h5 mb-3">Nuevo usuario</h1>
+    <form asp-action="Create" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <label class="form-label">Usuario / correo</label><input asp-for="UserName" class="form-control bg-dark text-light mb-3" />
+        <label class="form-label">Nombre</label><input asp-for="DisplayName" class="form-control bg-dark text-light mb-3" />
+        <label class="form-label">Rol</label>
+        <select asp-for="Role" class="form-select bg-dark text-light mb-3">
+            <option>Administrator</option><option>NocOperator</option><option>ReadOnly</option>
+        </select>
+        <label class="form-label">Contraseña</label><input asp-for="Password" type="password" class="form-control bg-dark text-light mb-3" />
+        <label class="form-label">Confirmar contraseña</label><input asp-for="ConfirmPassword" type="password" class="form-control bg-dark text-light mb-3" />
+        <button class="btn btn-primary">Crear</button> <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </form>
+</div>

@@ -31,6 +31,7 @@ public class Incident
     }
 
     public void MarkRootCauseCandidate() => IsRootCauseCandidate = true;
+    public void RefreshEvidence(string description) => Description = description;
     public void Investigate() => Status = IncidentStatus.Investigating;
     public void Monitor() => Status = IncidentStatus.Monitoring;
 

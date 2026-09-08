@@ -21,7 +21,16 @@ builder.ConfigureServices((context, services) =>
             context.Configuration.GetConnectionString("DefaultConnection"),
             ServerVersion.Parse("8.0.36-mysql")));
 
+    services.AddSingleton(context.Configuration.GetSection("Ubiquiti").Get<AtlasNOC.Infrastructure.Devices.UbiquitiOptions>()
+        ?? new AtlasNOC.Infrastructure.Devices.UbiquitiOptions());
+    services.Configure<AtlasNOC.Infrastructure.Services.DiscoveryOptions>(
+        context.Configuration.GetSection("Discovery"));
+    services.Configure<AtlasNOC.Infrastructure.Services.PollingOptions>(
+        context.Configuration.GetSection("Polling"));
+    services.Configure<AtlasNOC.Infrastructure.Services.NotificationOptions>(
+        context.Configuration.GetSection("Notifications"));
     services.AddInfrastructure(context.Configuration.GetValue<bool>("LabMode"));
+    services.AddAtlasWorkers();
 });
 
 var host = builder.Build();

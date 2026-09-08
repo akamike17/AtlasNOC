@@ -5,6 +5,9 @@ using System.Text;
 using System.Text.Json;
 using AtlasNOC.Application.Devices;
 using AtlasNOC.Application.Probes;
+using AtlasNOC.Application.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AtlasNOC.Infrastructure.Devices;
 
@@ -12,15 +15,17 @@ namespace AtlasNOC.Infrastructure.Devices;
 /// Driver MikroTik RouterOS vía API REST (solo-lectura). Devuelve DTOs neutrales;
 /// las credenciales se inyectan por opciones y nunca se persisten aquí.
 /// </summary>
-public class MikroTikDriver : IDeviceDriver
+public class MikroTikDriver : IDeviceDriver, IDeviceCredentialAwareDriver
 {
     private readonly IHttpClientFactory _http;
     private readonly MikroTikOptions _options;
+    private readonly ILogger<MikroTikDriver> _logger;
 
-    public MikroTikDriver(IHttpClientFactory http, MikroTikOptions options)
+    public MikroTikDriver(IHttpClientFactory http, MikroTikOptions options, ILogger<MikroTikDriver>? logger = null)
     {
         _http = http;
         _options = options;
+        _logger = logger ?? NullLogger<MikroTikDriver>.Instance;
     }
 
     public string DriverKey => "mikrotik";
@@ -35,14 +40,24 @@ public class MikroTikDriver : IDeviceDriver
     private HttpClient CreateClient() => _http.CreateClient("mikrotik");
 
     public async Task<DeviceIdentity> GetIdentityAsync(string ip, CancellationToken ct)
+        => await GetIdentityCoreAsync(ip, _options.Username, _options.Password, ct);
+
+    public Task<DeviceIdentity> GetIdentityAsync(string ip, ResolvedDeviceCredential credential, CancellationToken ct)
+        => GetIdentityCoreAsync(ip, credential.UserName, credential.AuthPassword, ct);
+
+    private async Task<DeviceIdentity> GetIdentityCoreAsync(string ip, string? username, string? password, CancellationToken ct)
     {
         var client = CreateClient();
         try
         {
             var req = new HttpRequestMessage(HttpMethod.Get, $"https://{ip}/rest/system/resource");
-            AddAuth(req);
+            AddAuth(req, username, password);
             var resp = await client.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return new DeviceIdentity(ip, null, null, null, null);
+            if (!resp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("RouterOS {Ip} devolvió HTTP {StatusCode} al consultar identidad", ip, (int)resp.StatusCode);
+                return new DeviceIdentity(ip, null, null, null, null);
+            }
             var data = await resp.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
             return new DeviceIdentity(
                 GetString(data, "board-name") ?? ip,
@@ -51,43 +66,63 @@ public class MikroTikDriver : IDeviceDriver
                 GetString(data, "version"),
                 "1.3.6.1.4.1.14988");
         }
-        catch
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "No se pudo consultar identidad RouterOS en {Ip}", ip);
             return new DeviceIdentity(ip, null, null, null, null);
         }
     }
 
     public async Task<IReadOnlyList<InterfaceData>> GetInterfacesAsync(string ip, CancellationToken ct)
+        => await GetInterfacesCoreAsync(ip, _options.Username, _options.Password, ct);
+
+    public Task<IReadOnlyList<InterfaceData>> GetInterfacesAsync(string ip, ResolvedDeviceCredential credential, CancellationToken ct)
+        => GetInterfacesCoreAsync(ip, credential.UserName, credential.AuthPassword, ct);
+
+    private async Task<IReadOnlyList<InterfaceData>> GetInterfacesCoreAsync(string ip, string? username, string? password, CancellationToken ct)
     {
         var client = CreateClient();
         var result = new List<InterfaceData>();
         try
         {
             var req = new HttpRequestMessage(HttpMethod.Get, $"https://{ip}/rest/interface");
-            AddAuth(req);
+            AddAuth(req, username, password);
             var resp = await client.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return result;
+            if (!resp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("RouterOS {Ip} devolvió HTTP {StatusCode} al consultar interfaces", ip, (int)resp.StatusCode);
+                return result;
+            }
             var items = await resp.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
-            var idx = 1;
             foreach (var it in items.EnumerateArray())
             {
-                var name = GetString(it, "name") ?? $"if{idx}";
+                var index = ParseInterfaceId(GetString(it, ".id"));
+                if (!index.HasValue) continue;
+                var name = GetString(it, "name") ?? $"if{index.Value}";
                 var running = GetBool(it, "running");
                 var disabled = GetBool(it, "disabled");
                 var mac = GetString(it, "mac-address");
-                var speed = GetLong(it, "actual-mtu") is { } mtu ? (ulong?)null : null;
+                var speed = ParseRate(GetString(it, "speed") ?? GetString(it, "rate"));
                 result.Add(new InterfaceData(
-                    idx++, name, GetString(it, "comment"), mac, null,
-                    disabled ? 0 : 1,
+                    index.Value, name, GetString(it, "comment"), mac, null,
+                    disabled ? 2 : 1,
                     running ? 1 : 2,
-                    speed ?? null, GetString(it, "type")));
+                    speed, GetString(it, "type")));
             }
         }
-        catch { /* read-only: swipe bajo error */ }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) { _logger.LogWarning(ex, "No se pudieron consultar interfaces RouterOS en {Ip}", ip); }
         return result;
     }
 
     public async Task<IReadOnlyList<NeighborData>> GetNeighborsAsync(string ip, CancellationToken ct)
+        => await GetNeighborsCoreAsync(ip, _options.Username, _options.Password, ct);
+
+    public Task<IReadOnlyList<NeighborData>> GetNeighborsAsync(string ip, ResolvedDeviceCredential credential, CancellationToken ct)
+        => GetNeighborsCoreAsync(ip, credential.UserName, credential.AuthPassword, ct);
+
+    private async Task<IReadOnlyList<NeighborData>> GetNeighborsCoreAsync(string ip, string? username, string? password, CancellationToken ct)
     {
         var client = CreateClient();
         var result = new List<NeighborData>();
@@ -95,7 +130,7 @@ public class MikroTikDriver : IDeviceDriver
         {
             // MikroTik neighbor discovery (MNDP) vía /ip/neighbor + interfaces.
             var req = new HttpRequestMessage(HttpMethod.Get, $"https://{ip}/rest/ip/neighbor");
-            AddAuth(req);
+            AddAuth(req, username, password);
             var resp = await client.SendAsync(req, ct);
             if (!resp.IsSuccessStatusCode) return result;
             var items = await resp.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
@@ -108,7 +143,8 @@ public class MikroTikDriver : IDeviceDriver
                     Hash($"{ip}:{remote}:{iface}")));
             }
         }
-        catch { }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) { _logger.LogWarning(ex, "No se pudieron consultar vecinos RouterOS en {Ip}", ip); }
         return result;
     }
 
@@ -118,14 +154,14 @@ public class MikroTikDriver : IDeviceDriver
         try
         {
             var req = new HttpRequestMessage(HttpMethod.Get, $"https://{ip}/rest/system/resource");
-            AddAuth(req);
+            AddAuth(req, _options.Username, _options.Password);
             var resp = await client.SendAsync(req, ct);
             if (!resp.IsSuccessStatusCode) return new HealthData(null, null, null, null, null);
             var data = await resp.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
             double? cpu = GetDouble(data, "cpu-load");
             double? mem = GetDouble(data, "free-memory-percent") is { } f ? 100 - f : null;
-            long? uptime = GetLong(data, "uptime");
-            return new HealthData(null, null, cpu, mem, uptime is { } u ? u / 1000 : null);
+            long? uptime = ParseRouterOsDuration(GetString(data, "uptime"));
+            return new HealthData(null, null, cpu, mem, uptime);
         }
         catch { return new HealthData(null, null, null, null, null); }
     }
@@ -143,22 +179,71 @@ public class MikroTikDriver : IDeviceDriver
     public Task<IReadOnlyList<WirelessClientData>> GetWirelessAssociationsAsync(string ip, CancellationToken ct)
         => Task.FromResult<IReadOnlyList<WirelessClientData>>(Array.Empty<WirelessClientData>());
 
-    private void AddAuth(HttpRequestMessage req)
+    private static void AddAuth(HttpRequestMessage req, string? username, string? password)
     {
-        if (string.IsNullOrWhiteSpace(_options.Username) || string.IsNullOrWhiteSpace(_options.Password))
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             return;
-        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_options.Username}:{_options.Password}"));
+        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));
         req.Headers.Authorization = new AuthenticationHeaderValue("Basic", token);
     }
 
     private static string? GetString(JsonElement e, string prop)
         => e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
     private static bool GetBool(JsonElement e, string prop)
-        => e.TryGetProperty(prop, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : false;
+        => e.TryGetProperty(prop, out var v) && (v.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String => bool.TryParse(v.GetString(), out var parsed) && parsed,
+            _ => false
+        });
     private static long? GetLong(JsonElement e, string prop)
         => e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number ? (long?)v.GetInt64() : null;
     private static double? GetDouble(JsonElement e, string prop)
-        => e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
+        => e.TryGetProperty(prop, out var v) && (v.ValueKind == JsonValueKind.Number || v.ValueKind == JsonValueKind.String)
+            && double.TryParse(v.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : null;
+
+    internal static int? ParseInterfaceId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        var value = id.TrimStart('*');
+        return int.TryParse(value, System.Globalization.NumberStyles.HexNumber,
+            System.Globalization.CultureInfo.InvariantCulture, out var parsed) && parsed > 0 ? parsed : null;
+    }
+
+    internal static ulong? ParseRate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var normalized = value.Trim().ToLowerInvariant().Replace(" ", string.Empty);
+        var multiplier = normalized.EndsWith("gbps") ? 1_000_000_000UL
+            : normalized.EndsWith("mbps") ? 1_000_000UL
+            : normalized.EndsWith("kbps") ? 1_000UL
+            : normalized.EndsWith("bps") ? 1UL : 0UL;
+        if (multiplier == 0) return null;
+        var number = normalized[..normalized.IndexOf("bps", StringComparison.Ordinal)].TrimEnd('g', 'm', 'k');
+        return decimal.TryParse(number, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            ? checked((ulong)(parsed * multiplier)) : null;
+    }
+
+    internal static long? ParseRouterOsDuration(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var remaining = value.Trim().ToLowerInvariant();
+        long total = 0;
+        foreach (var unit in new[] { ('w', 604800L), ('d', 86400L) })
+        {
+            var position = remaining.IndexOf(unit.Item1);
+            if (position < 0) continue;
+            if (!long.TryParse(remaining[..position], out var amount)) return null;
+            total = checked(total + amount * unit.Item2);
+            remaining = remaining[(position + 1)..];
+        }
+        if (TimeSpan.TryParseExact(remaining, new[] { @"h\:mm\:ss", @"hh\:mm\:ss" },
+            System.Globalization.CultureInfo.InvariantCulture, out var time))
+            return checked(total + (long)time.TotalSeconds);
+        return remaining.Length == 0 ? total : null;
+    }
 
     private static string Hash(string input)
     {
@@ -171,6 +256,7 @@ public sealed class MikroTikOptions
 {
     public string? Username { get; set; }
     public string? Password { get; set; }
-    public bool SkipCertificateValidation { get; set; } = true;
+    public bool SkipCertificateValidation { get; set; }
+    public string? PinnedCertificateThumbprint { get; set; }
     public int TimeoutSeconds { get; set; } = 10;
 }

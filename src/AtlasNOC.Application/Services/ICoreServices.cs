@@ -31,7 +31,8 @@ public interface IDiscoveryService
 {
     Task<Guid> StartDiscoveryAsync(StartDiscoveryRequest request, CancellationToken ct = default);
     Task<DiscoveryRunDto?> GetRunAsync(Guid id, CancellationToken ct = default);
-    Task<IReadOnlyList<DiscoveryRunDto>> ListRunsAsync(CancellationToken ct = default);
+      Task<IReadOnlyList<DiscoveryRunDto>> ListRunsAsync(CancellationToken ct = default);
+      Task CancelAsync(Guid id, CancellationToken ct = default);
 }
 
 public interface IMetricQueryService

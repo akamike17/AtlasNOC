@@ -5,15 +5,16 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Usuarios y roles</h1>
+    <a asp-action="Create" class="btn btn-primary">Nuevo usuario</a>
 </div>
 
 <div class="noc-card">
     <table class="table table-dark table-sm align-middle mb-0">
-        <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
         <tbody>
         @if (!Model.Any())
         {
-            <tr><td colspan="4" class="text-secondary">Sin usuarios.</td></tr>
+            <tr><td colspan="5" class="text-secondary">Sin usuarios.</td></tr>
         }
         @foreach (var u in Model)
         {
@@ -31,6 +32,7 @@
                         <span class="badge bg-down">Inactivo</span>
                     }
                 </td>
+                <td><a asp-action="Detail" asp-route-id="@u.Id" class="btn btn-sm btn-outline-light">Administrar</a></td>
             </tr>
         }
         </tbody>

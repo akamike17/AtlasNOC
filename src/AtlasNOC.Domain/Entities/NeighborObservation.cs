@@ -14,7 +14,8 @@ public class NeighborObservation
     public NeighborProtocol Protocol { get; private set; }
     public DateTime ObservedAtUtc { get; private set; }
     public string RawEvidenceHash { get; private set; } = string.Empty;
-    public bool IsResolved { get; private set; }
+    public NeighborObservationStatus Status { get; private set; }
+    public bool IsResolved => Status == NeighborObservationStatus.Resolved;
 
     private NeighborObservation() { }
 
@@ -30,7 +31,11 @@ public class NeighborObservation
         Protocol = protocol;
         RawEvidenceHash = rawEvidenceHash ?? throw new ArgumentNullException(nameof(rawEvidenceHash));
         ObservedAtUtc = DateTime.UtcNow;
+        Status = NeighborObservationStatus.Pending;
     }
 
-    public void Resolve() => IsResolved = true;
+    public void Resolve() => Status = NeighborObservationStatus.Resolved;
+    public void MarkPending() => Status = NeighborObservationStatus.Pending;
+    public void MarkAmbiguous() => Status = NeighborObservationStatus.Ambiguous;
+    public void Reject() => Status = NeighborObservationStatus.Rejected;
 }

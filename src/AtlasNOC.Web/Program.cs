@@ -65,6 +65,8 @@ builder.Services.ConfigureApplicationCookie(options =>
     //      desactivado (IsActive). Se valida en cada petición autenticada. ───
     options.Events.OnValidatePrincipal = async ctx =>
     {
+        await SecurityStampValidator.ValidatePrincipalAsync(ctx);
+        if (ctx.Principal?.Identity?.IsAuthenticated != true) return;
         var signIn = ctx.HttpContext.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
         if (ctx.Principal is not null)
         {
@@ -155,7 +157,22 @@ builder.Services.AddHealthChecks()
 
 // ─── Infraestructura (repositorios, servicios, workers, drivers) ───────────
 var labMode = builder.Configuration.GetValue<bool>("LabMode");
+builder.Services.AddSingleton(builder.Configuration.GetSection("Ubiquiti").Get<AtlasNOC.Infrastructure.Devices.UbiquitiOptions>()
+    ?? new AtlasNOC.Infrastructure.Devices.UbiquitiOptions());
+builder.Services.Configure<AtlasNOC.Infrastructure.Services.DiscoveryOptions>(
+    builder.Configuration.GetSection("Discovery"));
+builder.Services.Configure<AtlasNOC.Infrastructure.Services.PollingOptions>(
+    builder.Configuration.GetSection("Polling"));
+builder.Services.Configure<AtlasNOC.Infrastructure.Services.NotificationOptions>(
+    builder.Configuration.GetSection("Notifications"));
 builder.Services.AddInfrastructure(labMode);
+// Sólo los E2E que arrancan Web sin un proceso Worker separado pueden optar
+// explícitamente por workers embebidos. Producción nunca los habilita aquí.
+if (builder.Environment.IsEnvironment("Testing")
+    && builder.Configuration.GetValue<bool>("RunWorkersInWebForTests"))
+{
+    builder.Services.AddAtlasWorkers();
+}
 
 var app = builder.Build();
 

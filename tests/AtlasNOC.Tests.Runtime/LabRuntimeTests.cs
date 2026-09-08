@@ -84,7 +84,7 @@ public class LabRuntimeFixture : IAsyncLifetime
         // Orden por dependencias: enlaces → interfaces → observaciones → dispositivos → runs.
         await Db.Database.ExecuteSqlRawAsync(
             "DELETE FROM NetworkLinks; DELETE FROM DeviceInterfaces; DELETE FROM NeighborObservations;" +
-            " DELETE FROM Devices; DELETE FROM DiscoveryRuns; DELETE FROM MetricSamples;" +
+            " DELETE FROM Devices; DELETE FROM DiscoveryRuns; DELETE FROM MetricSamples; DELETE FROM NotificationDeliveries;" +
             " DELETE FROM Alerts; DELETE FROM Incidents; DELETE FROM AlertRules;");
     }
 
@@ -98,6 +98,10 @@ public class LabRuntimeFixture : IAsyncLifetime
         var ips = string.Join(',', LabTopology.All.Select(n => n.Ip));
         var runId = await discoveryService.StartDiscoveryAsync(
             new AtlasNOC.Application.Dtos.StartDiscoveryRequest(ips, null, null));
+
+        var claimed = await Db.DiscoveryRuns.SingleAsync(r => r.Id == runId);
+        claimed.Claim("runtime-test", DateTime.UtcNow, TimeSpan.FromMinutes(5));
+        await Db.SaveChangesAsync();
 
         await executor.ExecuteAsync(runId);
 

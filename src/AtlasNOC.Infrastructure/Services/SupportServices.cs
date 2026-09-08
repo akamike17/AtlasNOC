@@ -178,6 +178,33 @@ public class CredentialService : ICredentialService
         var list = await _credentials.ListAsync(ct);
         return list.Select(c => new CredentialDto(c.Id.Value, c.Name, (int)c.SnmpVersion, c.IsActive)).ToList();
     }
+
+    public async Task<ResolvedDeviceCredential?> ResolveAsync(Guid id, CancellationToken ct = default)
+    {
+        var credential = await _credentials.GetByIdAsync(id, ct);
+        if (credential is null || !credential.CanUse)
+            return null;
+
+        // Descifra los secretos sólo para el DTO temporal; nunca para una vista.
+        return new ResolvedDeviceCredential(
+            credential.Id.Value,
+            credential.Name,
+            credential.SnmpVersion,
+            Community: Decrypt(credential.CommunityProtected),
+            UserName: credential.UserName,
+            AuthProtocol: credential.AuthProtocol,
+            AuthPassword: Decrypt(credential.AuthPasswordProtected),
+            PrivProtocol: credential.PrivProtocol,
+            PrivPassword: Decrypt(credential.PrivPasswordProtected));
+    }
+
+    private string? Decrypt(string? protectedValue)
+    {
+        if (string.IsNullOrEmpty(protectedValue))
+            return null;
+        try { return _protector.Unprotect(protectedValue); }
+        catch { return null; }
+    }
 }
 
 public class AuditService : IAuditService

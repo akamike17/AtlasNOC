@@ -286,10 +286,19 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsManaged")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<DateTime?>("LastHealthPolledAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LastInterfacePolledAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime?>("LastPolledAtUtc")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("LastSeenAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LastWirelessPolledAtUtc")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("ManagementIp")
@@ -300,6 +309,9 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.Property<string>("Model")
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
+
+                    b.Property<Guid?>("PollingProfileId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(200)
@@ -318,6 +330,10 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ManagementIp")
                         .IsUnique();
+
+                    b.HasIndex("PollingProfileId");
+
+                    b.HasIndex("SiteId");
 
                     b.ToTable("Devices", (string)null);
                 });
@@ -344,6 +360,8 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
 
                     b.ToTable("DeviceCapabilities", (string)null);
                 });
@@ -489,6 +507,16 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ClaimedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ClaimedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("datetime(6)");
 
@@ -504,6 +532,9 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("FoundCount")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("NewCount")
                         .HasColumnType("int");
@@ -535,6 +566,8 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("StartedAtUtc");
+
+                    b.HasIndex("Status", "LeaseExpiresAtUtc", "StartedAtUtc");
 
                     b.ToTable("DiscoveryRuns", (string)null);
                 });
@@ -634,9 +667,6 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<bool>("IsResolved")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<Guid>("LocalDeviceId")
                         .HasColumnType("char(36)");
 
@@ -663,7 +693,15 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("IsResolved");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("LocalDeviceId");
+
+                    b.HasIndex("LocalInterfaceId");
 
                     b.HasIndex("RawEvidenceHash");
 
@@ -713,9 +751,10 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AInterfaceId");
-
                     b.HasIndex("BInterfaceId");
+
+                    b.HasIndex("AInterfaceId", "BInterfaceId")
+                        .IsUnique();
 
                     b.ToTable("NetworkLinks", (string)null);
                 });
@@ -765,6 +804,10 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ParentSiteId");
+
                     b.ToTable("Sites", (string)null);
                 });
 
@@ -798,6 +841,49 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("NotificationChannels", (string)null);
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.NotificationDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("AlertId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("LastAttemptUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime?>("NextRetryUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId");
+
+                    b.HasIndex("AlertId", "ChannelId")
+                        .IsUnique();
+
+                    b.HasIndex("State", "NextRetryUtc");
+
+                    b.ToTable("NotificationDeliveries", (string)null);
                 });
 
             modelBuilder.Entity("AtlasNOC.Domain.Entities.PollingProfile", b =>
@@ -835,7 +921,12 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.Property<int>("TimeoutMs")
                         .HasColumnType("int");
 
+                    b.Property<int>("WirelessIntervalSeconds")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("IsDefault");
 
                     b.ToTable("PollingProfiles", (string)null);
                 });
@@ -872,6 +963,8 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DeviceId");
+
                     b.ToTable("RadioSectors", (string)null);
                 });
 
@@ -898,6 +991,10 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(36)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("SubscriberId");
 
                     b.ToTable("ServiceEndpoints", (string)null);
                 });
@@ -926,6 +1023,10 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(36)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("SiteId");
 
                     b.ToTable("Subscribers", (string)null);
                 });
@@ -1214,6 +1315,149 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.Device", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.PollingProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PollingProfileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AtlasNOC.Domain.Entities.NetworkSite", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.DeviceCapability", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.DeviceInterface", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.NeighborObservation", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("LocalDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AtlasNOC.Domain.Entities.DeviceInterface", null)
+                        .WithMany()
+                        .HasForeignKey("LocalInterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.NetworkLink", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.DeviceInterface", null)
+                        .WithMany()
+                        .HasForeignKey("AInterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AtlasNOC.Domain.Entities.DeviceInterface", null)
+                        .WithMany()
+                        .HasForeignKey("BInterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.NetworkSite", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.WispOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AtlasNOC.Domain.Entities.NetworkSite", null)
+                        .WithMany()
+                        .HasForeignKey("ParentSiteId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.NotificationDelivery", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.Alert", null)
+                        .WithMany()
+                        .HasForeignKey("AlertId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AtlasNOC.Domain.Entities.NotificationChannel", null)
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.RadioSector", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.ServiceEndpoint", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AtlasNOC.Domain.Entities.Subscriber", null)
+                        .WithMany()
+                        .HasForeignKey("SubscriberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.Subscriber", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.WispOrganization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AtlasNOC.Domain.Entities.NetworkSite", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.WirelessAssociation", b =>
+                {
+                    b.HasOne("AtlasNOC.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("ApDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AtlasNOC.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("CpeDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

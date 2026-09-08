@@ -1,0 +1,18 @@
+@model UserDetailDto
+@{ ViewData["Title"] = "Usuario"; var role = Model.Roles.FirstOrDefault() ?? "ReadOnly"; }
+<div class="noc-card">
+    <h1 class="h5">@Model.UserName</h1>
+    @if (TempData["UserError"] is string error) { <div class="alert alert-danger">@error</div> }
+    <dl class="row"><dt class="col-sm-3">Nombre</dt><dd class="col-sm-9">@(Model.DisplayName ?? "—")</dd>
+        <dt class="col-sm-3">Rol</dt><dd class="col-sm-9">@role</dd>
+        <dt class="col-sm-3">Estado</dt><dd class="col-sm-9">@(Model.IsActive ? "Activo" : "Inactivo")</dd></dl>
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-light">Editar</a>
+    <a asp-action="ResetPassword" asp-route-id="@Model.Id" class="btn btn-outline-warning">Restablecer contraseña</a>
+    <form asp-action="ChangeRole" method="post" class="d-inline-flex ms-2">
+        <input type="hidden" name="Id" value="@Model.Id" />
+        <select name="Role" class="form-select bg-dark text-light"><option selected="@(role == "Administrator")">Administrator</option><option selected="@(role == "NocOperator")">NocOperator</option><option selected="@(role == "ReadOnly")">ReadOnly</option></select>
+        <button class="btn btn-outline-info ms-1">Cambiar rol</button>
+    </form>
+    @if (Model.IsActive) { <form asp-action="Disable" asp-route-id="@Model.Id" method="post" class="d-inline"><button class="btn btn-danger">Desactivar</button></form> }
+    else { <form asp-action="Enable" asp-route-id="@Model.Id" method="post" class="d-inline"><button class="btn btn-success">Activar</button></form> }
+</div>

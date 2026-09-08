@@ -21,13 +21,3 @@ public interface IAlertRuleService
     Task<Guid> CreateRuleAsync(CreateAlertRuleRequest request, CancellationToken ct = default);
     Task ToggleRuleAsync(Guid id, bool enabled, CancellationToken ct = default);
 }
-
-/// <summary>Notificación saliente de una alerta o incidente.</summary>
-public interface INotificationService
-{
-    Task<IReadOnlyList<PendingNotification>> DequeueDueAsync(CancellationToken ct = default);
-    Task MarkSentAsync(Guid notificationId, CancellationToken ct = default);
-    Task MarkFailedAsync(Guid notificationId, string error, CancellationToken ct = default);
-}
-
-public sealed record PendingNotification(Guid Id, int ChannelType, string Recipient, string Subject, string Body);

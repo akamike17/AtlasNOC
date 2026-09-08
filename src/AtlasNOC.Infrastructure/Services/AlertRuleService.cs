@@ -36,18 +36,3 @@ public class AlertRuleService : IAlertRuleService
         await _context.SaveChangesAsync(ct);
     }
 }
-
-/// <summary>Notificación: cola ligera en base de datos (NotificationQueue tabla/fila).</summary>
-public class NotificationService : INotificationService
-{
-    private readonly AtlasNOCDbContext _context;
-
-    public NotificationService(AtlasNOCDbContext context) => _context = context;
-
-    public Task<IReadOnlyList<PendingNotification>> DequeueDueAsync(CancellationToken ct = default)
-        // Sin cola persistida todavía: notificaciones se generan en el worker al vuelo.
-        => Task.FromResult<IReadOnlyList<PendingNotification>>(Array.Empty<PendingNotification>());
-
-    public Task MarkSentAsync(Guid notificationId, CancellationToken ct = default) => Task.CompletedTask;
-    public Task MarkFailedAsync(Guid notificationId, string error, CancellationToken ct = default) => Task.CompletedTask;
-}

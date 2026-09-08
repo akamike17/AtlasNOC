@@ -36,6 +36,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -76,6 +77,10 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.SiteType).HasConversion<int>();
             e.Property(x => x.Address).HasMaxLength(500);
             e.HasIndex(x => x.Code).IsUnique();
+            e.HasOne<WispOrganization>().WithMany().HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<NetworkSite>().WithMany().HasForeignKey(x => x.ParentSiteId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── Subscriber / ServiceEndpoint ───────────────────────────────────
@@ -86,6 +91,10 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.OrganizationId).HasConversion(orgIdConv);
             e.Property(x => x.SiteId).HasConversion(siteIdNullableConv);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.HasOne<WispOrganization>().WithMany().HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<NetworkSite>().WithMany().HasForeignKey(x => x.SiteId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ServiceEndpoint>(e =>
@@ -94,6 +103,10 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.HasKey(x => x.Id);
             e.Property(x => x.DeviceId).HasConversion(deviceIdConv);
             e.Property(x => x.Description).HasMaxLength(500);
+            e.HasOne<Subscriber>().WithMany().HasForeignKey(x => x.SubscriberId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── Device ─────────────────────────────────────────────────────────
@@ -112,7 +125,11 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.SerialNumber).HasMaxLength(200);
             e.Property(x => x.FirmwareVersion).HasMaxLength(100);
             e.Property(x => x.DriverKey).HasMaxLength(64);
+            e.HasIndex(x => x.PollingProfileId);
+            e.HasOne<PollingProfile>().WithMany().HasForeignKey(x => x.PollingProfileId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => x.ManagementIp).IsUnique();
+            e.HasOne<NetworkSite>().WithMany().HasForeignKey(x => x.SiteId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ─── Interface ──────────────────────────────────────────────────────
@@ -130,6 +147,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.OperStatus).HasConversion<int>();
             e.Property(x => x.InterfaceType).HasMaxLength(64);
             e.HasIndex(x => new { x.DeviceId, x.IfIndex }).IsUnique();
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── Link ───────────────────────────────────────────────────────────
@@ -144,8 +163,12 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.DiscoverySource).HasConversion<int>();
             e.Property(x => x.AdminStatus).HasConversion<int>();
             e.Property(x => x.OperStatus).HasConversion<int>();
-            e.HasIndex(x => x.AInterfaceId);
+            e.HasIndex(x => new { x.AInterfaceId, x.BInterfaceId }).IsUnique();
             e.HasIndex(x => x.BInterfaceId);
+            e.HasOne<DeviceInterface>().WithMany().HasForeignKey(x => x.AInterfaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<DeviceInterface>().WithMany().HasForeignKey(x => x.BInterfaceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── NeighborObservation ────────────────────────────────────────────
@@ -158,8 +181,14 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.RemoteIdentity).IsRequired().HasMaxLength(200);
             e.Property(x => x.RemotePortIdentity).HasMaxLength(200);
             e.Property(x => x.Protocol).HasConversion<int>();
+            e.Ignore(x => x.IsResolved);
+            e.Property(x => x.Status).HasColumnName("IsResolved").HasConversion<int>();
             e.Property(x => x.RawEvidenceHash).IsRequired().HasMaxLength(64);
             e.HasIndex(x => x.RawEvidenceHash);
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.LocalDeviceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<DeviceInterface>().WithMany().HasForeignKey(x => x.LocalInterfaceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── Credential ─────────────────────────────────────────────────────
@@ -188,6 +217,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.DeviceId).HasConversion(deviceIdConv);
             e.Property(x => x.CapabilityKey).IsRequired().HasMaxLength(100);
             e.Property(x => x.Value).HasMaxLength(500);
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── DiscoveryRun ───────────────────────────────────────────────────
@@ -200,7 +231,9 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.CredentialId).HasMaxLength(64);
             e.Property(x => x.Status).HasConversion<int>();
             e.Property(x => x.SummaryJson).HasColumnType("longtext");
+            e.Property(x => x.ClaimedBy).HasMaxLength(200);
             e.HasIndex(x => x.StartedAtUtc);
+            e.HasIndex(x => new { x.Status, x.LeaseExpiresAtUtc, x.StartedAtUtc });
         });
 
         // ─── RadioSector / WirelessAssociation ──────────────────────────────
@@ -211,6 +244,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.DeviceId).HasConversion(deviceIdConv);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.Property(x => x.Ssid).HasMaxLength(100);
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<WirelessAssociation>(e =>
@@ -222,6 +257,10 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.SectorName).HasMaxLength(200);
             e.HasIndex(x => x.ApDeviceId);
             e.HasIndex(x => x.CpeDeviceId);
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.ApDeviceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.CpeDeviceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ─── PollingProfile ─────────────────────────────────────────────────
@@ -230,6 +269,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.ToTable("PollingProfiles");
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.HasIndex(x => x.IsDefault);
         });
 
         // ─── MetricSample ───────────────────────────────────────────────────
@@ -342,6 +382,19 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.Type).HasConversion<int>();
             e.Property(x => x.ConfigurationJson).HasColumnType("longtext");
             e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<NotificationDelivery>(e =>
+        {
+            e.ToTable("NotificationDeliveries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.AlertId).HasConversion(alertIdConv);
+            e.Property(x => x.State).HasConversion<int>();
+            e.Property(x => x.LastError).HasMaxLength(2000);
+            e.HasIndex(x => new { x.AlertId, x.ChannelId }).IsUnique();
+            e.HasIndex(x => new { x.State, x.NextRetryUtc });
+            e.HasOne<Alert>().WithMany().HasForeignKey(x => x.AlertId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<NotificationChannel>().WithMany().HasForeignKey(x => x.ChannelId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

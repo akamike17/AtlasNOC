@@ -10,6 +10,8 @@ using AtlasNOC.Infrastructure.Security;
 using AtlasNOC.Infrastructure.Services;
 using AtlasNOC.Infrastructure.Workers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AtlasNOC.Infrastructure;
 
@@ -54,25 +56,72 @@ public static class DependencyInjection
         {
             var opts = sp.GetRequiredService<MikroTikOptions>();
             c.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds > 0 ? opts.TimeoutSeconds : 10);
+        }).ConfigurePrimaryHttpMessageHandler(sp =>
+        {
+            var opts = sp.GetRequiredService<MikroTikOptions>();
+            var logger = sp.GetRequiredService<ILogger<MikroTikDriver>>();
+            var handler = new HttpClientHandler();
+            if (opts.SkipCertificateValidation || !string.IsNullOrWhiteSpace(opts.PinnedCertificateThumbprint))
+            {
+                if (opts.SkipCertificateValidation)
+                    logger.LogWarning("La validación TLS de RouterOS está desactivada explícitamente");
+                handler.ServerCertificateCustomValidationCallback = (_, certificate, _, errors) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(opts.PinnedCertificateThumbprint))
+                    {
+                        var expected = opts.PinnedCertificateThumbprint.Replace(":", string.Empty, StringComparison.Ordinal).Replace(" ", string.Empty, StringComparison.Ordinal);
+                        var actual = certificate?.GetCertHashString() ?? string.Empty;
+                        return actual.Equals(expected, StringComparison.OrdinalIgnoreCase);
+                    }
+                    return opts.SkipCertificateValidation || errors == System.Net.Security.SslPolicyErrors.None;
+                };
+            }
+            return handler;
         }).AddStandardResilienceHandler();
 
         services.AddHttpClient("ubiquiti", (sp, c) =>
         {
             var opts = sp.GetRequiredService<UbiquitiOptions>();
             c.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds > 0 ? opts.TimeoutSeconds : 10);
+        }).ConfigurePrimaryHttpMessageHandler(sp =>
+        {
+            var opts = sp.GetRequiredService<UbiquitiOptions>();
+            var handler = new HttpClientHandler();
+            if (opts.SkipCertificateValidation || !string.IsNullOrWhiteSpace(opts.PinnedCertificateThumbprint))
+            {
+                handler.ServerCertificateCustomValidationCallback = (_, certificate, _, errors) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(opts.PinnedCertificateThumbprint))
+                    {
+                        var expected = opts.PinnedCertificateThumbprint.Replace(":", string.Empty).Replace(" ", string.Empty);
+                        return (certificate?.GetCertHashString() ?? string.Empty).Equals(expected, StringComparison.OrdinalIgnoreCase);
+                    }
+                    return opts.SkipCertificateValidation || errors == System.Net.Security.SslPolicyErrors.None;
+                };
+            }
+            return handler;
         }).AddStandardResilienceHandler();
 
-        services.AddSingleton(new MikroTikOptions());
-        services.AddSingleton(new UbiquitiOptions());
+        services.TryAddSingleton(new MikroTikOptions());
+        services.TryAddSingleton(new UbiquitiOptions());
         // Orden = especificidad. Simulated primero: en modo LAB toma prioridad y no
         // se dispara con fingerprints reales (solo VendorHint "simulated" o IPs 10.0.x).
         services.AddSingleton<IDeviceDriver, SimulatedNetworkDriver>();
         services.AddSingleton<IDeviceDriver, MikroTikDriver>();
+        services.AddSingleton<IDeviceDriver, AirOsDeviceDriver>();
         services.AddSingleton<IDeviceDriver, UbiquitiDriver>();
         services.AddSingleton<IDeviceDriver, GenericSnmpDriver>();
         services.AddSingleton<IDeviceDriverRegistry, DeviceDriverRegistry>();
 
         // Application services
+        services.AddOptions<DiscoveryOptions>();
+        services.AddOptions<PollingOptions>();
+        services.AddOptions<NotificationOptions>();
+        services.AddHttpClient("notifications", (sp, client) =>
+        {
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<NotificationOptions>>().Value;
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(1, options.WebhookTimeoutSeconds));
+        });
         services.AddScoped<ISetupService, SetupService>();
         services.AddScoped<IUserAdministrationService, UserAdministrationService>();
         services.AddScoped<ISiteService, SiteService>();
@@ -91,13 +140,20 @@ public static class DependencyInjection
         services.AddScoped<IAlertEvaluationEngine, AlertEvaluationEngine>();
         services.AddScoped<IIncidentCorrelationEngine, IncidentCorrelationEngine>();
         services.AddScoped<IAlertRuleService, AlertRuleService>();
-        services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<ICredentialService, CredentialService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ISystemHealthService, SystemHealthService>();
 
-        // Workers (register as hosted services where the host chooses)
+        return services;
+    }
+
+    /// <summary>
+    /// Registra los procesos NOC en segundo plano. El host Worker debe invocarlo
+    /// explícitamente; el host Web permanece exclusivamente HTTP por defecto.
+    /// </summary>
+    public static IServiceCollection AddAtlasWorkers(this IServiceCollection services)
+    {
         services.AddHostedService<PollingWorker>();
         services.AddHostedService<DiscoveryWorker>();
         services.AddHostedService<TopologyCorrelationWorker>();

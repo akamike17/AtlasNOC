@@ -3,6 +3,7 @@ using AtlasNOC.Application.Repositories;
 using AtlasNOC.Application.Services;
 using AtlasNOC.Domain.Entities;
 using AtlasNOC.Domain.Enums;
+using AtlasNOC.Domain.ValueObjects;
 using AtlasNOC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,10 +29,21 @@ public class DiscoveryService : IDiscoveryService
         if (string.IsNullOrWhiteSpace(request.ScopeIp))
             throw new ArgumentException("El alcance (CIDR/IPs) es obligatorio.", nameof(request.ScopeIp));
 
+        if (request.SiteId.HasValue
+            && !await _context.Sites.AnyAsync(s => s.Id == SiteId.From(request.SiteId.Value), ct))
+            throw new ArgumentException("El sitio seleccionado no existe.", nameof(request.SiteId));
+
+        if (request.CredentialId.HasValue)
+        {
+            var credential = await _context.DeviceCredentials
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == CredentialId.From(request.CredentialId.Value), ct);
+            if (credential is null || !credential.CanUse)
+                throw new ArgumentException("La credencial seleccionada no existe o está inactiva.", nameof(request.CredentialId));
+        }
+
         var run = new DiscoveryRun(request.ScopeIp,
             request.SiteId?.ToString(), request.CredentialId?.ToString());
-        run.Start();
-
         await _runs.AddAsync(run, ct);
         await _context.SaveChangesAsync(ct);
 
@@ -47,6 +59,14 @@ public class DiscoveryService : IDiscoveryService
     public async Task<IReadOnlyList<DiscoveryRunDto>> ListRunsAsync(CancellationToken ct = default)
         => (await _context.DiscoveryRuns.AsNoTracking().OrderByDescending(r => r.StartedAtUtc).ToListAsync(ct))
             .Select(ToDto).ToList();
+
+    public async Task CancelAsync(Guid id, CancellationToken ct = default)
+    {
+        var run = await _runs.GetByIdAsync(id, ct)
+            ?? throw new KeyNotFoundException("La corrida de discovery no existe.");
+        run.Cancel();
+        await _context.SaveChangesAsync(ct);
+    }
 
     private static DiscoveryRunDto ToDto(DiscoveryRun r) => new(
         r.Id, r.ScopeIp, (int)r.Status, r.StartedAtUtc, r.FoundCount, r.NewCount,

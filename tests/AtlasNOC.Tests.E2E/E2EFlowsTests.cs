@@ -78,9 +78,10 @@ public class E2EFixture : IAsyncLifetime
         startInfo.ArgumentList.Add(dll);
         startInfo.ArgumentList.Add("--urls");
         startInfo.ArgumentList.Add(BaseUrl);
-        startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+        startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Testing";
         startInfo.Environment["ConnectionStrings__DefaultConnection"] = ConnectionString;
         startInfo.Environment["LabMode"] = "true";
+        startInfo.Environment["RunWorkersInWebForTests"] = "true";
 
         _server = Process.Start(startInfo)!;
         await WaitForServerAsync();

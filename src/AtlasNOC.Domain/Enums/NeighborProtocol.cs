@@ -6,5 +6,6 @@ public enum NeighborProtocol
     Cdp = 1,
     MikroTik = 2,
     Ubiquiti = 3,
-    Wireless = 4
+    Wireless = 4,
+    Unknown = 99
 }

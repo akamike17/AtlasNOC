@@ -29,6 +29,10 @@ public class AlertRulesController : Controller
     {
         if (string.IsNullOrWhiteSpace(request.MetricName))
             ModelState.AddModelError("MetricName", "La métrica es obligatoria.");
+        if (!AtlasNOC.Domain.Entities.AlertRule.SupportedOperators.Contains(request.ComparisonOperator))
+            ModelState.AddModelError("ComparisonOperator", "Operador inválido. Usa >, >=, <, <= o ==.");
+        if (request.ConsecutiveFaults < 1)
+            ModelState.AddModelError("ConsecutiveFaults", "Debe requerirse al menos un fallo.");
         if (!ModelState.IsValid)
             return View(request);
 

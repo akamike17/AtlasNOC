@@ -2,6 +2,9 @@ using AtlasNOC.Application.Repositories;
 using AtlasNOC.Domain.Entities;
 using AtlasNOC.Domain.Enums;
 using AtlasNOC.Domain.ValueObjects;
+using AtlasNOC.Domain.Identity;
+using AtlasNOC.Application.Services;
+using AtlasNOC.Application.Dtos;
 using AtlasNOC.Infrastructure;
 using AtlasNOC.Infrastructure.Persistence;
 using AtlasNOC.Tests.Shared;
@@ -50,6 +53,8 @@ public class IntegrationFixture : IAsyncLifetime
         services.AddDbContext<AtlasNOCDbContext>(o =>
             o.UseMySql(ConnectionString, ServerVersion.Parse("8.0.36-mysql")));
         services.AddLogging();
+        services.AddIdentity<ApplicationUser, ApplicationRole>()
+            .AddEntityFrameworkStores<AtlasNOCDbContext>();
         services.AddInfrastructure();
         Services = services.BuildServiceProvider();
     }
@@ -78,8 +83,10 @@ public class IntegrationFixture : IAsyncLifetime
 
         var db = Services.GetRequiredService<AtlasNOCDbContext>();
         await db.Database.ExecuteSqlRawAsync(
-            "DELETE FROM NetworkLinks; DELETE FROM DeviceInterfaces; DELETE FROM NeighborObservations;" +
-            " DELETE FROM Devices; DELETE FROM DiscoveryRuns; DELETE FROM MetricSamples;" +
+            "DELETE FROM AspNetUserRoles; DELETE FROM AspNetUserClaims; DELETE FROM AspNetUserLogins;" +
+            " DELETE FROM AspNetUserTokens; DELETE FROM AspNetRoleClaims; DELETE FROM AspNetUsers; DELETE FROM AspNetRoles;" +
+            " DELETE FROM NetworkLinks; DELETE FROM DeviceInterfaces; DELETE FROM NeighborObservations;" +
+            " DELETE FROM Devices; DELETE FROM DiscoveryRuns; DELETE FROM MetricSamples; DELETE FROM NotificationDeliveries;" +
             " DELETE FROM DeviceCredentials; DELETE FROM ApiKeys; DELETE FROM Alerts; DELETE FROM Incidents;" +
             " DELETE FROM AlertRules; DELETE FROM Sites; DELETE FROM Organizations;");
         db.ChangeTracker.Clear();
@@ -227,5 +234,70 @@ public class RepositoryIntegrationTests
         var byHash = await keys.GetByHashAsync("HASH-ABC123");
         Assert.NotNull(byHash);
         Assert.Equal("CI bot", byHash!.Name);
+    }
+}
+
+[Collection("integration")]
+public class SetupConcurrencyIntegrationTests
+{
+    private readonly IntegrationFixture _fixture;
+    public SetupConcurrencyIntegrationTests(IntegrationFixture fixture) => _fixture = fixture;
+
+    [SkippableFact]
+    public async Task ConcurrentSetup_HasExactlyOneWinnerAndNoPartialState()
+    {
+        if (_fixture.Skipped)
+            throw new SkipTestException("Omitting integration test: ATLASNOC_TEST_CONNECTION is not set.");
+        await _fixture.ResetAsync();
+
+        async Task<SetupResult> ExecuteAsync(string userName)
+        {
+            await using var scope = _fixture.Services.CreateAsyncScope();
+            var setup = scope.ServiceProvider.GetRequiredService<ISetupService>();
+            return await setup.SetupAsync(new SetupRequest(
+                "Concurrent WISP", userName, userName, "Password123!", "Password123!"));
+        }
+
+        var results = await Task.WhenAll(ExecuteAsync("admin-one@example.test"), ExecuteAsync("admin-two@example.test"));
+
+        Assert.Single(results, r => r.Success);
+        await using var verificationScope = _fixture.Services.CreateAsyncScope();
+        var db = verificationScope.ServiceProvider.GetRequiredService<AtlasNOCDbContext>();
+        Assert.Equal(1, await db.Organizations.CountAsync());
+        Assert.Equal(1, await db.Users.CountAsync());
+        Assert.Equal(3, await db.Roles.CountAsync());
+        Assert.Equal(1, await db.UserRoles.CountAsync());
+    }
+
+    [SkippableFact]
+    public async Task UserAdministration_ProtectsLastAdminAndSupportsRoleLifecycle()
+    {
+        if (_fixture.Skipped)
+            throw new SkipTestException("Omitting integration test: ATLASNOC_TEST_CONNECTION is not set.");
+        await _fixture.ResetAsync();
+
+        await using var scope = _fixture.Services.CreateAsyncScope();
+        var setup = scope.ServiceProvider.GetRequiredService<ISetupService>();
+        Assert.True((await setup.SetupAsync(new SetupRequest("WISP", "admin@example.test", "Admin",
+            "Password123!", "Password123!"))).Success);
+        var users = scope.ServiceProvider.GetRequiredService<IUserAdministrationService>();
+        var admin = Assert.Single(await users.ListUsersAsync());
+
+        Assert.False((await users.SetEnabledAsync(admin.Id, false)).Success);
+        Assert.False((await users.ChangeRoleAsync(new ChangeUserRoleRequest(admin.Id, ApplicationRole.ReadOnly))).Success);
+
+        Assert.True((await users.CreateAsync(new CreateUserRequest("admin2@example.test", "Admin 2",
+            "Password123!", "Password123!", ApplicationRole.Administrator))).Success);
+        Assert.True((await users.CreateAsync(new CreateUserRequest("operator@example.test", "Operator",
+            "Password123!", "Password123!", ApplicationRole.NocOperator))).Success);
+        Assert.True((await users.CreateAsync(new CreateUserRequest("reader@example.test", "Reader",
+            "Password123!", "Password123!", ApplicationRole.ReadOnly))).Success);
+
+        Assert.True((await users.ChangeRoleAsync(new ChangeUserRoleRequest(admin.Id, ApplicationRole.NocOperator))).Success);
+        Assert.True((await users.SetEnabledAsync(admin.Id, false)).Success);
+        var detail = await users.GetUserAsync(admin.Id);
+        Assert.NotNull(detail);
+        Assert.False(detail.IsActive);
+        Assert.Equal(ApplicationRole.NocOperator, Assert.Single(detail.Roles));
     }
 }

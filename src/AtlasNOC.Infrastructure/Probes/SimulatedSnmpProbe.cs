@@ -19,10 +19,10 @@ public class SimulatedSnmpProbe : ISnmpProbe
         _real = real;
     }
 
-    public Task<DeviceFingerprint?> FingerprintAsync(string ipAddress, string community, int timeoutMs, CancellationToken ct)
+    public Task<DeviceFingerprint?> FingerprintAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
     {
         if (!_enabled)
-            return _real.FingerprintAsync(ipAddress, community, timeoutMs, ct);
+            return _real.FingerprintAsync(ipAddress, options, timeoutMs, ct);
 
         var node = LabTopology.Find(ipAddress);
         if (node is null) return Task.FromResult<DeviceFingerprint?>(null);
@@ -36,20 +36,20 @@ public class SimulatedSnmpProbe : ISnmpProbe
         return Task.FromResult<DeviceFingerprint?>(fp);
     }
 
-    public Task<IReadOnlyList<InterfaceData>> GetInterfacesAsync(string ipAddress, string community, int timeoutMs, CancellationToken ct)
+    public Task<IReadOnlyList<InterfaceData>> GetInterfacesAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
         => _enabled
             ? Task.FromResult<IReadOnlyList<InterfaceData>>(Array.Empty<InterfaceData>())
-            : _real.GetInterfacesAsync(ipAddress, community, timeoutMs, ct);
+            : _real.GetInterfacesAsync(ipAddress, options, timeoutMs, ct);
 
-    public Task<IReadOnlyList<NeighborData>> GetLldpNeighborsAsync(string ipAddress, string community, int timeoutMs, CancellationToken ct)
+    public Task<IReadOnlyList<NeighborData>> GetLldpNeighborsAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
         => _enabled
             ? Task.FromResult<IReadOnlyList<NeighborData>>(Array.Empty<NeighborData>())
-            : _real.GetLldpNeighborsAsync(ipAddress, community, timeoutMs, ct);
+            : _real.GetLldpNeighborsAsync(ipAddress, options, timeoutMs, ct);
 
-    public Task<DeviceIdentity> GetIdentityAsync(string ipAddress, string community, int timeoutMs, CancellationToken ct)
+    public Task<DeviceIdentity> GetIdentityAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
     {
         if (!_enabled)
-            return _real.GetIdentityAsync(ipAddress, community, timeoutMs, ct);
+            return _real.GetIdentityAsync(ipAddress, options, timeoutMs, ct);
 
         var node = LabTopology.Find(ipAddress);
         return Task.FromResult(new DeviceIdentity(
@@ -57,8 +57,8 @@ public class SimulatedSnmpProbe : ISnmpProbe
             node?.Vendor == "ubiquiti" ? "1.3.6.1.4.1.41112" : "1.3.6.1.4.1.LAB"));
     }
 
-    public Task<HealthData> GetHealthAsync(string ipAddress, string community, int timeoutMs, CancellationToken ct)
+    public Task<HealthData> GetHealthAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
         => _enabled
             ? Task.FromResult(new HealthData(1.0, 100.0, 45.0, 55.0, 1_000_000))
-            : _real.GetHealthAsync(ipAddress, community, timeoutMs, ct);
+            : _real.GetHealthAsync(ipAddress, options, timeoutMs, ct);
 }

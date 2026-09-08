@@ -40,4 +40,25 @@ public class DeviceInterface
         InterfaceType = interfaceType;
         LastSeenAtUtc = DateTime.UtcNow;
     }
+
+    public void Refresh(string name, string? description, string? macAddress, string? ipAddress,
+        InterfaceAdminStatus adminStatus, InterfaceOperStatus operStatus, ulong? speedBps,
+        string? interfaceType, DateTime? atUtc = null)
+    {
+        if (!string.IsNullOrWhiteSpace(name)) Name = name.Trim();
+        Description = Normalize(description) ?? Description;
+        MacAddress = Normalize(macAddress) ?? MacAddress;
+        IpAddress = Normalize(ipAddress) ?? IpAddress;
+        AdminStatus = adminStatus;
+        OperStatus = operStatus;
+        SpeedBps = speedBps ?? SpeedBps;
+        InterfaceType = Normalize(interfaceType) ?? InterfaceType;
+        MarkSeen(atUtc);
+    }
+
+    public void MarkSeen(DateTime? atUtc = null) => LastSeenAtUtc = atUtc ?? DateTime.UtcNow;
+
+    public void MarkStale() => OperStatus = InterfaceOperStatus.Unknown;
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

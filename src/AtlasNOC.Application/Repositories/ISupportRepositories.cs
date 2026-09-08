@@ -7,6 +7,8 @@ public interface IDiscoveryRunRepository
     Task<DiscoveryRun?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task AddAsync(DiscoveryRun run, CancellationToken ct = default);
     Task UpdateAsync(DiscoveryRun run, CancellationToken ct = default);
+    Task<DiscoveryRun?> ClaimNextAsync(string workerId, DateTime nowUtc, TimeSpan leaseDuration, CancellationToken ct = default);
+    Task<bool> RenewLeaseAsync(Guid runId, string workerId, DateTime nowUtc, TimeSpan leaseDuration, CancellationToken ct = default);
 }
 
 public interface INeighborObservationRepository

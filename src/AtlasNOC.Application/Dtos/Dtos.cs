@@ -10,6 +10,12 @@ public sealed record SetupRequest(
 public sealed record SetupResult(bool Success, string? ErrorMessage);
 
 public sealed record UserLiteDto(Guid Id, string UserName, string? DisplayName, string Role, bool IsActive);
+public sealed record UserDetailDto(Guid Id, string UserName, string? Email, string? DisplayName,
+    IReadOnlyList<string> Roles, bool IsActive, DateTime CreatedAtUtc);
+public sealed record CreateUserRequest(string UserName, string DisplayName, string Password, string ConfirmPassword, string Role);
+public sealed record EditUserRequest(Guid Id, string UserName, string DisplayName);
+public sealed record ChangeUserRoleRequest(Guid Id, string Role);
+public sealed record ResetUserPasswordRequest(Guid Id, string NewPassword, string ConfirmPassword);
 
 public sealed record SiteDto(Guid Id, string Name, string Code, int SiteType, int DeviceCount);
 

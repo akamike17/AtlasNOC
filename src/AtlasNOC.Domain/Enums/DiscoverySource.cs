@@ -8,5 +8,6 @@ public enum DiscoverySource
     MikroTikNeighbor = 3,
     Ubiquiti = 4,
     WirelessAssociation = 5,
-    Imported = 6
+    Imported = 6,
+    Unknown = 99
 }

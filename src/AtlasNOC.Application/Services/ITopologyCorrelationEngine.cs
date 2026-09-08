@@ -12,7 +12,8 @@ public interface ITopologyCorrelationEngine
 }
 
 public sealed record NeighborObservationInput(
-    string LocalDeviceId,
+    string LocalDeviceGuid,
+    string LocalDeviceIdentity,
     string LocalInterfaceId,
     string RemoteIdentity,
     string? RemotePortIdentity,

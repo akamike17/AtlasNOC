@@ -29,6 +29,13 @@ public interface ICredentialService
 {
     Task<Guid> CreateCredentialAsync(CreateCredentialRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<CredentialDto>> ListCredentialsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Resuelve una credencial activa, descifra sus secretos y devuelve un DTO
+    /// temporal. Devuelve <c>null</c> si la credencial no existe o está inactiva.
+    /// Nunca devuelve el secreto a una vista; sólo al pipeline de adquisición.
+    /// </summary>
+    Task<ResolvedDeviceCredential?> ResolveAsync(Guid id, CancellationToken ct = default);
 }
 
 public sealed record CreateCredentialRequest(string Name, int SnmpVersion, string? UserName,
