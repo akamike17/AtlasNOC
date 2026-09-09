@@ -66,8 +66,12 @@ public sealed class CiscoDriver(ISnmpProbe snmp) : IDeviceDriver, ISnmpCredentia
         merged.AddRange(cdp);
         foreach (var l in lldp)
         {
-            // Evitar duplicados por RemoteIdentity + LocalInterfaceName
-            if (!merged.Any(m => m.RemoteIdentity == l.RemoteIdentity && m.LocalInterfaceName == l.LocalInterfaceName))
+            // Evitar duplicados por RemoteIdentity + LocalInterfaceName + RawEvidenceHash
+            // Si el evidence hash es diferente, NO es duplicado (diferente observación).
+            if (!merged.Any(m =>
+                    m.RemoteIdentity == l.RemoteIdentity &&
+                    m.LocalInterfaceName == l.LocalInterfaceName &&
+                    m.RawEvidenceHash == l.RawEvidenceHash))
                 merged.Add(l);
         }
         return merged;

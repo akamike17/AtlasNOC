@@ -19,6 +19,13 @@ public sealed record SnmpConnectionOptions(
 {
     public void Validate()
     {
+        if (Version == SnmpVersion.V2c)
+        {
+            if (string.IsNullOrWhiteSpace(Community))
+                throw new InvalidOperationException("SNMP v2c requiere community string.");
+            return;
+        }
+
         if (Version != SnmpVersion.V3) return;
         if (string.IsNullOrWhiteSpace(UserName))
             throw new ArgumentException("SNMP v3 requiere nombre de usuario.");
