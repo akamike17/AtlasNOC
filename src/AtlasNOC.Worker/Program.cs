@@ -29,19 +29,41 @@ builder.ConfigureServices((context, services) =>
         .PersistKeysToDbContext<AtlasNOCDbContext>();
 
     var keyRingCertThumbprint = context.Configuration["DataProtection:KeyRingCertThumbprint"];
-    if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
+
+    if (!context.HostingEnvironment.IsDevelopment())
     {
+        // En producción, el thumbprint DEBE estar configurado y ser válido.
+        if (string.IsNullOrWhiteSpace(keyRingCertThumbprint))
+        {
+            throw new InvalidOperationException(
+                "DataProtection:KeyRingCertThumbprint no está configurado. En producción es obligatorio para proteger las claves de Data Protection.");
+        }
+
         using var certStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
         certStore.Open(OpenFlags.ReadOnly);
         var cert = certStore.Certificates
             .Find(X509FindType.FindByThumbprint, keyRingCertThumbprint, validOnly: false)
             .OfType<X509Certificate2>()
             .FirstOrDefault();
-        if (cert is not null)
-            dataProtection.ProtectKeysWithCertificate(cert);
-        else if (!context.HostingEnvironment.IsDevelopment())
+        if (cert is null)
         {
             throw new InvalidOperationException($"Certificado de Data Protection con thumbprint '{keyRingCertThumbprint}' no encontrado en el almacén. En producción esto es obligatorio.");
+        }
+        dataProtection.ProtectKeysWithCertificate(cert);
+    }
+    else
+    {
+        // En desarrollo: si hay thumbprint configurado y se encuentra, úsalo; si no, keys en claro (solo dev).
+        if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
+        {
+            using var certStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            certStore.Open(OpenFlags.ReadOnly);
+            var cert = certStore.Certificates
+                .Find(X509FindType.FindByThumbprint, keyRingCertThumbprint, validOnly: false)
+                .OfType<X509Certificate2>()
+                .FirstOrDefault();
+            if (cert is not null)
+                dataProtection.ProtectKeysWithCertificate(cert);
         }
     }
 

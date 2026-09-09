@@ -31,6 +31,39 @@ public static class ApiKeyAuthenticationExtensions
                 .AddRequirements(new ApiScopeRequirement(scope)));
         }
 
+        // Políticas combinadas para Discovery: scope O rol humano
+        options.AddPolicy("DiscoveryRunPolicy", policy => policy
+            .RequireAssertion(ctx =>
+            {
+                var user = ctx.User;
+                if (user.Identity?.IsAuthenticated != true) return false;
+                // API key con scope discovery.run
+                if (user.FindFirst("auth_type")?.Value == "api_key")
+                {
+                    var scopes = user.FindAll("scope").Select(c => c.Value);
+                    return scopes.Any(s => s == "discovery.run" || s == "*" || s == "*.*");
+                }
+                // Humano con rol NocOperator o Administrator
+                var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+                return roles.Any(r => r == "NocOperator" || r == "Administrator");
+            }));
+
+        options.AddPolicy("DiscoveryReadPolicy", policy => policy
+            .RequireAssertion(ctx =>
+            {
+                var user = ctx.User;
+                if (user.Identity?.IsAuthenticated != true) return false;
+                // API key con scope discovery.run
+                if (user.FindFirst("auth_type")?.Value == "api_key")
+                {
+                    var scopes = user.FindAll("scope").Select(c => c.Value);
+                    return scopes.Any(s => s == "discovery.run" || s == "*" || s == "*.*");
+                }
+                // Humano con rol ReadOnly, NocOperator o Administrator
+                var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+                return roles.Any(r => r == "ReadOnly" || r == "NocOperator" || r == "Administrator");
+            }));
+
         // Política combinada para endpoints API: acepta cookie humana (para UI que
         // consume la API) o API key. Cada controlador API añade además su scope.
         options.AddPolicy("ApiAuthenticated", policy => policy

@@ -1,6 +1,4 @@
 using System.Security.Claims;
-using AtlasNOC.Application.Dtos;
-using AtlasNOC.Application.Services;
 using AtlasNOC.Infrastructure.Services;
 using AtlasNOC.Web.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +9,7 @@ namespace AtlasNOC.Tests.Unit;
 /// <summary>
 /// Tests de la autorización por scope (§2): un principal de API key sólo cumple
 /// el requisito de scope si su auth_type es api_key y posee el scope requerido.
-/// Un principal humano (cookie) autenticado cumple (la UI consume estas APIs).
+/// Un principal humano (cookie) NO cumple scope requirements; usa HumanRoleAuthorizationHandler.
 /// </summary>
 public class ApiScopeAuthorizationTests
 {
@@ -32,15 +30,12 @@ public class ApiScopeAuthorizationTests
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "ApiKey", ClaimTypes.Name, ClaimTypes.Role));
     }
 
-    private static ClaimsPrincipal HumanPrincipal()
-    {
-        var claims = new List<Claim>
+    private static ClaimsPrincipal HumanPrincipal() => new ClaimsPrincipal(new ClaimsIdentity(
+        new[]
         {
-            new(ClaimTypes.Name, "admin"),
-            new(ClaimTypes.Role, "Administrator"),
-        };
-        return new ClaimsPrincipal(new ClaimsIdentity(claims, "Identity.Application", ClaimTypes.Name, ClaimTypes.Role));
-    }
+            new Claim(ClaimTypes.Name, "admin"),
+            new Claim(ClaimTypes.Role, "Administrator"),
+        }, "Identity.Application", ClaimTypes.Name, ClaimTypes.Role));
 
     private static ClaimsPrincipal Anonymous() => new(new ClaimsIdentity());
 
@@ -75,7 +70,7 @@ public class ApiScopeAuthorizationTests
     }
 
     [Fact]
-    public async Task Human_cookie_principal_satisfies_scope_for_ui()
+    public async Task Human_cookie_principal_does_not_satisfy_scope_uses_human_role_policy()
     {
         var handler = new ApiScopeAuthorizationHandler();
         var ctx = new AuthorizationHandlerContext(
@@ -84,7 +79,9 @@ public class ApiScopeAuthorizationTests
 
         await handler.HandleAsync(ctx);
 
-        Assert.True(ctx.HasSucceeded);
+        // Human principals should NOT satisfy scope requirements
+        // They use HumanRoleAuthorizationHandler instead
+        Assert.False(ctx.HasSucceeded);
     }
 
     [Fact]

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AtlasNOC.Web.Controllers.Api;
 
-/// <summary>API de descubrimiento. Lectura con scope discovery.read implícito (discovery.run para disparar).</summary>
+/// <summary>API de descubrimiento. Lectura con scope discovery.run implícito (discovery.run para disparar).</summary>
 [ApiController]
 [Route("api/discovery")]
 [Authorize(AuthenticationSchemes = "Identity.Application,ApiKey")]
@@ -23,8 +23,9 @@ public class DiscoveryApiController : ControllerBase
         _audit = audit;
     }
 
+    /// <summary>Inicia un discovery run. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator.</summary>
     [HttpPost("run")]
-    [Authorize(Policy = ApiScopes.DiscoveryRun)]
+    [Authorize(Policy = "DiscoveryRunPolicy")]
     public async Task<ActionResult<Guid>> Start(StartDiscoveryRequest request, CancellationToken ct)
     {
         var runId = await _discovery.StartDiscoveryAsync(request, ct);
@@ -33,21 +34,24 @@ public class DiscoveryApiController : ControllerBase
         return Accepted(new { runId });
     }
 
+    /// <summary>Lista discovery runs. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator/ReadOnly.</summary>
     [HttpGet("runs")]
-    [Authorize(Policy = ApiScopes.DiscoveryRun)]
+    [Authorize(Policy = "DiscoveryReadPolicy")]
     public async Task<ActionResult<IReadOnlyList<DiscoveryRunDto>>> List(CancellationToken ct)
         => Ok(await _discovery.ListRunsAsync(ct));
 
+    /// <summary>Obtiene un discovery run. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator/ReadOnly.</summary>
     [HttpGet("runs/{id:guid}")]
-    [Authorize(Policy = ApiScopes.DiscoveryRun)]
+    [Authorize(Policy = "DiscoveryReadPolicy")]
     public async Task<ActionResult<DiscoveryRunDto>> Get(Guid id, CancellationToken ct)
     {
         var run = await _discovery.GetRunAsync(id, ct);
         return run is null ? NotFound() : Ok(run);
     }
 
+    /// <summary>Cancela un discovery run. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator.</summary>
     [HttpPost("runs/{id:guid}/cancel")]
-    [Authorize(Policy = ApiScopes.DiscoveryRun)]
+    [Authorize(Policy = "DiscoveryRunPolicy")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
     {
         await _discovery.CancelAsync(id, ct);

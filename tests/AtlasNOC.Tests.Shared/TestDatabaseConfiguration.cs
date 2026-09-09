@@ -67,7 +67,7 @@ public static class TestDatabaseConfiguration
         {
             throw new InvalidOperationException(
                 $"La cadena de conexión de test ('{EnvironmentVariableName}') no declara un nombre de base de datos " +
-                "(clave 'Database=') explícito.");
+                "explícito (clave 'Database=').");
         }
 
         var normalized = database.Trim();
@@ -77,7 +77,7 @@ public static class TestDatabaseConfiguration
             throw new InvalidOperationException(
                 $"La base de datos '{normalized}' no parece ser una base de test. " +
                 "Los tests destructivos sólo pueden apuntar a bases cuyo nombre contenga '_test' o '_e2e'. " +
-                $"La conexión es: {notify ?? "(omitida)"}");
+                $"Conexión: (sanitizada)");
         }
     }
 

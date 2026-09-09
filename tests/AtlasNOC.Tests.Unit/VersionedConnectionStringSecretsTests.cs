@@ -106,6 +106,22 @@ public class VersionedConnectionStringSecretsTests
     }
 
     [Fact]
+    public void Test_database_configuration_sanitizes_error_message_no_password()
+    {
+        // El mensaje de error no debe contener el password ni user id
+        var connWithSecret = "Server=127.0.0.1;Port=3306;Database=production_db;User=Admin;Password=SecretPassword123;";
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => TestDatabaseConfiguration.ValidatePointsToTestDatabase(connWithSecret));
+
+        Assert.DoesNotContain("SecretPassword123", ex.Message);
+        Assert.DoesNotContain("Admin", ex.Message);
+        Assert.DoesNotContain("Password=", ex.Message);
+        Assert.DoesNotContain("User=", ex.Message);
+        Assert.Contains("production_db", ex.Message); // database name is safe to show
+        Assert.Contains("(sanitizada)", ex.Message);
+    }
+
+    [Fact]
     public void Test_database_configuration_extracts_database_name()
     {
         Assert.Equal("atlasnoc_e2e_test",

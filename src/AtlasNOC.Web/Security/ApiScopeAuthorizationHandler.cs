@@ -33,9 +33,8 @@ public class ApiScopeAuthorizationHandler : AuthorizationHandler<ApiScopeRequire
             return Task.CompletedTask;
         }
 
-        // 2. Humano (cookie): autenticado es suficiente; la UI consume estas
-        //    APIs de lectura. El modelo de roles (§3) se aplica en los controllers MVC.
-        context.Succeed(requirement);
+        // 2. Humano (cookie): NO satisface scope. Las vistas MVC usan roles.
+        // Las APIs mutables deben usar políticas de rol separadas, no scopes.
         return Task.CompletedTask;
     }
 
