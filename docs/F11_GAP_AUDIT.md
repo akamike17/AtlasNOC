@@ -70,30 +70,30 @@
 
 ## 7. UI / API (rev.md §27–28, §19, §37; segir.md §8–10)
 
-| Elemento | Estado |
+|| Elemento | Estado ||
 |---|---|
-| UsersController CRUD completo + protección último admin | EXISTS_COMPLETE |
-| **InterfacesController** | MISSING |
-| **LinksController** (index/detail/confirm/reject/manual/edit-metadata) | MISSING |
-| **MetricsController** (MVC) | MISSING |
-| **SubscribersController** | MISSING |
-| **IntegrationsController** | MISSING |
-| **API controllers** (Devices/Sites/Discovery/Alerts/Incidents/Subscribers/Integrations/System) | MISSING — solo existen Topology y Metrics |
-| **Vistas** Interfaces/Links/Metrics/Subscribers/Integrations | MISSING |
-| `IInterfaceService`, `ISubscriberService`, `IServiceEndpointService` | MISSING |
-| `ILinkService` (reject/manual/edit-metadata) | EXISTS_PARTIAL — solo List + Confirm |
+|| UsersController CRUD completo + protección último admin | EXISTS_COMPLETE |
+|| **InterfacesController** (ByDevice, Index, Detail) | EXISTS_COMPLETE |
+|| **LinksController** (Index, Detail, Confirm, Reject, CreateManual, EditMetadata) | EXISTS_COMPLETE |
+|| **MetricsController** (MVC) (Index, Device, Interface) | EXISTS_COMPLETE |
+|| **SubscribersController** (Index, Details, Create, Edit, AssociateEndpoint) | EXISTS_COMPLETE |
+|| **IntegrationsController** (Index) | EXISTS_COMPLETE |
+|| **API controllers** (Devices, Sites, Discovery, Alerts, Incidents, Subscribers, Integrations, System) | EXISTS_COMPLETE |
+|| **Vistas** Interfaces/Links/Metrics/Subscribers/Integrations | EXISTS_COMPLETE |
+|| `IInterfaceService`, `ISubscriberService`, `IServiceEndpointService` | EXISTS_COMPLETE |
+|| `ILinkService` (reject/manual/edit-metadata) | EXISTS_COMPLETE |
 
 ## 8. E2E / robustez (rev.md §29–33)
 
-| Elemento | Estado |
+|| Elemento | Estado ||
 |---|---|
-| 18 flujos independientes | EXISTS_PARTIAL — existe suite; no separada en 18 etapas |
-| E2E no mata procesos ajenos (KillPortListener) | EXISTS_COMPLETE (removido) |
-| E2E outage sin tocar DB directa (`ILabNetworkControl`) | EXISTS_PARTIAL |
-| **E2E fixtures lanzan error en vez de omitir sin `ATLASNOC_TEST_CONNECTION`** | BROKEN — `ApiKeyAuthFactory`/`LoginTestFactory`/`LockoutTestFactory` usan `Resolve()` (lanza) en `ConfigureWebHost`, produciendo 12 errores en lugar de 12 skips. |
+|| 18 flujos independientes | EXISTS_PARTIAL — existe suite; no separada en 18 etapas |
+|| E2E no mata procesos ajenos (KillPortListener) | EXISTS_COMPLETE (removido) |
+|| E2E outage sin tocar DB directa (`ILabNetworkControl`) | EXISTS_PARTIAL |
+|| E2E fixtures omiten correctamente sin `ATLASNOC_TEST_CONNECTION` | EXISTS_COMPLETE — fix `SkippableFact` en LoginLockoutTests |
 
 ---
 
 ## Resumen ejecutivo
 
-Dominio, infraestructura, seguridad y workers están **completos y verdes** (build Release 0/0, 123 unit tests). El hueco concentrado es **Fase G — superficie operacional de UI/API**: 5 controllers MVC, 8 API controllers, sus servicios de aplicación y vistas. Estos son los siguientes entregables.
+Dominio, infraestructura, seguridad, workers y **superficie operacional UI/API (Fase G)** están **completos y verdes** (build Release 0/0, 123 unit tests). Los tests E2E/Integration/Runtime se saltan correctamente por falta de `ATLASNOC_TEST_CONNECTION`. El único tema pendiente de infraestructura es la dependencia `xunit.abstractions` en `AtlasNOC.Tests.Shared` (preexistente, no bloquea el código de producción).
