@@ -96,4 +96,20 @@
 
 ## Resumen ejecutivo
 
-Dominio, infraestructura, seguridad, workers, **drivers vendor (Cisco incluido)** y **superficie operacional UI/API (Fase G)** están **completos y verdes** (build Release 0/0, 123 unit tests). Los tests E2E/Integration/Runtime se saltan correctamente por falta de `ATLASNOC_TEST_CONNECTION`. El único tema pendiente de infraestructura es la dependencia `xunit.abstractions` en `AtlasNOC.Tests.Shared` (preexistente, no bloquea el código de producción).
+Dominio, infraestructura, seguridad, workers, **drivers vendor (Cisco incluido)** y **superficie operacional UI/API (Fase G)** están **completos y verdes** (build Release 0/0, **132 unit tests**). Los tests E2E/Integration/Runtime se saltan correctamente por falta de `ATLASNOC_TEST_CONNECTION`. El único tema pendiente de infraestructura es la dependencia `xunit.abstractions` en `AtlasNOC.Tests.Shared` (preexistente, no bloquea el código de producción).
+
+---
+
+## Próximos pasos para cierre E2E (requieren MySQL de test)
+
+Cuando `ATLASNOC_TEST_CONNECTION` apunte a una base `_test` o `_e2e` dedicada:
+
+```powershell
+$env:ATLASNOC_TEST_CONNECTION = "Server=localhost;Port=3306;Database=atlasnoc_integration_test;User=...;Password=...;"
+dotnet test -c Release
+```
+
+Se validarán:
+- Integration (8 tests): repositorios, credenciales, API keys, setup concurrente, links
+- Runtime (7 tests): discovery LAB-01 (61 nodos, 60 enlaces), idempotencia, polling, alertas
+- E2E (13 tests): API key auth, lockout, IsActive, flujos completos
