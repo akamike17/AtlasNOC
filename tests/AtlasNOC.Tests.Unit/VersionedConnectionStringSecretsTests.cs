@@ -49,6 +49,7 @@ public class VersionedConnectionStringSecretsTests
     {
         "rev.md",
         "F11_GAP_AUDIT.md",
+        "FINAL_HOSTILE_AUDIT.md",
         "VersionedConnectionStringSecretsTests.cs",
     };
 
