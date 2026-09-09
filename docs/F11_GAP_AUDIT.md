@@ -38,11 +38,11 @@
 
 ## 3. Drivers vendor (rev.md §8–9, §35)
 
-| Elemento | Estado |
+|| Elemento | Estado ||
 |---|---|
-| MikroTik credential-aware, parser uptime, TLS/pinning | EXISTS_COMPLETE |
-| Ubiquiti separado en `UniFiController` / `AirOsDeviceDriver`, parser robusto | EXISTS_COMPLETE |
-| `CiscoDriver` (SNMP+CDP/LLDP, sysObjectID) | MISSING — `GenericSnmpDriver` cubre SNMP genérico; no hay driver Cisco específico (spec lo lista como driver mínimo). |
+|| MikroTik credential-aware, parser uptime, TLS/pinning | EXISTS_COMPLETE |
+|| Ubiquiti separado en `UniFiController` / `AirOsDeviceDriver`, parser robusto | EXISTS_COMPLETE |
+|| `CiscoDriver` (SNMP+CDP/LLDP, sysObjectID) | EXISTS_COMPLETE |
 
 ## 4. Topología (rev.md §10–12, §39)
 
@@ -96,4 +96,4 @@
 
 ## Resumen ejecutivo
 
-Dominio, infraestructura, seguridad, workers y **superficie operacional UI/API (Fase G)** están **completos y verdes** (build Release 0/0, 123 unit tests). Los tests E2E/Integration/Runtime se saltan correctamente por falta de `ATLASNOC_TEST_CONNECTION`. El único tema pendiente de infraestructura es la dependencia `xunit.abstractions` en `AtlasNOC.Tests.Shared` (preexistente, no bloquea el código de producción).
+Dominio, infraestructura, seguridad, workers, **drivers vendor (Cisco incluido)** y **superficie operacional UI/API (Fase G)** están **completos y verdes** (build Release 0/0, 123 unit tests). Los tests E2E/Integration/Runtime se saltan correctamente por falta de `ATLASNOC_TEST_CONNECTION`. El único tema pendiente de infraestructura es la dependencia `xunit.abstractions` en `AtlasNOC.Tests.Shared` (preexistente, no bloquea el código de producción).

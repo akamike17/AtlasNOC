@@ -9,6 +9,8 @@ public interface ISnmpProbe
 
     Task<IReadOnlyList<NeighborData>> GetLldpNeighborsAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct);
 
+    Task<IReadOnlyList<NeighborData>> GetCdpNeighborsAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct);
+
     Task<DeviceIdentity> GetIdentityAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct);
 
     Task<HealthData> GetHealthAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct);

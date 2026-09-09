@@ -61,4 +61,9 @@ public class SimulatedSnmpProbe : ISnmpProbe
         => _enabled
             ? Task.FromResult(new HealthData(1.0, 100.0, 45.0, 55.0, 1_000_000))
             : _real.GetHealthAsync(ipAddress, options, timeoutMs, ct);
+
+    public Task<IReadOnlyList<NeighborData>> GetCdpNeighborsAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
+        => _enabled
+            ? Task.FromResult<IReadOnlyList<NeighborData>>(Array.Empty<NeighborData>())
+            : _real.GetCdpNeighborsAsync(ipAddress, options, timeoutMs, ct);
 }

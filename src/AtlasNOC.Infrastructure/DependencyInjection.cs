@@ -110,6 +110,7 @@ public static class DependencyInjection
         // se dispara con fingerprints reales (solo VendorHint "simulated" o IPs 10.0.x).
         services.AddSingleton<IDeviceDriver, SimulatedNetworkDriver>();
         services.AddSingleton<IDeviceDriver, MikroTikDriver>();
+        services.AddSingleton<IDeviceDriver, CiscoDriver>();
         services.AddSingleton<IDeviceDriver, AirOsDeviceDriver>();
         services.AddSingleton<IDeviceDriver, UbiquitiDriver>();
         services.AddSingleton<IDeviceDriver, GenericSnmpDriver>();

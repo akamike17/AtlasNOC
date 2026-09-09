@@ -27,6 +27,11 @@ public class SnmpProbe : ISnmpProbe
     private const string LldpRemPortId = "1.0.8802.1.1.2.1.4.1.1.7";
     private const string LldpRemSysName = "1.0.8802.1.1.2.1.4.1.1.9";
     private const string LldpRemSysDesc = "1.0.8802.1.1.2.1.4.1.1.10";
+    // Cisco CDP MIB
+    private const string CdpCacheAddress = "1.3.6.1.4.1.9.9.23.1.2.1.1.4";
+    private const string CdpCacheDeviceId = "1.3.6.1.4.1.9.9.23.1.2.1.1.6";
+    private const string CdpCacheDevicePort = "1.3.6.1.4.1.9.9.23.1.2.1.1.7";
+    private const string CdpCachePlatform = "1.3.6.1.4.1.9.9.23.1.2.1.1.8";
 
     private static IPEndPoint Endpoint(string ip, int port = 161)
         => new(IPAddress.Parse(ip), port);
@@ -133,6 +138,51 @@ public class SnmpProbe : ISnmpProbe
             // SNMP no responde: lista vacía.
         }
         return result;
+    }
+
+    public async Task<IReadOnlyList<NeighborData>> GetCdpNeighborsAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
+    {
+        options.Validate();
+        if (options.Version == SnmpVersion.V3) return Array.Empty<NeighborData>();
+        try
+        {
+            using var timeout = CreateTimeout(timeoutMs, ct);
+            var addresses = await WalkRawAsync(ipAddress, options, CdpCacheAddress, timeout.Token);
+            var deviceIds = ToRemoteDictionary(await WalkRawAsync(ipAddress, options, CdpCacheDeviceId, timeout.Token));
+            var devicePorts = ToRemoteDictionary(await WalkRawAsync(ipAddress, options, CdpCacheDevicePort, timeout.Token));
+            var platforms = ToRemoteDictionary(await WalkRawAsync(ipAddress, options, CdpCachePlatform, timeout.Token));
+
+            // Obtener nombres de interfaces locales para mapear
+            var localPorts = await WalkRawAsync(ipAddress, options, LldpLocalPortId, timeout.Token);
+            var localByNumber = localPorts
+                .Select(v => (Index: LastOidPart(v.Id.ToString()), Name: ValueText(v)))
+                .Where(x => x.Index.HasValue && !string.IsNullOrWhiteSpace(x.Name))
+                .ToDictionary(x => x.Index!.Value, x => x.Name!);
+
+            var neighbors = new List<NeighborData>();
+            foreach (var item in addresses)
+            {
+                var key = RemoteKey(item.Id.ToString());
+                var localPortNumber = RemoteLocalPort(item.Id.ToString());
+                if (key is null || !localPortNumber.HasValue || !localByNumber.TryGetValue(localPortNumber.Value, out var localName)) continue;
+
+                var address = ValueText(item);
+                var deviceId = ValueText(deviceIds.GetValueOrDefault(key)) ?? address;
+                var remotePort = ValueText(devicePorts.GetValueOrDefault(key));
+                var platform = ValueText(platforms.GetValueOrDefault(key));
+                if (string.IsNullOrWhiteSpace(deviceId)) continue;
+
+                var evidence = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+                    $"{localName}|{deviceId}|{remotePort}|{platform}"))).ToLowerInvariant();
+
+                neighbors.Add(new NeighborData(deviceId, remotePort, localName, "CDP", evidence));
+            }
+            return neighbors;
+        }
+        catch
+        {
+            return Array.Empty<NeighborData>();
+        }
     }
 
     public async Task<IReadOnlyList<NeighborData>> GetLldpNeighborsAsync(string ipAddress, SnmpConnectionOptions options, int timeoutMs, CancellationToken ct)
