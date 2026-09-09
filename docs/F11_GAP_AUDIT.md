@@ -34,7 +34,7 @@
 | Credencial y site seleccionados aplicados en DiscoveryExecutor | EXISTS_COMPLETE |
 | SNMP v2c/v3, interfaz real (ifIndex/ifTable), LLDP | EXISTS_COMPLETE |
 | CIDR `/32` `/31`, concurrencia limitada | EXISTS_COMPLETE |
-| CDP (MIB Cisco) | MISSING — pospuesto por diseño (§6: "CDP posterior") |
+|| CDP (MIB Cisco) | EXISTS_COMPLETE — CiscoDriver + SnmpProbe.GetCdpNeighborsAsync |
 
 ## 3. Drivers vendor (rev.md §8–9, §35)
 
