@@ -80,6 +80,25 @@ public class NetworkLink
         MarkSeen(atUtc);
     }
 
+    /// <summary>
+    /// Rechaza un enlace de descubrimiento automático. Los enlaces manuales no pueden
+    /// rechazarse (la intervención humana es la evidencia). Un enlace rechazado queda
+    /// como no confirmado y stale, de modo que nunca se dibuje como relación real.
+    /// </summary>
+    public void Reject()
+    {
+        if (IsManual) return;
+        IsConfirmed = false;
+        MarkStale(true);
+    }
+
+    /// <summary>Actualiza metadatos de tipo y capacidad sin alterar la evidencia de descubrimiento.</summary>
+    public void UpdateMetadata(LinkType linkType, ulong? capacityBps)
+    {
+        LinkType = linkType;
+        CapacityBps = capacityBps;
+    }
+
     private static bool ShouldAutoConfirm(bool isManual, DiscoverySource source, double confidence)
         => isManual || source switch
         {

@@ -30,14 +30,21 @@ namespace AtlasNOC.Tests.E2E;
 /// </summary>
 public class LoginLockoutTests : IAsyncLifetime
 {
-    private readonly WebApplicationFactory<Program> _factory = new LockoutTestFactory();
+    private readonly LockoutTestFactory _factory = new LockoutTestFactory();
 
     private const string UserName = "lockout-user";
     private const string CorrectPassword = "Password123!";
     private const string WrongPassword = "WrongPassword123!";
 
+    private void SkipIfNoDb()
+    {
+        if (_factory.IsSkipped(out var reason)) throw new SkipTestException(reason);
+    }
+
     public async Task InitializeAsync()
     {
+        SkipIfNoDb();
+
         await using var scope = _factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
@@ -60,6 +67,12 @@ public class LoginLockoutTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        if (_factory.IsSkipped(out _))
+        {
+            await _factory.DisposeAsync();
+            return;
+        }
+
         // Asegura que el usuario quede usable entre tests de la misma colección
         // (reset de lockout). De lo contrario un test contaminaría al siguiente.
         await using var scope = _factory.Services.CreateAsyncScope();
@@ -92,9 +105,10 @@ public class LoginLockoutTests : IAsyncLifetime
         return controller.Login(userName, password, false).GetAwaiter().GetResult();
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Five_wrong_passwords_lock_out_the_account()
     {
+        SkipIfNoDb();
         await using var scope = _factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var u = await users.FindByNameAsync(UserName);
@@ -153,10 +167,34 @@ public class LoginLockoutTests : IAsyncLifetime
 
 public class LockoutTestFactory : WebApplicationFactory<Program>
 {
+    private string _connectionString = null!;
+    private string? _skipReason;
+
+    public LockoutTestFactory()
+    {
+        var resolved = TestDatabaseConfiguration.TryResolve();
+        if (resolved is null)
+        {
+            _skipReason =
+                $"Omitting E2E lockout tests: '{TestDatabaseConfiguration.EnvironmentVariableName}' " +
+                "environment variable is not set.";
+            return;
+        }
+
+        _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(resolved, "_lockout");
+    }
+
+    /// <summary><c>true</c> si el fixture debe omitirse por falta de base de test.</summary>
+    public bool IsSkipped(out string reason)
+    {
+        reason = _skipReason ?? string.Empty;
+        return _skipReason is not null;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(
-            TestDatabaseConfiguration.Resolve(), "_lockout");
+        if (IsSkipped(out _)) return;
+
         builder.UseSetting("LabMode", "true");
         builder.UseEnvironment("Development");
         builder.ConfigureServices(services =>
@@ -164,7 +202,7 @@ public class LockoutTestFactory : WebApplicationFactory<Program>
             var descriptor = services.Single(d => d.ServiceType == typeof(DbContextOptions<AtlasNOCDbContext>));
             services.Remove(descriptor);
             services.AddDbContext<AtlasNOCDbContext>(o =>
-                o.UseMySql(connectionString, ServerVersion.Parse("8.0.36-mysql")));
+                o.UseMySql(_connectionString, ServerVersion.Parse("8.0.36-mysql")));
         });
     }
 }

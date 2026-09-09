@@ -103,11 +103,13 @@ public class DeviceService : IDeviceService
 public class LinkService : ILinkService
 {
     private readonly ILinkRepository _links;
+    private readonly IInterfaceRepository _interfaces;
     private readonly AtlasNOCDbContext _context;
 
-    public LinkService(ILinkRepository links, AtlasNOCDbContext context)
+    public LinkService(ILinkRepository links, IInterfaceRepository interfaces, AtlasNOCDbContext context)
     {
         _links = links;
+        _interfaces = interfaces;
         _context = context;
     }
 
@@ -118,6 +120,12 @@ public class LinkService : ILinkService
             (int)l.LinkType, (int)l.DiscoverySource, l.Confidence, l.IsConfirmed, l.IsStale, l.IsManual)).ToList();
     }
 
+    public async Task<LinkDetailDto?> GetLinkAsync(Guid id, CancellationToken ct = default)
+    {
+        var link = await _links.GetByIdAsync(id, ct);
+        return link is null ? null : ToDetailDto(link);
+    }
+
     public async Task ConfirmLinkAsync(Guid id, CancellationToken ct = default)
     {
         var link = await _links.GetByIdAsync(id, ct);
@@ -125,6 +133,91 @@ public class LinkService : ILinkService
         link.Confirm();
         await _links.UpdateAsync(link, ct);
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task RejectLinkAsync(Guid id, CancellationToken ct = default)
+    {
+        var link = await _links.GetByIdAsync(id, ct);
+        if (link is null) return;
+        link.Reject();
+        await _links.UpdateAsync(link, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<LinkDetailDto?> CreateManualLinkAsync(CreateManualLinkRequest request, CancellationToken ct = default)
+    {
+        // Validación: endpoints distintos y existentes.
+        if (request.AInterfaceId == request.BInterfaceId) return null;
+        var a = await _interfaces.GetByIdAsync(request.AInterfaceId, ct);
+        var b = await _interfaces.GetByIdAsync(request.BInterfaceId, ct);
+        if (a is null || b is null) return null;
+
+        var link = new NetworkLink(a.Id, b.Id, (LinkType)request.LinkType,
+            DiscoverySource.Manual, confidence: 1.0, isManual: true);
+
+        await _links.AddAsync(link, ct);
+        await _context.SaveChangesAsync(ct);
+        return ToDetailDto(link);
+    }
+
+    public async Task<LinkDetailDto?> UpdateLinkMetadataAsync(UpdateLinkMetadataRequest request, CancellationToken ct = default)
+    {
+        var link = await _links.GetByIdAsync(request.Id, ct);
+        if (link is null) return null;
+        link.UpdateMetadata((LinkType)request.LinkType, request.CapacityBps);
+        await _links.UpdateAsync(link, ct);
+        await _context.SaveChangesAsync(ct);
+        return ToDetailDto(link);
+    }
+
+    private static LinkDetailDto ToDetailDto(NetworkLink l) => new(
+        l.Id.Value, l.AInterfaceId.Value, l.BInterfaceId.Value, (int)l.LinkType,
+        (int)l.DiscoverySource, l.Confidence, (int)l.AdminStatus, (int)l.OperStatus,
+        l.CapacityBps, l.LastSeenAtUtc, l.IsConfirmed, l.IsStale, l.IsManual);
+}
+
+public class InterfaceService : IInterfaceService
+{
+    private readonly IInterfaceRepository _interfaces;
+    private readonly ILinkRepository _links;
+
+    public InterfaceService(IInterfaceRepository interfaces, ILinkRepository links)
+    {
+        _interfaces = interfaces;
+        _links = links;
+    }
+
+    public async Task<IReadOnlyList<InterfaceDto>> ListByDeviceAsync(Guid deviceId, CancellationToken ct = default)
+    {
+        var interfaces = await _interfaces.ListByDeviceAsync(deviceId, ct);
+        var ifaceIdSet = interfaces.Select(i => i.Id).ToHashSet();
+
+        // Cuenta enlaces reales que tocan estas interfaces (evidencia, no heurística).
+        var allLinks = await _links.ListByDeviceAsync(deviceId, ct);
+        var counts = allLinks
+            .Where(l => ifaceIdSet.Contains(l.AInterfaceId) || ifaceIdSet.Contains(l.BInterfaceId))
+            .SelectMany(l => new[] { l.AInterfaceId, l.BInterfaceId })
+            .GroupBy(id => id)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        return interfaces.Select(i => new InterfaceDto(
+            i.Id.Value, i.DeviceId.Value, i.IfIndex, i.Name, i.Description, i.MacAddress, i.IpAddress,
+            (int)i.AdminStatus, (int)i.OperStatus, i.SpeedBps, i.InterfaceType, i.LastSeenAtUtc,
+            counts.TryGetValue(i.Id, out var c) ? c : 0)).ToList();
+    }
+
+    public async Task<InterfaceDto?> GetInterfaceAsync(Guid id, CancellationToken ct = default)
+    {
+        var i = await _interfaces.GetByIdAsync(id, ct);
+        if (i is null) return null;
+
+        // Enlaces asociados (los que tocan esta interfaz).
+        var allLinks = await _links.ListByDeviceAsync(i.DeviceId.Value, ct);
+        var count = allLinks.Count(l => l.AInterfaceId == i.Id || l.BInterfaceId == i.Id);
+
+        return new InterfaceDto(i.Id.Value, i.DeviceId.Value, i.IfIndex, i.Name, i.Description,
+            i.MacAddress, i.IpAddress, (int)i.AdminStatus, (int)i.OperStatus, i.SpeedBps,
+            i.InterfaceType, i.LastSeenAtUtc, count);
     }
 }
 

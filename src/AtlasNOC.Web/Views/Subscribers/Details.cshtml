@@ -1,0 +1,78 @@
+@model AtlasNOC.Application.Dtos.SubscriberDto
+@{
+    ViewData["Title"] = "Suscriptor — " + Model.Name;
+    var endpoints = ViewBag.Endpoints as IReadOnlyList<AtlasNOC.Application.Dtos.ServiceEndpointDto>;
+    var devices = ViewBag.Devices as IReadOnlyList<AtlasNOC.Application.Dtos.DeviceDto>;
+    var activeBadge = Model.IsActive ? "bg-up" : "bg-down";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">@Model.Name</h1>
+    <span class="badge @activeBadge">@(Model.IsActive ? "Activo" : "Inactivo")</span>
+</div>
+
+<div class="noc-card mb-3">
+    <dl class="row mb-0">
+        <dt class="col-sm-2">Sitio</dt><dd class="col-sm-10">@(Model.SiteId?.ToString() ?? "—")</dd>
+        <dt class="col-sm-2">Creado</dt><dd class="col-sm-10">@Model.CreatedAtUtc.ToLocalTime().ToString("g")</dd>
+    </dl>
+    <div class="mt-2 d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">Editar</a>
+    </div>
+</div>
+
+<div class="noc-card mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 mb-0">Service endpoints (CPE)</h2>
+    </div>
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>CPE / Device</th><th>Descripción</th><th>Activo</th><th>Creado</th></tr></thead>
+        <tbody>
+        @if (endpoints is null || !endpoints.Any())
+        {
+            <tr><td colspan="4" class="text-secondary">Sin endpoints asociados.</td></tr>
+        }
+        @if (endpoints is not null)
+        {
+            foreach (var e in endpoints)
+            {
+                var dev = devices?.FirstOrDefault(d => d.Id == e.DeviceId);
+                var endBadge = e.IsActive ? "bg-up" : "bg-down";
+                <tr>
+                    <td>@(dev?.Hostname ?? e.DeviceId.ToString("N")[..8])</td>
+                    <td>@(e.Description ?? "—")</td>
+                    <td><span class="badge @endBadge">@(e.IsActive ? "Activo" : "Inactivo")</span></td>
+                    <td>@e.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>
+
+<div class="noc-card" style="max-width:640px">
+    <h2 class="h6 mb-3">Asociar CPE</h2>
+    <form asp-action="AssociateEndpoint" asp-route-id="@Model.Id" method="post">
+        <input type="hidden" name="SubscriberId" value="@Model.Id" />
+        <div class="mb-3">
+            <label class="form-label">CPE / Device</label>
+            <select name="DeviceId" class="form-select" required>
+                <option value="">Selecciona…</option>
+                @if (devices is not null)
+                {
+                    foreach (var d in devices)
+                    {
+                        <option value="@d.Id">@d.Hostname (@d.ManagementIp)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <input name="Description" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Asociar</button>
+    </form>
+</div>
+
+<a asp-action="Index" class="btn btn-outline-secondary btn-sm mt-3">Volver</a>

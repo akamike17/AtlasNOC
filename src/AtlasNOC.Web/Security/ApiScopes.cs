@@ -18,12 +18,16 @@ public static class ApiScopes
     public const string AlertsWrite = "alerts.write";
     public const string IncidentsRead = "incidents.read";
     public const string IncidentsWrite = "incidents.write";
+    public const string SubscribersRead = "subscribers.read";
+    public const string SubscribersWrite = "subscribers.write";
+    public const string IntegrationsRead = "integrations.read";
     public const string SystemRead = "system.read";
 
     /// <summary>Todos los scopes conocidos, en orden canónico.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
         TopologyRead, MetricsRead, DevicesRead, DevicesWrite, SitesRead, SitesWrite,
-        DiscoveryRun, AlertsRead, AlertsWrite, IncidentsRead, IncidentsWrite, SystemRead,
+        DiscoveryRun, AlertsRead, AlertsWrite, IncidentsRead, IncidentsWrite,
+        SubscribersRead, SubscribersWrite, IntegrationsRead, SystemRead,
     };
 }

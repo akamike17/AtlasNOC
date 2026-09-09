@@ -22,4 +22,7 @@ public class ServiceEndpoint
         Description = description;
         CreatedAtUtc = DateTime.UtcNow;
     }
+
+    public void Deactivate() => IsActive = false;
+    public void Activate() => IsActive = true;
 }

@@ -33,6 +33,8 @@ public static class DependencyInjection
         services.AddScoped<IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<INeighborObservationRepository, NeighborObservationRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
+        services.AddScoped<ISubscriberRepository, SubscriberRepository>();
+        services.AddScoped<IServiceEndpointRepository, ServiceEndpointRepository>();
 
         // Security
         services.AddScoped<ICredentialProtector, CredentialProtector>();
@@ -127,6 +129,9 @@ public static class DependencyInjection
         services.AddScoped<ISiteService, SiteService>();
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<ILinkService, LinkService>();
+        services.AddScoped<IInterfaceService, InterfaceService>();
+        services.AddScoped<ISubscriberService, SubscriberService>();
+        services.AddScoped<IServiceEndpointService, ServiceEndpointService>();
         services.AddScoped<ITopologyService, TopologyService>();
         services.AddScoped<IDiscoveryService, DiscoveryService>();
         services.AddScoped<IDiscoveryExecutor, DiscoveryExecutor>();

@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Métricas";
+    var devices = ViewBag.Devices as IReadOnlyList<AtlasNOC.Application.Dtos.DeviceDto>;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Métricas</h1>
+</div>
+
+@if (devices is not null && devices.Any())
+{
+    <div class="noc-card">
+        <h2 class="h6 mb-3">Selecciona un dispositivo</h2>
+        <div class="list-group">
+            @foreach (var d in devices)
+            {
+                <a asp-action="Device" asp-route-id="@d.Id" class="list-group-item list-group-item-action bg-dark text-light">
+                    @d.Hostname <span class="text-secondary">— @d.ManagementIp</span>
+                </a>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="noc-card">
+        <p class="text-secondary mb-0">Sin dispositivos. Las métricas provienen del polling de dispositivos gestionados.</p>
+    </div>
+}

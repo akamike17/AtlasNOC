@@ -1,0 +1,32 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.SubscriberDto>
+@{
+    ViewData["Title"] = "Suscriptores";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Suscriptores</h1>
+    <a asp-action="Create" class="btn btn-primary btn-sm">Nuevo suscriptor</a>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Nombre</th><th>Sitio</th><th>Endpoints</th><th>Activo</th><th>Creado</th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="5" class="text-secondary">Sin suscriptores registrados.</td></tr>
+        }
+        @foreach (var s in Model)
+        {
+            var activeBadge = s.IsActive ? "bg-up" : "bg-down";
+            <tr>
+                <td><a asp-action="Details" asp-route-id="@s.Id">@s.Name</a></td>
+                <td>@(s.SiteId?.ToString("N")[..8] ?? "—")</td>
+                <td>@s.EndpointCount</td>
+                <td><span class="badge @activeBadge">@(s.IsActive ? "Activo" : "Inactivo")</span></td>
+                <td>@s.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

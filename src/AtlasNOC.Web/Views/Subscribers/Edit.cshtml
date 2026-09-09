@@ -1,0 +1,35 @@
+@model AtlasNOC.Application.Dtos.CreateSubscriberRequest
+@{
+    ViewData["Title"] = "Editar suscriptor";
+    var sites = ViewBag.Sites as IReadOnlyList<AtlasNOC.Application.Dtos.SiteDto>;
+}
+
+<h1 class="h4 mb-3">Editar suscriptor</h1>
+
+<div class="noc-card" style="max-width:640px">
+    <form asp-action="Edit" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input asp-for="Name" class="form-control" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Sitio</label>
+            <select asp-for="SiteId" class="form-select">
+                <option value="">Sin sitio</option>
+                @if (sites is not null)
+                {
+                    foreach (var s in sites)
+                    {
+                        var selected = Model.SiteId.HasValue && Model.SiteId.Value == s.Id;
+                        <option value="@s.Id" selected="@selected">@s.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+            <a asp-action="Details" asp-route-id="@ViewContext.RouteData.Values["id"]" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,50 @@
+@model AtlasNOC.Application.Dtos.LinkDetailDto
+@{
+    ViewData["Title"] = "Enlace";
+    var a = ViewBag.A as AtlasNOC.Application.Dtos.InterfaceDto;
+    var b = ViewBag.B as AtlasNOC.Application.Dtos.InterfaceDto;
+    var confirmedBadge = Model.IsConfirmed ? "bg-up" : "bg-unknown";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Enlace</h1>
+    <span class="badge @confirmedBadge">@(Model.IsConfirmed ? "Confirmado" : "No confirmado")</span>
+</div>
+
+<div class="noc-card mb-3">
+    <dl class="row mb-0">
+        <dt class="col-sm-2">Endpoint A</dt>
+        <dd class="col-sm-10">
+            @(a is null ? Model.AInterfaceId.ToString() : $"{a.Name} (ifIndex {a.IfIndex}, {a.IpAddress ?? "sin IP"})")
+        </dd>
+        <dt class="col-sm-2">Endpoint B</dt>
+        <dd class="col-sm-10">
+            @(b is null ? Model.BInterfaceId.ToString() : $"{b.Name} (ifIndex {b.IfIndex}, {b.IpAddress ?? "sin IP"})")
+        </dd>
+        <dt class="col-sm-2">Tipo</dt><dd class="col-sm-10">@((AtlasNOC.Domain.Enums.LinkType)Model.LinkType)</dd>
+        <dt class="col-sm-2">Fuente</dt><dd class="col-sm-10">@((AtlasNOC.Domain.Enums.DiscoverySource)Model.DiscoverySource)</dd>
+        <dt class="col-sm-2">Confianza</dt><dd class="col-sm-10">@Model.Confidence.ToString("P0")</dd>
+        <dt class="col-sm-2">Admin</dt><dd class="col-sm-10">@((AtlasNOC.Domain.Enums.InterfaceAdminStatus)Model.AdminStatus)</dd>
+        <dt class="col-sm-2">Oper</dt><dd class="col-sm-10">@((AtlasNOC.Domain.Enums.InterfaceOperStatus)Model.OperStatus)</dd>
+        <dt class="col-sm-2">Capacidad</dt><dd class="col-sm-10">@(Model.CapacityBps?.ToString("N0") ?? "—")</dd>
+        <dt class="col-sm-2">Última vez visto</dt><dd class="col-sm-10">@(Model.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
+        <dt class="col-sm-2">Stale</dt><dd class="col-sm-10">@(Model.IsStale ? "Sí" : "No")</dd>
+        <dt class="col-sm-2">Manual</dt><dd class="col-sm-10">@(Model.IsManual ? "Sí" : "No")</dd>
+    </dl>
+</div>
+
+<div class="d-flex gap-2">
+    @if (!Model.IsConfirmed)
+    {
+        <form asp-action="Confirm" asp-route-id="@Model.Id" method="post">
+            <button type="submit" class="btn btn-success btn-sm">Confirmar</button>
+        </form>
+    }
+    @if (!Model.IsManual)
+    {
+        <form asp-action="Reject" asp-route-id="@Model.Id" method="post">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Rechazar</button>
+        </form>
+    }
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+</div>

@@ -23,3 +23,20 @@ public interface IAuditRepository
     Task AddAsync(AuditEvent auditEvent, CancellationToken ct = default);
     Task<IReadOnlyList<AuditEvent>> ListRecentAsync(int count, CancellationToken ct = default);
 }
+
+public interface ISubscriberRepository
+{
+    Task<Subscriber?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<Subscriber>> ListAsync(CancellationToken ct = default);
+    Task AddAsync(Subscriber subscriber, CancellationToken ct = default);
+    Task UpdateAsync(Subscriber subscriber, CancellationToken ct = default);
+}
+
+public interface IServiceEndpointRepository
+{
+    Task<ServiceEndpoint?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<ServiceEndpoint>> ListAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<ServiceEndpoint>> ListBySubscriberAsync(Guid subscriberId, CancellationToken ct = default);
+    Task AddAsync(ServiceEndpoint endpoint, CancellationToken ct = default);
+    Task UpdateAsync(ServiceEndpoint endpoint, CancellationToken ct = default);
+}

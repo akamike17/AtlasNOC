@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Integraciones";
+}
+
+<h1 class="h4 mb-3">Integraciones</h1>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="noc-card h-100">
+            <h2 class="h6">Credenciales de dispositivos</h2>
+            <p class="text-secondary small">SNMP v2c/v3, MikroTik y Ubiquiti, cifradas en reposo.</p>
+            <a asp-controller="Credentials" asp-action="Index" class="btn btn-outline-primary btn-sm">Gestionar</a>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="noc-card h-100">
+            <h2 class="h6">API keys</h2>
+            <p class="text-secondary small">Claves para integraciones externas con scopes y revocación.</p>
+            <a asp-controller="ApiKeys" asp-action="Index" class="btn btn-outline-primary btn-sm">Gestionar</a>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="noc-card h-100">
+            <h2 class="h6">Canales de notificación</h2>
+            <p class="text-secondary small">Email y webhook para alertas, con estado de entrega por canal.</p>
+            <span class="text-secondary small">Integración disponible vía notificaciones.</span>
+        </div>
+    </div>
+</div>

@@ -70,3 +70,28 @@ public sealed record AlertRuleDto(Guid Id, string Name, string MetricName, strin
 
 public sealed record CreateAlertRuleRequest(string Name, string MetricName, string ComparisonOperator,
     double Threshold, int Severity, int ConsecutiveFaults);
+
+// ─── Interfaces ────────────────────────────────────────────────────────────
+public sealed record InterfaceDto(Guid Id, Guid DeviceId, int IfIndex, string Name,
+    string? Description, string? MacAddress, string? IpAddress, int AdminStatus, int OperStatus,
+    ulong? SpeedBps, string? InterfaceType, DateTime? LastSeenAtUtc, int LinkCount);
+
+// ─── Links ─────────────────────────────────────────────────────────────────
+public sealed record LinkDetailDto(Guid Id, Guid AInterfaceId, Guid BInterfaceId, int LinkType,
+    int DiscoverySource, double Confidence, int AdminStatus, int OperStatus, ulong? CapacityBps,
+    DateTime? LastSeenAtUtc, bool IsConfirmed, bool IsStale, bool IsManual);
+
+public sealed record CreateManualLinkRequest(Guid AInterfaceId, Guid BInterfaceId, int LinkType);
+
+public sealed record UpdateLinkMetadataRequest(Guid Id, int LinkType, ulong? CapacityBps);
+
+// ─── Subscribers / ServiceEndpoints ────────────────────────────────────────
+public sealed record SubscriberDto(Guid Id, string Name, Guid? SiteId, bool IsActive,
+    DateTime CreatedAtUtc, int EndpointCount);
+
+public sealed record CreateSubscriberRequest(string Name, Guid? SiteId);
+
+public sealed record ServiceEndpointDto(Guid Id, Guid SubscriberId, Guid DeviceId,
+    string? Description, bool IsActive, DateTime CreatedAtUtc);
+
+public sealed record CreateServiceEndpointRequest(Guid SubscriberId, Guid DeviceId, string? Description);

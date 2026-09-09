@@ -1,0 +1,43 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.InterfaceDto>
+@{
+    var device = ViewBag.Device as AtlasNOC.Application.Dtos.DeviceDto;
+    ViewData["Title"] = "Interfaces" + (device is null ? "" : " — " + device.Hostname);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">
+        Interfaces
+        @if (device is not null)
+        {
+            <span class="text-secondary">— <a asp-controller="Devices" asp-action="Detail" asp-route-id="@device.Id">@device.Hostname</a></span>
+        }
+    </h1>
+    <a asp-controller="Devices" asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver a dispositivos</a>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>IfIndex</th><th>Nombre</th><th>MAC</th><th>IP</th><th>Admin</th><th>Oper</th><th>Velocidad</th><th>Enlaces</th><th>Última vez visto</th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="9" class="text-secondary">Sin interfaces registradas para este dispositivo.</td></tr>
+        }
+        @foreach (var i in Model)
+        {
+            var operBadge = i.OperStatus == 1 ? "bg-up" : i.OperStatus == 0 ? "bg-down" : "bg-unknown";
+            <tr>
+                <td>@i.IfIndex</td>
+                <td><a asp-action="Detail" asp-route-id="@i.Id">@i.Name</a></td>
+                <td>@(i.MacAddress ?? "—")</td>
+                <td>@(i.IpAddress ?? "—")</td>
+                <td>@((AtlasNOC.Domain.Enums.InterfaceAdminStatus)i.AdminStatus)</td>
+                <td><span class="badge @operBadge">@((AtlasNOC.Domain.Enums.InterfaceOperStatus)i.OperStatus)</span></td>
+                <td>@(i.SpeedBps?.ToString("N0") ?? "—")</td>
+                <td>@i.LinkCount</td>
+                <td>@(i.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "—")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

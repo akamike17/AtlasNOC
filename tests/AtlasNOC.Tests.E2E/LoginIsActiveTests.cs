@@ -27,10 +27,17 @@ namespace AtlasNOC.Tests.E2E;
 /// </summary>
 public class LoginIsActiveTests : IAsyncLifetime
 {
-    private readonly WebApplicationFactory<Program> _factory = new LoginTestFactory();
+    private readonly LoginTestFactory _factory = new LoginTestFactory();
+
+    private void SkipIfNoDb()
+    {
+        if (_factory.IsSkipped(out var reason)) throw new SkipTestException(reason);
+    }
 
     public async Task InitializeAsync()
     {
+        SkipIfNoDb();
+
         await using var scope = _factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
@@ -78,9 +85,10 @@ public class LoginIsActiveTests : IAsyncLifetime
         return controller.Login(userName, password, false).GetAwaiter().GetResult();
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Inactive_user_is_rejected()
     {
+        SkipIfNoDb();
         await using var scope = _factory.Services.CreateAsyncScope();
         var result = LoginAs(scope.ServiceProvider, "inactive-user", "Password123!");
 
@@ -89,9 +97,10 @@ public class LoginIsActiveTests : IAsyncLifetime
         Assert.IsType<ViewResult>(result);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Active_user_succeeds()
     {
+        SkipIfNoDb();
         await using var scope = _factory.Services.CreateAsyncScope();
         var result = LoginAs(scope.ServiceProvider, "active-user", "Password123!");
 
@@ -101,10 +110,34 @@ public class LoginIsActiveTests : IAsyncLifetime
 
 public class LoginTestFactory : WebApplicationFactory<Program>
 {
+    private string _connectionString = null!;
+    private string? _skipReason;
+
+    public LoginTestFactory()
+    {
+        var resolved = TestDatabaseConfiguration.TryResolve();
+        if (resolved is null)
+        {
+            _skipReason =
+                $"Omitting E2E login tests: '{TestDatabaseConfiguration.EnvironmentVariableName}' " +
+                "environment variable is not set.";
+            return;
+        }
+
+        _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(resolved, "_login");
+    }
+
+    /// <summary><c>true</c> si el fixture debe omitirse por falta de base de test.</summary>
+    public bool IsSkipped(out string reason)
+    {
+        reason = _skipReason ?? string.Empty;
+        return _skipReason is not null;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(
-            TestDatabaseConfiguration.Resolve(), "_login");
+        if (IsSkipped(out _)) return;
+
         builder.UseSetting("LabMode", "true");
         builder.UseEnvironment("Development");
         builder.ConfigureServices(services =>
@@ -112,7 +145,7 @@ public class LoginTestFactory : WebApplicationFactory<Program>
             var descriptor = services.Single(d => d.ServiceType == typeof(DbContextOptions<AtlasNOCDbContext>));
             services.Remove(descriptor);
             services.AddDbContext<AtlasNOCDbContext>(o =>
-                o.UseMySql(connectionString, ServerVersion.Parse("8.0.36-mysql")));
+                o.UseMySql(_connectionString, ServerVersion.Parse("8.0.36-mysql")));
         });
     }
 }

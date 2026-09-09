@@ -1,0 +1,35 @@
+@model IReadOnlyList<AtlasNOC.Application.Dtos.LinkDto>
+@{
+    ViewData["Title"] = "Enlaces";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Enlaces</h1>
+    <a asp-action="CreateManual" class="btn btn-primary btn-sm">Enlace manual</a>
+</div>
+
+<div class="noc-card">
+    <table class="table table-dark table-sm align-middle mb-0">
+        <thead><tr><th>Endpoint A</th><th>Endpoint B</th><th>Tipo</th><th>Fuente</th><th>Confianza</th><th>Confirmado</th><th>Stale</th><th></th></tr></thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="8" class="text-secondary">Sin enlaces. El descubrimiento correlaciona enlaces sólo con evidencia.</td></tr>
+        }
+        @foreach (var l in Model)
+        {
+            var confirmedBadge = l.IsConfirmed ? "bg-up" : "bg-unknown";
+            <tr>
+                <td><code>@l.AInterfaceId.ToString("N")[..8]</code></td>
+                <td><code>@l.BInterfaceId.ToString("N")[..8]</code></td>
+                <td>@((AtlasNOC.Domain.Enums.LinkType)l.LinkType)</td>
+                <td>@((AtlasNOC.Domain.Enums.DiscoverySource)l.DiscoverySource)</td>
+                <td>@l.Confidence.ToString("P0")</td>
+                <td><span class="badge @confirmedBadge">@(l.IsConfirmed ? "Sí" : "No")</span></td>
+                <td>@(l.IsStale ? "Sí" : "No")</td>
+                <td class="text-end"><a asp-action="Detail" asp-route-id="@l.Id" class="btn btn-outline-secondary btn-sm">Detalle</a></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

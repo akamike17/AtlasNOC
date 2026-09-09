@@ -23,9 +23,18 @@ public class ApiKeyAuthenticationTests : IClassFixture<ApiKeyAuthFactory>, IAsyn
     private readonly ApiKeyAuthFactory _factory;
     public ApiKeyAuthenticationTests(ApiKeyAuthFactory factory) => _factory = factory;
 
-    public async Task InitializeAsync() => await _factory.SeedAsync();
+    public async Task InitializeAsync()
+    {
+        if (_factory.IsSkipped(out var reason)) throw new SkipTestException(reason);
+        await _factory.SeedAsync();
+    }
 
     public Task DisposeAsync() => _factory.ClearAsync();
+
+    private void SkipIfNoDb()
+    {
+        if (_factory.IsSkipped(out var reason)) throw new SkipTestException(reason);
+    }
 
     private HttpRequestMessage TopologyRequest(string? headerValue = null)
     {
@@ -35,49 +44,49 @@ public class ApiKeyAuthenticationTests : IClassFixture<ApiKeyAuthFactory>, IAsyn
         return req;
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Missing_key_returns_401()
     {
         var resp = await _factory.CreateClient().SendAsync(TopologyRequest());
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Valid_key_with_correct_scope_returns_200()
     {
         var resp = await _factory.CreateClient().SendAsync(TopologyRequest(_factory.TopologyKey));
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Valid_key_without_required_scope_returns_403()
     {
         var resp = await _factory.CreateClient().SendAsync(TopologyRequest(_factory.MetricsOnlyKey));
         Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Revoked_key_returns_401()
     {
         var resp = await _factory.CreateClient().SendAsync(TopologyRequest(_factory.RevokedKey));
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Expired_key_returns_401()
     {
         var resp = await _factory.CreateClient().SendAsync(TopologyRequest(_factory.ExpiredKey));
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Non_existent_key_returns_401()
     {
         var resp = await _factory.CreateClient().SendAsync(TopologyRequest("atn_does_not_exist_1234567890"));
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Api_key_cannot_access_protected_mvc_view()
     {
         // Desactiva el seguimiento automático de redirecciones para observar la
@@ -114,11 +123,37 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
     public string ExpiredKey { get; private set; } = null!;
 
     private string _connectionString = null!;
+    private string? _skipReason;
+
+    public ApiKeyAuthFactory()
+    {
+        var resolved = TestDatabaseConfiguration.TryResolve();
+        if (resolved is null)
+        {
+            _skipReason =
+                $"Omitting E2E API-key tests: '{TestDatabaseConfiguration.EnvironmentVariableName}' " +
+                "environment variable is not set.";
+            return;
+        }
+
+        _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(resolved, "_apikey");
+    }
+
+    /// <summary><c>true</c> si el fixture debe omitirse por falta de base de test.</summary>
+    public bool IsSkipped(out string reason)
+    {
+        reason = _skipReason ?? string.Empty;
+        return _skipReason is not null;
+    }
+
+    private DbContextOptions<AtlasNOCDbContext> Options()
+        => new DbContextOptionsBuilder<AtlasNOCDbContext>()
+            .UseMySql(_connectionString, ServerVersion.Parse("8.0.36-mysql"))
+            .Options;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(
-            TestDatabaseConfiguration.Resolve(), "_apikey");
+        if (IsSkipped(out _)) return;
 
         builder.UseSetting("LabMode", "true");
         builder.UseEnvironment("Development");
@@ -132,11 +167,6 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
                 o.UseMySql(_connectionString, ServerVersion.Parse("8.0.36-mysql")));
         });
     }
-
-    private DbContextOptions<AtlasNOCDbContext> Options()
-        => new DbContextOptionsBuilder<AtlasNOCDbContext>()
-            .UseMySql(_connectionString, ServerVersion.Parse("8.0.36-mysql"))
-            .Options;
 
     /// <summary>Asegura esquema y siembra keys con estados concretos.</summary>
     public async Task SeedAsync()
@@ -173,6 +203,7 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
 
     public async Task ClearAsync()
     {
+        if (IsSkipped(out _)) return;
         await using var db = new AtlasNOCDbContext(Options());
         await db.Database.EnsureDeletedAsync();
     }

@@ -1,0 +1,60 @@
+@{
+    var iface = ViewBag.Interface as AtlasNOC.Application.Dtos.InterfaceDto;
+    ViewData["Title"] = "Métricas — " + (iface?.Name ?? "Interfaz");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Métricas — @iface?.Name</h1>
+    <a asp-controller="Interfaces" asp-action="Detail" asp-route-id="@iface?.Id" class="btn btn-outline-secondary btn-sm">Volver</a>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="noc-card">
+            <h2 class="h6">RX (bps)</h2>
+            <canvas id="chartRx" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="noc-card">
+            <h2 class="h6">TX (bps)</h2>
+            <canvas id="chartTx" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="noc-card">
+            <h2 class="h6">Errores</h2>
+            <canvas id="chartErrors" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="noc-card">
+            <h2 class="h6">Descartes</h2>
+            <canvas id="chartDiscards" height="120"></canvas>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var ifaceId = '@iface?.Id';
+            async function fetchSeries(metric) {
+                var resp = await fetch('/api/metrics?resourceType=Interface&resourceId=' + ifaceId + '&metric=' + metric);
+                if (!resp.ok) return [];
+                var pts = await resp.json();
+                return pts.map(function (p) { return { x: new Date(p.timestampUtc), y: p.value }; });
+            }
+            function render(elId, label, data, color) {
+                var el = document.getElementById(elId);
+                if (!el) return;
+                new Chart(el, { type: 'line', data: { datasets: [{ label: label, data: data, borderColor: color, backgroundColor: color + '22', tension: 0.2, pointRadius: 0, fill: true }] }, options: { animation: false, scales: { x: { type: 'time', time: { unit: 'hour' }, grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }, y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } } }, plugins: { legend: { labels: { color: '#e6edf3' } } } } });
+            }
+            fetchSeries('rx_bps').then(function (d) { render('chartRx', 'RX (bps)', d, '#3fb950'); });
+            fetchSeries('tx_bps').then(function (d) { render('chartTx', 'TX (bps)', d, '#d29922'); });
+            fetchSeries('errors').then(function (d) { render('chartErrors', 'Errores', d, '#f85149'); });
+            fetchSeries('discards').then(function (d) { render('chartDiscards', 'Descartes', d, '#a371f7'); });
+        })();
+    </script>
+}

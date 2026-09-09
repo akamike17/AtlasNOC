@@ -22,4 +22,15 @@ public class Subscriber
         SiteId = siteId;
         CreatedAtUtc = DateTime.UtcNow;
     }
+
+    /// <summary>Actualiza identidad y sitio; preserva la identidad de la organización.</summary>
+    public void Update(string name, SiteId? siteId = null)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre es obligatorio.", nameof(name));
+        Name = name.Trim();
+        SiteId = siteId;
+    }
+
+    public void Deactivate() => IsActive = false;
+    public void Activate() => IsActive = true;
 }

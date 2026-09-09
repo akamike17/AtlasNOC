@@ -19,7 +19,32 @@ public interface IDeviceService
 public interface ILinkService
 {
     Task<IReadOnlyList<LinkDto>> ListLinksAsync(CancellationToken ct = default);
+    Task<LinkDetailDto?> GetLinkAsync(Guid id, CancellationToken ct = default);
     Task ConfirmLinkAsync(Guid id, CancellationToken ct = default);
+    Task RejectLinkAsync(Guid id, CancellationToken ct = default);
+    Task<LinkDetailDto?> CreateManualLinkAsync(CreateManualLinkRequest request, CancellationToken ct = default);
+    Task<LinkDetailDto?> UpdateLinkMetadataAsync(UpdateLinkMetadataRequest request, CancellationToken ct = default);
+}
+
+public interface IInterfaceService
+{
+    Task<IReadOnlyList<InterfaceDto>> ListByDeviceAsync(Guid deviceId, CancellationToken ct = default);
+    Task<InterfaceDto?> GetInterfaceAsync(Guid id, CancellationToken ct = default);
+}
+
+public interface ISubscriberService
+{
+    Task<IReadOnlyList<SubscriberDto>> ListSubscribersAsync(CancellationToken ct = default);
+    Task<SubscriberDto?> GetSubscriberAsync(Guid id, CancellationToken ct = default);
+    Task<SubscriberDto> CreateSubscriberAsync(CreateSubscriberRequest request, CancellationToken ct = default);
+    Task<SubscriberDto?> UpdateSubscriberAsync(Guid id, CreateSubscriberRequest request, CancellationToken ct = default);
+}
+
+public interface IServiceEndpointService
+{
+    Task<IReadOnlyList<ServiceEndpointDto>> ListEndpointsAsync(Guid subscriberId, CancellationToken ct = default);
+    Task<ServiceEndpointDto?> CreateEndpointAsync(CreateServiceEndpointRequest request, CancellationToken ct = default);
+    Task<bool> DeactivateEndpointAsync(Guid id, CancellationToken ct = default);
 }
 
 public interface ITopologyService

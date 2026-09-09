@@ -107,3 +107,57 @@ public class AuditRepository : IAuditRepository
             .AsNoTracking()
             .ToListAsync(ct);
 }
+
+public class SubscriberRepository : ISubscriberRepository
+{
+    private readonly AtlasNOCDbContext _context;
+    public SubscriberRepository(AtlasNOCDbContext context) => _context = context;
+
+    public async Task<Subscriber?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await _context.Subscribers.FirstOrDefaultAsync(s => s.Id == id, ct);
+
+    public async Task<IReadOnlyList<Subscriber>> ListAsync(CancellationToken ct = default)
+        => await _context.Subscribers.AsNoTracking().ToListAsync(ct);
+
+    public Task AddAsync(Subscriber subscriber, CancellationToken ct = default)
+    {
+        _context.Subscribers.Add(subscriber);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(Subscriber subscriber, CancellationToken ct = default)
+    {
+        _context.Subscribers.Update(subscriber);
+        return Task.CompletedTask;
+    }
+}
+
+public class ServiceEndpointRepository : IServiceEndpointRepository
+{
+    private readonly AtlasNOCDbContext _context;
+    public ServiceEndpointRepository(AtlasNOCDbContext context) => _context = context;
+
+    public async Task<ServiceEndpoint?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await _context.ServiceEndpoints.FirstOrDefaultAsync(e => e.Id == id, ct);
+
+    public async Task<IReadOnlyList<ServiceEndpoint>> ListAsync(CancellationToken ct = default)
+        => await _context.ServiceEndpoints.AsNoTracking().ToListAsync(ct);
+
+    public async Task<IReadOnlyList<ServiceEndpoint>> ListBySubscriberAsync(Guid subscriberId, CancellationToken ct = default)
+        => await _context.ServiceEndpoints
+            .Where(e => e.SubscriberId == subscriberId)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+    public Task AddAsync(ServiceEndpoint endpoint, CancellationToken ct = default)
+    {
+        _context.ServiceEndpoints.Add(endpoint);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(ServiceEndpoint endpoint, CancellationToken ct = default)
+    {
+        _context.ServiceEndpoints.Update(endpoint);
+        return Task.CompletedTask;
+    }
+}
