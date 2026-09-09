@@ -124,7 +124,7 @@ public class LoginLockoutTests : IAsyncLifetime
             "Tras 5 intentos fallidos la cuenta debe quedar bloqueada.");
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Correct_password_during_lockout_is_still_rejected()
     {
         await using var scope = _factory.Services.CreateAsyncScope();
@@ -143,7 +143,7 @@ public class LoginLockoutTests : IAsyncLifetime
         Assert.True(await users.IsLockedOutAsync(u!));
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task After_lockout_window_expires_login_succeeds()
     {
         await using var scope = _factory.Services.CreateAsyncScope();
