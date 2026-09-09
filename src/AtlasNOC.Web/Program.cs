@@ -116,6 +116,10 @@ if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
         .FirstOrDefault();
     if (cert is not null)
         dataProtection.ProtectKeysWithCertificate(cert);
+    else if (!builder.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException($"Certificado de Data Protection con thumbprint '{keyRingCertThumbprint}' no encontrado en el almacén. En producción esto es obligatorio.");
+    }
 }
 
 // ─── Fase 9: Rate limiting (anti fuerza bruta / anti abuso de API) ────────

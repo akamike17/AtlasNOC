@@ -24,7 +24,7 @@
 | ReadOnly realmente read-only (Sites/Devices/Alerts/Incidents) | EXISTS_COMPLETE |
 | Auditoría administrativa con IP/UA | EXISTS_COMPLETE |
 | Cookie secure + ForwardedHeaders | EXISTS_COMPLETE |
-| Data Protection con thumbprint | EXISTS_PARTIAL — no lanza en producción si el thumbprint es inválido (§23). |
+|| Data Protection con thumbprint | EXISTS_COMPLETE — lanza en producción si el thumbprint configurado no existe (§23). |
 
 ## 2. Discovery / SNMP (rev.md §5–7)
 
