@@ -24,12 +24,12 @@ public class IncidentsApiController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = ApiScopes.IncidentsRead)]
+    [Authorize(Policy = "Api.IncidentsRead")]
     public async Task<ActionResult<IReadOnlyList<IncidentDto>>> List([FromQuery] bool activeOnly = true, CancellationToken ct = default)
         => Ok(await _incidents.ListIncidentsAsync(activeOnly, ct));
 
     [HttpPost("{id:guid}/resolve")]
-    [Authorize(Policy = ApiScopes.IncidentsWrite)]
+    [Authorize(Policy = "Api.IncidentsWrite")]
     public async Task<IActionResult> Resolve(Guid id, CancellationToken ct)
     {
         await _incidents.ResolveAsync(id, ApiActor.Name(User), ct);

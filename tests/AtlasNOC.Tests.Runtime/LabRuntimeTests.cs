@@ -6,6 +6,7 @@ using AtlasNOC.Infrastructure.Devices;
 using AtlasNOC.Infrastructure.Persistence;
 using AtlasNOC.Infrastructure.Services;
 using AtlasNOC.Tests.Shared;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -42,6 +43,9 @@ public class LabRuntimeFixture : IAsyncLifetime
             return;
         }
 
+        // Aísla esta suite de las demás (Integration/E2E) con una base propia.
+        ConnectionString = TestDatabaseConfiguration.WithDatabaseSuffix(ConnectionString, "_runtime");
+
         // Base de datos de test dedicada, limpia en cada ejecución.
         var options = new DbContextOptionsBuilder<AtlasNOCDbContext>()
             .UseMySql(ConnectionString, ServerVersion.Parse("8.0.36-mysql"))
@@ -56,6 +60,12 @@ public class LabRuntimeFixture : IAsyncLifetime
         services.AddDbContext<AtlasNOCDbContext>(o =>
             o.UseMySql(ConnectionString, ServerVersion.Parse("8.0.36-mysql")));
         services.AddLogging();
+
+        // Data Protection (needed for CredentialProtector) - ephemeral for lab mode
+        services.AddDataProtection()
+            .SetApplicationName("AtlasNOC")
+            .DisableAutomaticKeyGeneration(); // Use ephemeral keys for lab
+
         services.AddInfrastructure(labMode: true);
 
         Services = services.BuildServiceProvider();
@@ -81,9 +91,9 @@ public class LabRuntimeFixture : IAsyncLifetime
     /// <summary>Reinicia el estado de inventario/topología (sin recrear la BD) para un test limpio.</summary>
     public async Task ResetAsync()
     {
-        // Orden por dependencias: enlaces → interfaces → observaciones → dispositivos → runs.
+        // Orden por dependencias: observaciones → interfaces → dispositivos → enlaces → runs.
         await Db.Database.ExecuteSqlRawAsync(
-            "DELETE FROM NetworkLinks; DELETE FROM DeviceInterfaces; DELETE FROM NeighborObservations;" +
+            "DELETE FROM NeighborObservations; DELETE FROM NetworkLinks; DELETE FROM DeviceInterfaces;" +
             " DELETE FROM Devices; DELETE FROM DiscoveryRuns; DELETE FROM MetricSamples; DELETE FROM NotificationDeliveries;" +
             " DELETE FROM Alerts; DELETE FROM Incidents; DELETE FROM AlertRules;");
     }
@@ -94,18 +104,19 @@ public class LabRuntimeFixture : IAsyncLifetime
         var scope = Services.CreateScope();
         var discoveryService = scope.ServiceProvider.GetRequiredService<IDiscoveryService>();
         var executor = scope.ServiceProvider.GetRequiredService<IDiscoveryExecutor>();
+        var db = scope.ServiceProvider.GetRequiredService<AtlasNOCDbContext>();
 
         var ips = string.Join(',', LabTopology.All.Select(n => n.Ip));
         var runId = await discoveryService.StartDiscoveryAsync(
             new AtlasNOC.Application.Dtos.StartDiscoveryRequest(ips, null, null));
 
-        var claimed = await Db.DiscoveryRuns.SingleAsync(r => r.Id == runId);
+        var claimed = await db.DiscoveryRuns.SingleAsync(r => r.Id == runId);
         claimed.Claim("runtime-test", DateTime.UtcNow, TimeSpan.FromMinutes(5));
-        await Db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         await executor.ExecuteAsync(runId);
 
-        var run = await Db.DiscoveryRuns.SingleAsync(r => r.Id == runId);
+        var run = await db.DiscoveryRuns.SingleAsync(r => r.Id == runId);
         return run;
     }
 }

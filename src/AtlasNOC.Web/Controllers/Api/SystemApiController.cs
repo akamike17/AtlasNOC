@@ -10,7 +10,7 @@ namespace AtlasNOC.Web.Controllers.Api;
 /// <summary>API de salud del sistema (solo lectura con scope system.read).</summary>
 [ApiController]
 [Route("api/system")]
-[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = ApiScopes.SystemRead)]
+[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = "Api.SystemRead")]
 [EnableRateLimiting("api")]
 public class SystemApiController : ControllerBase
 {

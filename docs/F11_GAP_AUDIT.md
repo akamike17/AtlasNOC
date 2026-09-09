@@ -105,7 +105,7 @@ Dominio, infraestructura, seguridad, workers, **drivers vendor (Cisco incluido)*
 Cuando `ATLASNOC_TEST_CONNECTION` apunte a una base `_test` o `_e2e` dedicada:
 
 ```powershell
-$env:ATLASNOC_TEST_CONNECTION = "Server=localhost;Port=3306;Database=atlasnoc_integration_test;User=...;Password=...;"
+$env:ATLASNOC_TEST_CONNECTION = "Server=localhost;Port=3306;Database=atlasnoc_integration_test;User=<TEST_USER>;<SECRET>;"
 dotnet test -c Release
 ```
 

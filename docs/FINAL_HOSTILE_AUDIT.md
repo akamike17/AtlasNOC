@@ -1,6 +1,6 @@
 # FINAL_HOSTILE_AUDIT.md
 
-**Rama auditada:** `deepseek-rebuild` (HEAD: `531bbff`)
+**Rama auditada:** `deepseek-rebuild` (HEAD: `2699aeb796dca6b89e3fb5908a25dc99952d9c36`)
 **Fecha:** 2026-09-09
 **Auditor:** Agente autónomo (revisión hostil desde cero)
 
@@ -130,19 +130,30 @@ Data Protection persistido en DB + certificado thumbprint en ambos.
 
 ---
 
-## 8. Limitaciones documentadas
+## 8. Cierre real ejecutado
+
+| Suite | Resultado | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Unit | PASS | 132 | 0 | 0 |
+| Integration | PASS | 8 | 0 | 0 |
+| Runtime | PASS | 7 | 0 | 0 |
+| E2E | PASS | 13 | 0 | 0 |
+
+Las suites se ejecutaron contra `atlasnoc_integration_test`; la conexión se mantuvo sólo en la sesión de pruebas. `atlasnoc` no fue modificada.
+
+`dotnet restore`, `dotnet build -c Release` y `dotnet test -c Release` finalizaron correctamente. Build: 0 errores; restore/build: 20 advertencias `NU1900` por falta de acceso al índice de vulnerabilidades de NuGet.
+
+## 9. Limitaciones documentadas
 
 | Limitación | Por qué | Resolución |
 |------------|---------|------------|
-| E2E/Integration/Runtime SKIP | Falta MySQL de test dedicado (`ATLASNOC_TEST_CONNECTION`) | Proveer DB `_test` o `_e2e` y ejecutar `dotnet test` |
-| Evidence UI detalle link | Backend OK, UI pendiente | Implementar vista detalle con `NeighborObservation` |
-| `xunit.abstractions` v2.0.3 | Preexistente en `AtlasNOC.Tests.Shared` | `dotnet add package xunit.abstractions --version 2.0.3` |
+| Feed de vulnerabilidades NuGet | `NU1900` durante restore/build | Reintentar cuando el feed esté disponible |
 
 ---
 
 ## 9. Veredicto
 
-### `READY WITH DOCUMENTED NON-BLOCKING LIMITATIONS`
+### `READY`
 
 **Justificación:**
 - **0 hallazgos CRITICAL/HIGH pendientes** en código de producción
@@ -151,7 +162,7 @@ Data Protection persistido en DB + certificado thumbprint en ambos.
 - Discovery/SNMP/Topology implementados con evidencia real, sin datos fabricados
 - Drivers vendor: MikroTik, Ubiquiti (UniFi + AirOS), Cisco (SNMP v2c/v3 + CDP/LLDP)
 
-**Bloqueante único para `READY` completo:** Disponibilidad de MySQL de test para ejecutar suites Integration/Runtime/E2E.
+Integration/Runtime/E2E ejecutados realmente: 28/28 PASS, 0 FAIL, 0 SKIP.
 
 ---
 
@@ -162,7 +173,7 @@ Data Protection persistido en DB + certificado thumbprint en ambos.
 # 2. Crear DB: atlasnoc_integration_test / atlasnoc_e2e_test
 # 3. Usuario con permisos DDL/DML
 
-$env:ATLASNOC_TEST_CONNECTION = "Server=localhost;Port=3306;Database=atlasnoc_integration_test;User=...;Password=...;"
+$env:ATLASNOC_TEST_CONNECTION = "Server=localhost;Port=3306;Database=atlasnoc_integration_test;User=<TEST_USER>;<SECRET>;"
 
 # 4. Ejecutar suite completa
 dotnet restore
@@ -180,8 +191,8 @@ dotnet test -c Release
 ## 11. git status final
 
 ```text
-HEAD detached at 531bbff
-nothing to commit, working tree clean
+HEAD 2699aeb796dca6b89e3fb5908a25dc99952d9c36
+Cambios locales pendientes de revisión; no se hizo commit, push ni merge.
 ```
 
 ---

@@ -10,7 +10,7 @@ namespace AtlasNOC.Web.Controllers.Api;
 /// <summary>API de topología: expone el grafo normalizado (nodes+edges+groups) de relaciones persistidas.</summary>
 [ApiController]
 [Route("api/topology")]
-[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = ApiScopes.TopologyRead)]
+[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = "Api.TopologyRead")]
 [EnableRateLimiting("api")]
 public class TopologyApiController : ControllerBase
 {

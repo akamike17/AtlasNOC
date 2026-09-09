@@ -26,12 +26,12 @@ public class SubscribersApiController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = ApiScopes.SubscribersRead)]
+    [Authorize(Policy = "Api.SubscribersRead")]
     public async Task<ActionResult<IReadOnlyList<SubscriberDto>>> List(CancellationToken ct)
         => Ok(await _subscribers.ListSubscribersAsync(ct));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = ApiScopes.SubscribersRead)]
+    [Authorize(Policy = "Api.SubscribersRead")]
     public async Task<ActionResult<SubscriberDto>> Get(Guid id, CancellationToken ct)
     {
         var subscriber = await _subscribers.GetSubscriberAsync(id, ct);
@@ -39,12 +39,12 @@ public class SubscribersApiController : ControllerBase
     }
 
     [HttpGet("{id:guid}/endpoints")]
-    [Authorize(Policy = ApiScopes.SubscribersRead)]
+    [Authorize(Policy = "Api.SubscribersRead")]
     public async Task<ActionResult<IReadOnlyList<ServiceEndpointDto>>> ListEndpoints(Guid id, CancellationToken ct)
         => Ok(await _endpoints.ListEndpointsAsync(id, ct));
 
     [HttpPost]
-    [Authorize(Policy = ApiScopes.SubscribersWrite)]
+    [Authorize(Policy = "Api.SubscribersWrite")]
     public async Task<ActionResult<SubscriberDto>> Create(CreateSubscriberRequest request, CancellationToken ct)
     {
         var subscriber = await _subscribers.CreateSubscriberAsync(request, ct);
@@ -54,7 +54,7 @@ public class SubscribersApiController : ControllerBase
     }
 
     [HttpPost("{id:guid}/endpoints")]
-    [Authorize(Policy = ApiScopes.SubscribersWrite)]
+    [Authorize(Policy = "Api.SubscribersWrite")]
     public async Task<ActionResult<ServiceEndpointDto>> AssociateEndpoint(Guid id, CreateServiceEndpointRequest request, CancellationToken ct)
     {
         if (request.SubscriberId != id) return BadRequest(new ProblemDetails

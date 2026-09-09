@@ -1,6 +1,7 @@
 using AtlasNOC.Domain.Identity;
 using AtlasNOC.Infrastructure;
 using AtlasNOC.Infrastructure.Persistence;
+using AtlasNOC.Infrastructure.Services;
 using AtlasNOC.Web.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -87,14 +88,11 @@ builder.Services.AddScoped<ApiKeyAuthenticationHandler>();
 builder.Services.AddAuthentication()
     .AddApiKeyAuthentication();
 
-// ─── Fase A2: políticas de scope para /api/* ───────────────────────────────
-builder.Services.AddScoped<IAuthorizationHandler, ApiScopeAuthorizationHandler>();
-// ─── Políticas de rol humano para endpoints API mutables ───────────────────
-builder.Services.AddScoped<IAuthorizationHandler, HumanRoleAuthorizationHandler>();
+// ─── Políticas de permiso API unificadas (scope O rol humano) ───────────────
+builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHandler>();
 builder.Services.AddAuthorization(options =>
 {
-    options.AddApiScopePolicies();
-    options.AddHumanRolePolicies();
+    options.AddApiPermissionPolicies();
 });
 
 // ─── Data Protection persistido en MySQL (necesario para cifrar credenciales) ─
@@ -107,9 +105,10 @@ var dataProtection = builder.Services.AddDataProtection()
 
 var keyRingCertThumbprint = builder.Configuration["DataProtection:KeyRingCertThumbprint"];
 
-if (!builder.Environment.IsDevelopment())
+// En producción, el thumbprint es OBLIGATORIO. En Testing/Development/staging
+// se permiten keys en claro (necesario para E2E/WebApplicationFactory).
+if (builder.Environment.IsProduction())
 {
-    // En producción, el thumbprint DEBE estar configurado y ser válido.
     if (string.IsNullOrWhiteSpace(keyRingCertThumbprint))
     {
         throw new InvalidOperationException(
@@ -131,23 +130,20 @@ if (!builder.Environment.IsDevelopment())
     }
     dataProtection.ProtectKeysWithCertificate(cert);
 }
-else
+else if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
 {
-    // En desarrollo: si hay thumbprint configurado y se encuentra, úsalo; si no, keys en claro (solo dev).
-    if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
-    {
-        using var certStore = new System.Security.Cryptography.X509Certificates.X509Store(
-            System.Security.Cryptography.X509Certificates.StoreName.My,
-            System.Security.Cryptography.X509Certificates.StoreLocation.CurrentUser);
-        certStore.Open(System.Security.Cryptography.X509Certificates.OpenFlags.ReadOnly);
-        var cert = certStore.Certificates
-            .Find(System.Security.Cryptography.X509Certificates.X509FindType.FindByThumbprint,
-                  keyRingCertThumbprint, validOnly: false)
-            .OfType<System.Security.Cryptography.X509Certificates.X509Certificate2>()
-            .FirstOrDefault();
-        if (cert is not null)
-            dataProtection.ProtectKeysWithCertificate(cert);
-    }
+    // Entornos no productivos: si hay thumbprint configurado y se encuentra, úsalo; si no, keys en claro.
+    using var certStore = new System.Security.Cryptography.X509Certificates.X509Store(
+        System.Security.Cryptography.X509Certificates.StoreName.My,
+        System.Security.Cryptography.X509Certificates.StoreLocation.CurrentUser);
+    certStore.Open(System.Security.Cryptography.X509Certificates.OpenFlags.ReadOnly);
+    var cert = certStore.Certificates
+        .Find(System.Security.Cryptography.X509Certificates.X509FindType.FindByThumbprint,
+              keyRingCertThumbprint, validOnly: false)
+        .OfType<System.Security.Cryptography.X509Certificates.X509Certificate2>()
+        .FirstOrDefault();
+    if (cert is not null)
+        dataProtection.ProtectKeysWithCertificate(cert);
 }
 
 // ─── Fase 9: Rate limiting (anti fuerza bruta / anti abuso de API) ────────
@@ -173,14 +169,19 @@ builder.Services.AddRateLimiter(options =>
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new() { PermitLimit = 20, Window = TimeSpan.FromMinutes(1) }));
 
-    // API: por API key (o IP como fallback anónimo).
+    // API: por identidad estable; nunca usar una API key cruda ni la partición vacía.
     options.AddPolicy("api", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.User.Identity?.Name
-                ?? httpContext.Request.Headers["X-Api-Key"].ToString()
-                ?? httpContext.Connection.RemoteIpAddress?.ToString()
-                ?? "unknown",
-            _ => new() { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+    {
+        var identity = httpContext.User.Identity?.Name;
+        var apiKey = httpContext.Request.Headers["X-Api-Key"].ToString();
+        var partition = !string.IsNullOrWhiteSpace(identity) ? identity
+            : !string.IsNullOrWhiteSpace(apiKey) ? $"key:{ApiKeyService.HashKey(apiKey)}"
+            : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partition,
+            _ => new() { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) });
+    });
 });
 
 // ─── Fase 9: Health checks (liveness + readiness con DB) ──────────────────

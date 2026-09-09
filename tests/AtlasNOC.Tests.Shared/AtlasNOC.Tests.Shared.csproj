@@ -2,11 +2,13 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
     <RootNamespace>AtlasNOC.Tests.Shared</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.abstractions" />
   </ItemGroup>
 
 </Project>

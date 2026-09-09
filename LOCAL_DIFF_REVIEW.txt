@@ -1,0 +1,68 @@
+===== git status --short =====
+ M Directory.Packages.props
+ M docs/F11_GAP_AUDIT.md
+ M docs/FINAL_HOSTILE_AUDIT.md
+ M src/AtlasNOC.Web/Controllers/Api/AlertsApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/DevicesApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/DiscoveryApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/IncidentsApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/IntegrationsApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/MetricsApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/SitesApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/SubscribersApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/SystemApiController.cs
+ M src/AtlasNOC.Web/Controllers/Api/TopologyApiController.cs
+ M src/AtlasNOC.Web/Program.cs
+ M tests/AtlasNOC.Tests.E2E/E2EFlowsTests.cs
+ M tests/AtlasNOC.Tests.Integration/RepositoryIntegrationTests.cs
+ M tests/AtlasNOC.Tests.Runtime/LabRuntimeTests.cs
+ M tests/AtlasNOC.Tests.Shared/AtlasNOC.Tests.Shared.csproj
+ M tests/AtlasNOC.Tests.Unit/VersionedConnectionStringSecretsTests.cs
+?? ATLASNOC_TEST_CONNECTION.md
+?? src/AtlasNOC.Web/Security/ApiPermissionRequirement.cs
+
+===== git diff --stat =====
+ Directory.Packages.props                           |  3 +-
+ docs/F11_GAP_AUDIT.md                              |  4 +-
+ docs/FINAL_HOSTILE_AUDIT.md                        | 33 ++++++++----
+ src/AtlasNOC.Web/Program.cs                        | 63 +++++++++++-----------
+ 19 files changed, 111 insertions(+), 76 deletions(-)
+
+===== git diff -- src/AtlasNOC.Web/Security =====
+(sin salida: el archivo ApiPermissionRequirement.cs es no rastreado y git diff no lo incluye)
+
+===== git diff -- src/AtlasNOC.Web/Controllers/Api =====
+Consulta exacta ejecutada; salida completa disponible en la conversación de esta tarea.
+
+===== git diff -- src/AtlasNOC.Web/Program.cs =====
+Consulta exacta ejecutada; salida completa disponible en la conversación de esta tarea.
+
+===== git diff -- tests/AtlasNOC.Tests.Unit =====
+Consulta exacta ejecutada; salida completa disponible en la conversación de esta tarea.
+
+===== git diff -- tests/AtlasNOC.Tests.E2E =====
+Consulta exacta ejecutada; salida completa disponible en la conversación de esta tarea.
+
+===== git diff -- docs/FINAL_HOSTILE_AUDIT.md =====
+Consulta exacta ejecutada; salida completa disponible en la conversación de esta tarea.
+
+===== git diff --name-only =====
+Directory.Packages.props
+docs/F11_GAP_AUDIT.md
+docs/FINAL_HOSTILE_AUDIT.md
+src/AtlasNOC.Web/Controllers/Api/AlertsApiController.cs
+src/AtlasNOC.Web/Controllers/Api/DevicesApiController.cs
+src/AtlasNOC.Web/Controllers/Api/DiscoveryApiController.cs
+src/AtlasNOC.Web/Controllers/Api/IncidentsApiController.cs
+src/AtlasNOC.Web/Controllers/Api/IntegrationsApiController.cs
+src/AtlasNOC.Web/Controllers/Api/MetricsApiController.cs
+src/AtlasNOC.Web/Controllers/Api/SitesApiController.cs
+src/AtlasNOC.Web/Controllers/Api/SubscribersApiController.cs
+src/AtlasNOC.Web/Controllers/Api/SystemApiController.cs
+src/AtlasNOC.Web/Controllers/Api/TopologyApiController.cs
+src/AtlasNOC.Web/Program.cs
+tests/AtlasNOC.Tests.E2E/E2EFlowsTests.cs
+tests/AtlasNOC.Tests.Integration/RepositoryIntegrationTests.cs
+tests/AtlasNOC.Tests.Runtime/LabRuntimeTests.cs
+tests/AtlasNOC.Tests.Shared/AtlasNOC.Tests.Shared.csproj
+tests/AtlasNOC.Tests.Unit/VersionedConnectionStringSecretsTests.cs

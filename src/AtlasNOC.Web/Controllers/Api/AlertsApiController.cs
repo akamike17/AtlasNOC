@@ -24,12 +24,12 @@ public class AlertsApiController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = ApiScopes.AlertsRead)]
+    [Authorize(Policy = "Api.AlertsRead")]
     public async Task<ActionResult<IReadOnlyList<AlertDto>>> List([FromQuery] bool openOnly = false, CancellationToken ct = default)
         => Ok(await _alerts.ListAlertsAsync(openOnly, ct));
 
     [HttpPost("{id:guid}/acknowledge")]
-    [Authorize(Policy = ApiScopes.AlertsWrite)]
+    [Authorize(Policy = "Api.AlertsWrite")]
     public async Task<IActionResult> Acknowledge(Guid id, CancellationToken ct)
     {
         await _alerts.AcknowledgeAsync(id, ApiActor.Name(User), ct);
@@ -39,7 +39,7 @@ public class AlertsApiController : ControllerBase
     }
 
     [HttpPost("{id:guid}/resolve")]
-    [Authorize(Policy = ApiScopes.AlertsWrite)]
+    [Authorize(Policy = "Api.AlertsWrite")]
     public async Task<IActionResult> Resolve(Guid id, CancellationToken ct)
     {
         await _alerts.ResolveAsync(id, ApiActor.Name(User), ct);

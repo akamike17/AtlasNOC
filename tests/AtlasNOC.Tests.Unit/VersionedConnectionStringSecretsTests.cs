@@ -48,8 +48,6 @@ public class VersionedConnectionStringSecretsTests
     private static readonly string[] ExcludedFilePatterns =
     {
         "rev.md",
-        "F11_GAP_AUDIT.md",
-        "FINAL_HOSTILE_AUDIT.md",
         "VersionedConnectionStringSecretsTests.cs",
     };
 

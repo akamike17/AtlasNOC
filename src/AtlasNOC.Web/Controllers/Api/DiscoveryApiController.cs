@@ -25,7 +25,7 @@ public class DiscoveryApiController : ControllerBase
 
     /// <summary>Inicia un discovery run. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator.</summary>
     [HttpPost("run")]
-    [Authorize(Policy = "DiscoveryRunPolicy")]
+    [Authorize(Policy = "Api.DiscoveryRun")]
     public async Task<ActionResult<Guid>> Start(StartDiscoveryRequest request, CancellationToken ct)
     {
         var runId = await _discovery.StartDiscoveryAsync(request, ct);
@@ -36,13 +36,13 @@ public class DiscoveryApiController : ControllerBase
 
     /// <summary>Lista discovery runs. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator/ReadOnly.</summary>
     [HttpGet("runs")]
-    [Authorize(Policy = "DiscoveryReadPolicy")]
+    [Authorize(Policy = "Api.DiscoveryRead")]
     public async Task<ActionResult<IReadOnlyList<DiscoveryRunDto>>> List(CancellationToken ct)
         => Ok(await _discovery.ListRunsAsync(ct));
 
     /// <summary>Obtiene un discovery run. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator/ReadOnly.</summary>
     [HttpGet("runs/{id:guid}")]
-    [Authorize(Policy = "DiscoveryReadPolicy")]
+    [Authorize(Policy = "Api.DiscoveryRead")]
     public async Task<ActionResult<DiscoveryRunDto>> Get(Guid id, CancellationToken ct)
     {
         var run = await _discovery.GetRunAsync(id, ct);
@@ -51,7 +51,7 @@ public class DiscoveryApiController : ControllerBase
 
     /// <summary>Cancela un discovery run. Requiere scope discovery.run (API key) O rol humano NocOperator/Administrator.</summary>
     [HttpPost("runs/{id:guid}/cancel")]
-    [Authorize(Policy = "DiscoveryRunPolicy")]
+    [Authorize(Policy = "Api.DiscoveryRun")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
     {
         await _discovery.CancelAsync(id, ct);

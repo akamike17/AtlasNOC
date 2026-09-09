@@ -10,7 +10,7 @@ namespace AtlasNOC.Web.Controllers.Api;
 /// <summary>API de series de tiempo para gráficas (Chart.js).</summary>
 [ApiController]
 [Route("api/metrics")]
-[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = ApiScopes.MetricsRead)]
+[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = "Api.MetricsRead")]
 [EnableRateLimiting("api")]
 public class MetricsApiController : ControllerBase
 {

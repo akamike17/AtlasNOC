@@ -10,7 +10,7 @@ namespace AtlasNOC.Web.Controllers.Api;
 /// <summary>API de inventario de dispositivos (solo lectura; la escritura es vía MVC).</summary>
 [ApiController]
 [Route("api/devices")]
-[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = ApiScopes.DevicesRead)]
+[Authorize(AuthenticationSchemes = "Identity.Application,ApiKey", Policy = "Api.DevicesRead")]
 [EnableRateLimiting("api")]
 public class DevicesApiController : ControllerBase
 {

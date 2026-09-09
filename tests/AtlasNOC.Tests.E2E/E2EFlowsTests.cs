@@ -53,6 +53,9 @@ public class E2EFixture : IAsyncLifetime
             return;
         }
 
+        // Aísla esta suite de las demás (Integration/Runtime) con una base propia.
+        ConnectionString = TestDatabaseConfiguration.WithDatabaseSuffix(ConnectionString, "_e2e");
+
         // Mata cualquier servidor residual que ocupe el puerto (runs previos fallidos).
         KillPortListener();
 
@@ -84,6 +87,9 @@ public class E2EFixture : IAsyncLifetime
         startInfo.Environment["RunWorkersInWebForTests"] = "true";
 
         _server = Process.Start(startInfo)!;
+        // Consume stdout/stderr en segundo plano para evitar el deadlock del buffer.
+        _ = _server.StandardOutput.ReadToEndAsync();
+        _ = _server.StandardError.ReadToEndAsync();
         await WaitForServerAsync();
 
         Playwright = await Microsoft.Playwright.Playwright.CreateAsync();

@@ -24,12 +24,12 @@ public class SitesApiController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = ApiScopes.SitesRead)]
+    [Authorize(Policy = "Api.SitesRead")]
     public async Task<ActionResult<IReadOnlyList<SiteDto>>> List(CancellationToken ct)
         => Ok(await _sites.ListSitesAsync(ct));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = ApiScopes.SitesRead)]
+    [Authorize(Policy = "Api.SitesRead")]
     public async Task<ActionResult<SiteDto>> Get(Guid id, CancellationToken ct)
     {
         var site = await _sites.GetSiteAsync(id, ct);
@@ -37,7 +37,7 @@ public class SitesApiController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = ApiScopes.SitesWrite)]
+    [Authorize(Policy = "Api.SitesWrite")]
     public async Task<ActionResult<SiteDto>> Create(CreateSiteRequest request, CancellationToken ct)
     {
         var site = await _sites.CreateSiteAsync(request, ct);
