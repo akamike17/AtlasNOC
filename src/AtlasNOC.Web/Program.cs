@@ -105,8 +105,8 @@ var dataProtection = builder.Services.AddDataProtection()
 
 var keyRingCertThumbprint = builder.Configuration["DataProtection:KeyRingCertThumbprint"];
 
-// En producción, el thumbprint es OBLIGATORIO. En Testing/Development/staging
-// se permiten keys en claro (necesario para E2E/WebApplicationFactory).
+// Sólo Development/Testing son permisivos; Staging/Production/otros fallan
+// cerrado y exigen certificado (Testing lo necesita para WebApplicationFactory).
 var isDevOrTest = builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing");
 if (!isDevOrTest)
 {
@@ -173,10 +173,12 @@ builder.Services.AddRateLimiter(options =>
     // API: por identidad estable; nunca usar una API key cruda ni la partición vacía.
     options.AddPolicy("api", httpContext =>
     {
-        var identity = httpContext.User.Identity?.Name;
-        var apiKey = httpContext.Request.Headers["X-Api-Key"].ToString();
-        var partition = !string.IsNullOrWhiteSpace(identity) ? identity
-            : !string.IsNullOrWhiteSpace(apiKey) ? $"key:{ApiKeyService.HashKey(apiKey)}"
+        var isApiKey = httpContext.User.FindFirst("auth_type")?.Value == "api_key";
+        var identity = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? httpContext.User.Identity?.Name;
+        var apiKeyId = httpContext.User.FindFirst("api_key_id")?.Value;
+        var partition = isApiKey && !string.IsNullOrWhiteSpace(apiKeyId) ? $"key:{apiKeyId}"
+            : !isApiKey && !string.IsNullOrWhiteSpace(identity) ? $"user:{identity}"
             : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         return RateLimitPartition.GetFixedWindowLimiter(

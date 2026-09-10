@@ -148,6 +148,7 @@ Las suites se ejecutaron contra `atlasnoc_integration_test`; la conexión se man
 - `ApiPermissionRequirement`/`ApiPermissionAuthorizationHandler`: scope de API key OR rol humano, centralizado.
 - Data Protection: Development/Testing permisivos; Staging/Production y otros entornos fail-closed con certificado.
 - Rate limiter: autenticación antes del limiter; partición por identidad/hash de API key/IP.
+- Rate limiter final: API keys particionadas por claim estable `api_key_id`; humanos por identificador estable; IP sólo como fallback anónimo.
 - E2E: puerto dinámico y sólo finaliza el proceso creado por el fixture; outage/recovery mediante control LAB y polling real.
 - Evidence UI: protocolo, identidad/puerto remoto, timestamp, estado y hash de evidencia.
 - Secret scan: la documentación permanece incluida; ejemplos sanitizados.
