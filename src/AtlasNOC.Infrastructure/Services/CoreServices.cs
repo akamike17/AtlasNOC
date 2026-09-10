@@ -123,7 +123,12 @@ public class LinkService : ILinkService
     public async Task<LinkDetailDto?> GetLinkAsync(Guid id, CancellationToken ct = default)
     {
         var link = await _links.GetByIdAsync(id, ct);
-        return link is null ? null : ToDetailDto(link);
+        if (link is null) return null;
+        var evidence = await _context.NeighborObservations.AsNoTracking()
+            .Where(o => o.LocalInterfaceId.Value == link.AInterfaceId.Value
+                || o.LocalInterfaceId.Value == link.BInterfaceId.Value)
+            .OrderByDescending(o => o.ObservedAtUtc).FirstOrDefaultAsync(ct);
+        return ToDetailDto(link, evidence);
     }
 
     public async Task ConfirmLinkAsync(Guid id, CancellationToken ct = default)
@@ -170,10 +175,12 @@ public class LinkService : ILinkService
         return ToDetailDto(link);
     }
 
-    private static LinkDetailDto ToDetailDto(NetworkLink l) => new(
+    private static LinkDetailDto ToDetailDto(NetworkLink l, NeighborObservation? evidence = null) => new(
         l.Id.Value, l.AInterfaceId.Value, l.BInterfaceId.Value, (int)l.LinkType,
         (int)l.DiscoverySource, l.Confidence, (int)l.AdminStatus, (int)l.OperStatus,
-        l.CapacityBps, l.LastSeenAtUtc, l.IsConfirmed, l.IsStale, l.IsManual);
+        l.CapacityBps, l.LastSeenAtUtc, l.IsConfirmed, l.IsStale, l.IsManual,
+        evidence?.Protocol.ToString(), evidence?.RemoteIdentity, evidence?.RemotePortIdentity,
+        evidence?.ObservedAtUtc, evidence is null ? null : (int)evidence.Status, evidence?.RawEvidenceHash);
 }
 
 public class InterfaceService : IInterfaceService

@@ -46,8 +46,9 @@ public static class DependencyInjection
         // ─── Modo LAB: Icmp/Snmp simulados; producción: probes reales ──────
         services.AddSingleton<IcmpProbe>();
         services.AddSingleton<SnmpProbe>();
+        services.AddSingleton<ILabNetworkControl, LabNetworkControl>();
         services.AddSingleton<IIcmpProbe>(sp =>
-            new SimulatedIcmpProbe(labMode, sp.GetRequiredService<IcmpProbe>()));
+            new SimulatedIcmpProbe(labMode, sp.GetRequiredService<IcmpProbe>(), sp.GetRequiredService<ILabNetworkControl>()));
         services.AddSingleton<ISnmpProbe>(sp =>
             new SimulatedSnmpProbe(labMode, sp.GetRequiredService<SnmpProbe>()));
 

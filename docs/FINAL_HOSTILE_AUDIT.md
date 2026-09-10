@@ -1,6 +1,6 @@
 # FINAL_HOSTILE_AUDIT.md
 
-**Rama auditada:** `deepseek-rebuild` (HEAD: `2699aeb796dca6b89e3fb5908a25dc99952d9c36`)
+**Rama auditada:** `codex/atlasnoc-review-20260909` (HEAD base: `0451f5247eaebb6e9ee73fc5a6bef2b017e18b02`)
 **Fecha:** 2026-09-09
 **Auditor:** Agente autónomo (revisión hostil desde cero)
 
@@ -11,7 +11,7 @@
 | Commit | Descripción |
 |--------|-------------|
 | `88b0975` (base) | harden: real SNMP/LLDP inventory, credential-aware drivers, deterministic topology, scheduled polling, reliable alerts/notifications, integrity FKs and user administration |
-| `531bbff` (final) | test: exclude F11_GAP_AUDIT.md from connection string scan (doc example) |
+| `0451f5247eaebb6e9ee73fc5a6bef2b017e18b02` (base) | commit de revisión externa |
 
 **Archivos modificados:** 45+ archivos (ver `git diff --name-only 88b0975..531bbff`)
 
@@ -51,7 +51,7 @@
 |---|----------|--------|
 | 4.1 | `xunit.abstractions` v2.0.3 faltante en `AtlasNOC.Tests.Shared` | Preexistente, no bloquea código producción |
 | 4.2 | E2E/Integration/Runtime SKIP por `ATLASNOC_TEST_CONNECTION` ausente | Requiere MySQL de test dedicado |
-| 4.3 | Evidence UI completa (detalle link/evidencia en topología) | Backend listo, UI pendiente |
+| 4.3 | Evidence UI completa (detalle link/evidencia en topología) | Vista de detalle muestra protocolo, destino, timestamp, confianza, estado y hash |
 
 ---
 
@@ -143,7 +143,16 @@ Las suites se ejecutaron contra `atlasnoc_integration_test`; la conexión se man
 
 `dotnet restore`, `dotnet build -c Release` y `dotnet test -c Release` finalizaron correctamente. Build: 0 errores; restore/build: 20 advertencias `NU1900` por falta de acceso al índice de vulnerabilidades de NuGet.
 
-## 9. Limitaciones documentadas
+## 9. Cambios finales de esta pasada
+
+- `ApiPermissionRequirement`/`ApiPermissionAuthorizationHandler`: scope de API key OR rol humano, centralizado.
+- Data Protection: Development/Testing permisivos; Staging/Production y otros entornos fail-closed con certificado.
+- Rate limiter: autenticación antes del limiter; partición por identidad/hash de API key/IP.
+- E2E: puerto dinámico y sólo finaliza el proceso creado por el fixture; outage/recovery mediante control LAB y polling real.
+- Evidence UI: protocolo, identidad/puerto remoto, timestamp, estado y hash de evidencia.
+- Secret scan: la documentación permanece incluida; ejemplos sanitizados.
+
+## 10. Limitaciones documentadas
 
 | Limitación | Por qué | Resolución |
 |------------|---------|------------|
@@ -151,7 +160,7 @@ Las suites se ejecutaron contra `atlasnoc_integration_test`; la conexión se man
 
 ---
 
-## 9. Veredicto
+## 11. Veredicto
 
 ### `READY`
 
@@ -166,7 +175,7 @@ Integration/Runtime/E2E ejecutados realmente: 28/28 PASS, 0 FAIL, 0 SKIP.
 
 ---
 
-## 10. Instrucción exacta para cierre E2E
+## 12. Instrucción exacta para cierre E2E
 
 ```powershell
 # 1. Provisionar MySQL dedicado (no producción)
@@ -188,11 +197,10 @@ dotnet test -c Release
 
 ---
 
-## 11. git status final
+## 13. git status final
 
 ```text
-HEAD 2699aeb796dca6b89e3fb5908a25dc99952d9c36
-Cambios locales pendientes de revisión; no se hizo commit, push ni merge.
+HEAD final verificable con `git rev-parse HEAD`; no se hizo push, merge ni PR.
 ```
 
 ---

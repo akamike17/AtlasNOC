@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using AtlasNOC.Application.Repositories;
 using AtlasNOC.Application.Services;
 using AtlasNOC.Domain.Entities;
@@ -21,7 +23,7 @@ public class E2ECollection : ICollectionFixture<E2EFixture> { }
 
 public class E2EFixture : IAsyncLifetime
 {
-    public const string BaseUrl = "http://127.0.0.1:5098";
+    public static string BaseUrl { get; private set; } = null!;
 
     // Alcance LAB reducido para E2E: 4 dispositivos backbone y 3 enlaces.
     public const string LabScope = "10.0.0.1,10.0.0.2,10.0.1.1,10.0.1.2";
@@ -56,8 +58,7 @@ public class E2EFixture : IAsyncLifetime
         // Aísla esta suite de las demás (Integration/Runtime) con una base propia.
         ConnectionString = TestDatabaseConfiguration.WithDatabaseSuffix(ConnectionString, "_e2e");
 
-        // Mata cualquier servidor residual que ocupe el puerto (runs previos fallidos).
-        KillPortListener();
+        BaseUrl = GetFreeLoopbackUrl();
 
         var options = new DbContextOptionsBuilder<AtlasNOCDbContext>()
             .UseMySql(ConnectionString, ServerVersion.Parse("8.0.36-mysql"))
@@ -85,6 +86,7 @@ public class E2EFixture : IAsyncLifetime
         startInfo.Environment["ConnectionStrings__DefaultConnection"] = ConnectionString;
         startInfo.Environment["LabMode"] = "true";
         startInfo.Environment["RunWorkersInWebForTests"] = "true";
+        startInfo.Environment["Polling__DefaultIntervalSeconds"] = "1";
 
         _server = Process.Start(startInfo)!;
         // Consume stdout/stderr en segundo plano para evitar el deadlock del buffer.
@@ -96,40 +98,13 @@ public class E2EFixture : IAsyncLifetime
         Browser = await Playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
     }
 
-    /// <summary>Mata cualquier proceso escuchando en el puerto del servidor de test.</summary>
-    private static void KillPortListener()
+    private static string GetFreeLoopbackUrl()
     {
-        try
-        {
-            var port = new Uri(BaseUrl).Port;
-            var proc = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "netstat",
-                    Arguments = $"-ano -p tcp",
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                }
-            };
-            proc.Start();
-            var output = proc.StandardOutput.ReadToEnd();
-            proc.WaitForExit();
-
-            var pids = output
-                .Split('\n')
-                .Where(l => l.Contains($":{port}") && l.Contains("LISTENING"))
-                .Select(l => l.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries).Last())
-                .Distinct();
-            foreach (var pidStr in pids)
-            {
-                if (int.TryParse(pidStr, out var pid))
-                {
-                    try { Process.GetProcessById(pid).Kill(entireProcessTree: true); } catch { }
-                }
-            }
-        }
-        catch { /* mejor esfuerzo */ }
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return $"http://127.0.0.1:{port}";
     }
 
     private static async Task WaitForServerAsync()
@@ -319,21 +294,19 @@ public class E2EFlowsTests
     {
         await using var db = _fx.NewDb();
         var edge = await db.Devices.FirstAsync(d => d.Hostname == "EdgeRouter-01");
-        var edgeId = edge.Id.Value.ToString();
+        var page = await _fx.NewPageAsync();
 
         // Crear regla de alerta: disponibilidad < 50% (HIGH).
         db.AlertRules.Add(new AlertRule("Disponibilidad baja", "availability", "<", 50.0, AlertSeverity.High, 1));
         await db.SaveChangesAsync();
+        await LoginAsync(page);
 
-        // ── 10. Provocar caída: métrica availability=0 + estado Down ──────
-        db.MetricSamples.Add(new MetricSample("Device", edgeId, "availability", 0.0, DateTime.UtcNow, "%"));
-        edge.SetStatus(DeviceStatus.Down);
-        await db.SaveChangesAsync();
-        db.ChangeTracker.Clear();
+        // ── 10. Provocar caída desde el simulador LAB; polling generará estado/métrica ──
+        var controlStatus = await page.EvaluateAsync<int>("async (url) => (await fetch(url, { method: 'POST' })).status",
+            $"{E2EFixture.BaseUrl}/api/lab/control/{edge.ManagementIp}/reachable/false");
+        Assert.Equal(204, controlStatus);
 
         // ── 11. Ver alerta (espera al AlertEvaluationWorker) ──────────────
-        var page = await _fx.NewPageAsync();
-        await LoginAsync(page);
         await WaitForTextOnUrlAsync(page, E2EFixture.BaseUrl + "/alerts", "availability", timeoutMs: 30_000);
 
         // ── 12. Reconocer alerta ──────────────────────────────────────────
@@ -343,11 +316,10 @@ public class E2EFlowsTests
         // ── 13. Incidente correlacionado ──────────────────────────────────
         await WaitForTextOnUrlAsync(page, E2EFixture.BaseUrl + "/incidents", "Dispositivo", timeoutMs: 30_000);
 
-        // ── 14. Recuperar dispositivo (métrica availability=100 + Up) ─────
-        db.MetricSamples.Add(new MetricSample("Device", edgeId, "availability", 100.0, DateTime.UtcNow, "%"));
-        edge.SetStatus(DeviceStatus.Up);
-        await db.SaveChangesAsync();
-        db.ChangeTracker.Clear();
+        // ── 14. Recuperar conectividad desde LAB; polling generará recovery ──
+        var recoveryStatus = await page.EvaluateAsync<int>("async (url) => (await fetch(url, { method: 'POST' })).status",
+            $"{E2EFixture.BaseUrl}/api/lab/control/{edge.ManagementIp}/reachable/true");
+        Assert.Equal(204, recoveryStatus);
 
         // ── 15. Resolver incidente (si está activo) ───────────────────────
         await page.GotoAsync(E2EFixture.BaseUrl + "/incidents");

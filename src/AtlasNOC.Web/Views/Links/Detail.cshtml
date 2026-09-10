@@ -30,6 +30,15 @@
         <dt class="col-sm-2">Última vez visto</dt><dd class="col-sm-10">@(Model.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
         <dt class="col-sm-2">Stale</dt><dd class="col-sm-10">@(Model.IsStale ? "Sí" : "No")</dd>
         <dt class="col-sm-2">Manual</dt><dd class="col-sm-10">@(Model.IsManual ? "Sí" : "No")</dd>
+        @if (Model.EvidenceProtocol is not null)
+        {
+            <dt class="col-sm-2">Protocolo de evidencia</dt><dd class="col-sm-10">@Model.EvidenceProtocol</dd>
+            <dt class="col-sm-2">Identidad destino</dt><dd class="col-sm-10">@Model.EvidenceRemoteIdentity</dd>
+            <dt class="col-sm-2">Puerto destino</dt><dd class="col-sm-10">@(Model.EvidenceRemotePort ?? "—")</dd>
+            <dt class="col-sm-2">Observada</dt><dd class="col-sm-10">@Model.EvidenceObservedAtUtc?.ToLocalTime().ToString("g")</dd>
+            <dt class="col-sm-2">Estado correlación</dt><dd class="col-sm-10">@Model.EvidenceStatus</dd>
+            <dt class="col-sm-2">Hash evidencia</dt><dd class="col-sm-10"><code>@Model.EvidenceHash</code></dd>
+        }
     </dl>
 </div>
 

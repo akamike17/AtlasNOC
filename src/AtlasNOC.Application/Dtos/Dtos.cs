@@ -79,7 +79,10 @@ public sealed record InterfaceDto(Guid Id, Guid DeviceId, int IfIndex, string Na
 // ─── Links ─────────────────────────────────────────────────────────────────
 public sealed record LinkDetailDto(Guid Id, Guid AInterfaceId, Guid BInterfaceId, int LinkType,
     int DiscoverySource, double Confidence, int AdminStatus, int OperStatus, ulong? CapacityBps,
-    DateTime? LastSeenAtUtc, bool IsConfirmed, bool IsStale, bool IsManual);
+    DateTime? LastSeenAtUtc, bool IsConfirmed, bool IsStale, bool IsManual,
+    string? EvidenceProtocol = null, string? EvidenceRemoteIdentity = null,
+    string? EvidenceRemotePort = null, DateTime? EvidenceObservedAtUtc = null,
+    int? EvidenceStatus = null, string? EvidenceHash = null);
 
 public sealed record CreateManualLinkRequest(Guid AInterfaceId, Guid BInterfaceId, int LinkType);
 

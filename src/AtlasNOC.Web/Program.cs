@@ -107,7 +107,8 @@ var keyRingCertThumbprint = builder.Configuration["DataProtection:KeyRingCertThu
 
 // En producción, el thumbprint es OBLIGATORIO. En Testing/Development/staging
 // se permiten keys en claro (necesario para E2E/WebApplicationFactory).
-if (builder.Environment.IsProduction())
+var isDevOrTest = builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing");
+if (!isDevOrTest)
 {
     if (string.IsNullOrWhiteSpace(keyRingCertThumbprint))
     {
@@ -276,9 +277,8 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-app.UseRateLimiter();
-
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllerRoute(

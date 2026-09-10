@@ -12,11 +12,13 @@ public class SimulatedIcmpProbe : IIcmpProbe
 {
     private readonly bool _enabled;
     private readonly IIcmpProbe _real;
+    private readonly ILabNetworkControl _control;
 
-    public SimulatedIcmpProbe(bool enabled, IIcmpProbe real)
+    public SimulatedIcmpProbe(bool enabled, IIcmpProbe real, ILabNetworkControl control)
     {
         _enabled = enabled;
         _real = real;
+        _control = control;
     }
 
     public Task<PingResult> PingAsync(string ipAddress, int timeoutMs, CancellationToken ct)
@@ -24,7 +26,7 @@ public class SimulatedIcmpProbe : IIcmpProbe
         if (!_enabled)
             return _real.PingAsync(ipAddress, timeoutMs, ct);
 
-        if (LabTopology.IsLabIp(ipAddress))
+        if (LabTopology.IsLabIp(ipAddress) && _control.IsReachable(ipAddress))
             return Task.FromResult(new PingResult(true, 1.0, null));
 
         // Fuera del rango LAB: no alcanzable (no se fabrica presencia).
