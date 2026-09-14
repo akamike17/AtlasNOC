@@ -41,8 +41,19 @@ public class DeviceCredential
         PrivPasswordProtected = privPasswordProtected;
     }
 
+    public void Update(string name, SnmpVersion snmpVersion, string? userName,
+        string? authProtocol, string? privProtocol)
+    {
+        Name = name ?? throw new ArgumentNullException(nameof(name));
+        SnmpVersion = snmpVersion;
+        UserName = userName;
+        AuthProtocol = authProtocol;
+        PrivProtocol = privProtocol;
+    }
+
     public void Touch() => LastUsedAtUtc = DateTime.UtcNow;
     public void Deactivate() => IsActive = false;
+    public void Activate() => IsActive = true;
 
     public bool CanUse => IsActive;
 }

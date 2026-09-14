@@ -137,6 +137,8 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
         }
 
         _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(resolved, "_apikey");
+        using var db = new AtlasNOCDbContext(Options());
+        db.Database.EnsureDeleted();
     }
 
     /// <summary><c>true</c> si el fixture debe omitirse por falta de base de test.</summary>
@@ -157,6 +159,7 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
 
         builder.UseSetting("LabMode", "true");
         builder.UseEnvironment("Development");
+        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.ConfigureServices(services =>
         {
             // Reemplaza la cadena de conexión por la base de test validada.

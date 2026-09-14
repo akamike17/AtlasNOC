@@ -49,6 +49,18 @@ public sealed class OperationsApiController : ControllerBase
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Route([FromBody] RouteRequest request, CancellationToken ct) => Ok(await _routes.PlanAsync(request.VisitIds, ct));
 
+    [HttpGet("devices/{deviceId:guid}/configuration-revisions")]
+    public async Task<IActionResult> ConfigurationRevisions(Guid deviceId, CancellationToken ct) => Ok(await _db.ConfigurationRevisions.AsNoTracking().Where(x => x.DeviceId == deviceId).OrderByDescending(x => x.Revision).ToListAsync(ct));
+
+    [HttpPost("devices/{deviceId:guid}/configuration-revisions")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> AddConfigurationRevision(Guid deviceId, [FromBody] ConfigurationRevisionRequest request, CancellationToken ct)
+    { if (!await _db.Devices.AnyAsync(x => x.Id.Value == deviceId, ct)) return NotFound(); var revision = (await _db.ConfigurationRevisions.Where(x => x.DeviceId == deviceId).Select(x => (int?)x.Revision).MaxAsync(ct) ?? 0) + 1; var entity = new ConfigurationRevision(deviceId, revision, request.BeforeHash, request.AfterHash, request.Source, request.Reason, User.Identity?.Name ?? "unknown"); _db.ConfigurationRevisions.Add(entity); await _db.SaveChangesAsync(ct); return Ok(entity); }
+
+    [HttpPost("configuration-revisions/{id:guid}/known-good")]
+    [Authorize(Roles = "Administrator")]
+    public async Task<IActionResult> MarkKnownGood(Guid id, CancellationToken ct) { var revision = await _db.ConfigurationRevisions.FirstOrDefaultAsync(x => x.Id == id, ct); if (revision is null) return NotFound(); revision.MarkKnownGood(); await _db.SaveChangesAsync(ct); return Ok(revision); }
+
     [HttpPost("customers")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> CreateCustomer([FromBody] CreateCustomerRequest request, CancellationToken ct)
@@ -129,3 +141,4 @@ public sealed record AssetRequest(string AssetTag, string Type, string? SerialNu
 public sealed record CoverageRequest(string Address, CoverageStatus Status, int? CapacityMbps);
 public sealed record VisitRequest(Guid CustomerId, DateTime ScheduledAtUtc, string WorkType, int EstimatedMinutes);
 public sealed record RouteRequest(IReadOnlyList<Guid> VisitIds);
+public sealed record ConfigurationRevisionRequest(string BeforeHash, string AfterHash, string Source, string Reason);

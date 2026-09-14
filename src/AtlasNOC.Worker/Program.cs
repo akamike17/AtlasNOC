@@ -14,6 +14,7 @@ var builder = Host.CreateDefaultBuilder(args);
 builder.UseSerilog((context, services, config) => config
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
     .Enrich.FromLogContext());
 
 builder.ConfigureServices((context, services) =>
@@ -30,7 +31,10 @@ builder.ConfigureServices((context, services) =>
 
     var keyRingCertThumbprint = context.Configuration["DataProtection:KeyRingCertThumbprint"];
 
-    if (!context.HostingEnvironment.IsDevelopment())
+    var isDevOrTest = context.HostingEnvironment.IsDevelopment()
+        || context.HostingEnvironment.IsEnvironment("Testing");
+
+    if (!isDevOrTest)
     {
         // En producción, el thumbprint DEBE estar configurado y ser válido.
         if (string.IsNullOrWhiteSpace(keyRingCertThumbprint))
@@ -53,7 +57,8 @@ builder.ConfigureServices((context, services) =>
     }
     else
     {
-        // En desarrollo: si hay thumbprint configurado y se encuentra, úsalo; si no, keys en claro (solo dev).
+        // Development/Testing: si hay thumbprint configurado y se encuentra,
+        // úsalo; si no, se permite el anillo local para pruebas controladas.
         if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
         {
             using var certStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
@@ -69,6 +74,8 @@ builder.ConfigureServices((context, services) =>
 
     services.AddSingleton(context.Configuration.GetSection("Ubiquiti").Get<AtlasNOC.Infrastructure.Devices.UbiquitiOptions>()
         ?? new AtlasNOC.Infrastructure.Devices.UbiquitiOptions());
+    services.AddSingleton(context.Configuration.GetSection("MikroTik").Get<AtlasNOC.Infrastructure.Devices.MikroTikOptions>()
+        ?? new AtlasNOC.Infrastructure.Devices.MikroTikOptions());
     services.Configure<AtlasNOC.Infrastructure.Services.DiscoveryOptions>(
         context.Configuration.GetSection("Discovery"));
     services.Configure<AtlasNOC.Infrastructure.Services.PollingOptions>(

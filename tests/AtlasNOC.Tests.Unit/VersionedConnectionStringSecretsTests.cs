@@ -38,6 +38,8 @@ public class VersionedConnectionStringSecretsTests
     private static readonly string[] ExcludedDirectories =
     {
         ".git",
+        ".vs",
+        "logs",
         "bin",
         "obj",
         "node_modules",
@@ -49,6 +51,12 @@ public class VersionedConnectionStringSecretsTests
     {
         "rev.md",
         "VersionedConnectionStringSecretsTests.cs",
+        ".test-last.txt",
+        ".build-last.txt",
+        ".restore-last.txt",
+        ".e2e-last.txt",
+        ".e2e-last2.txt",
+        ".e2e-last3.txt",
     };
 
     [Fact]
@@ -131,6 +139,28 @@ public class VersionedConnectionStringSecretsTests
         Assert.Equal("db",
             TestDatabaseConfiguration.ExtractDatabaseName(
                 "Host=127.0.0.1;Initial Catalog=db;"));
+    }
+
+    [Fact]
+    public void Versioned_appsettings_do_not_contain_non_empty_device_passwords_or_api_keys()
+    {
+        var repoRoot = FindRepoRoot();
+        var violations = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(repoRoot, "appsettings*.json", SearchOption.AllDirectories)
+                     .Where(f => !f.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase)
+                              && !f.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase)
+                              && !f.Contains("\\.vs\\", StringComparison.OrdinalIgnoreCase)))
+        {
+            var text = File.ReadAllText(file);
+            if (System.Text.RegularExpressions.Regex.IsMatch(text,
+                    "\\\"(Password|ApiKey|Community)\\\"\\s*:\\s*\\\"[^\\\"]+\\\"",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            {
+                violations.Add(Path.GetRelativePath(repoRoot, file));
+            }
+        }
+
+        Assert.Empty(violations);
     }
 
     private static bool LooksLikeConnectionString(string line)

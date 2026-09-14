@@ -32,8 +32,9 @@ public class MetricsController : Controller
     {
         var device = await _devices.GetDeviceAsync(id);
         if (device is null) return NotFound();
-        ViewBag.Device = device;
-        return View();
+        // La vista tipada consume DeviceDto como Model; ViewBag no satisface
+        // el binding del modelo y provocaba NullReferenceException en Razor.
+        return View(device);
     }
 
     [HttpGet("metrics/interface/{id}")]

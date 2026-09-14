@@ -160,7 +160,17 @@ public class CredentialService : ICredentialService
 
     public async Task<Guid> CreateCredentialAsync(CreateCredentialRequest request, CancellationToken ct = default)
     {
-        var credential = new DeviceCredential(request.Name, (SnmpVersion)request.SnmpVersion,
+        var existingNames = await _credentials.ListAsync(ct);
+        if (existingNames.Any(c => c.Name.Equals(request.Name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Ya existe una credencial con el nombre '{request.Name}'.");
+
+        var snmpVersion = (SnmpVersion)request.SnmpVersion;
+        if (!Enum.IsDefined(snmpVersion))
+            throw new ArgumentException("La versión SNMP no es válida.", nameof(request.SnmpVersion));
+        if (snmpVersion == SnmpVersion.V2c && string.IsNullOrWhiteSpace(request.Community))
+            throw new ArgumentException("SNMP v2c requiere community string.", nameof(request.Community));
+
+        var credential = new DeviceCredential(request.Name, snmpVersion,
             request.UserName, request.AuthProtocol, request.PrivProtocol);
 
         credential.SetProtectedSecrets(
@@ -171,6 +181,35 @@ public class CredentialService : ICredentialService
         await _credentials.AddAsync(credential, ct);
         await _context.SaveChangesAsync(ct);
         return credential.Id.Value;
+    }
+
+    public async Task UpdateCredentialAsync(Guid id, CreateCredentialRequest request, CancellationToken ct = default)
+    {
+        var credential = await _credentials.GetByIdAsync(id, ct)
+            ?? throw new KeyNotFoundException("La credencial no existe.");
+        var version = (SnmpVersion)request.SnmpVersion;
+        if (!Enum.IsDefined(version)) throw new ArgumentException("La versión SNMP no es válida.");
+        if (version == SnmpVersion.V2c && string.IsNullOrWhiteSpace(request.Community))
+            throw new ArgumentException("SNMP v2c requiere community string.", nameof(request.Community));
+        var existing = await _credentials.ListAsync(ct);
+        if (existing.Any(c => c.Id.Value != id && c.Name.Equals(request.Name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Ya existe una credencial con el nombre '{request.Name}'.");
+        credential.Update(request.Name, version, request.UserName, request.AuthProtocol, request.PrivProtocol);
+        if (!string.IsNullOrWhiteSpace(request.Community) || version == SnmpVersion.V2c)
+            credential.SetProtectedSecrets(_protector.Protect(request.Community ?? string.Empty),
+                string.IsNullOrWhiteSpace(request.AuthPassword) ? null : _protector.Protect(request.AuthPassword),
+                string.IsNullOrWhiteSpace(request.PrivPassword) ? null : _protector.Protect(request.PrivPassword));
+        await _credentials.UpdateAsync(credential, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task SetCredentialActiveAsync(Guid id, bool active, CancellationToken ct = default)
+    {
+        var credential = await _credentials.GetByIdAsync(id, ct)
+            ?? throw new KeyNotFoundException("La credencial no existe.");
+        if (active) credential.Activate(); else credential.Deactivate();
+        await _credentials.UpdateAsync(credential, ct);
+        await _context.SaveChangesAsync(ct);
     }
 
     public async Task<IReadOnlyList<CredentialDto>> ListCredentialsAsync(CancellationToken ct = default)

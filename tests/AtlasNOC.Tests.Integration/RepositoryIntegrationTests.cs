@@ -59,6 +59,7 @@ public class IntegrationFixture : IAsyncLifetime
         services.AddIdentity<ApplicationUser, ApplicationRole>()
             .AddEntityFrameworkStores<AtlasNOCDbContext>();
         services.AddInfrastructure();
+        services.AddWebOnlyServices();
         Services = services.BuildServiceProvider();
     }
 

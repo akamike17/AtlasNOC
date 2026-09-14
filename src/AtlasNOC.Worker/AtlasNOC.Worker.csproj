@@ -3,6 +3,7 @@
   <PropertyGroup>
     <RootNamespace>AtlasNOC.Worker</RootNamespace>
     <OutputType>Exe</OutputType>
+    <UserSecretsId>dc746a28-e52e-4ecd-876e-902ebdc80523</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

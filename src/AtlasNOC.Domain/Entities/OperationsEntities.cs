@@ -7,6 +7,24 @@ public enum TicketStatus { Open, InProgress, Resolved, Closed }
 public enum AssetStatus { UnknownDetected, Stock, Reserved, Assigned, Recovered, PendingInspection, Tested, Repair, Damaged, Retired }
 public enum CoverageStatus { Available, ProbablyAvailable, RequiresFieldValidation, NoCoverageConfirmed, CapacityLimited, Saturated, Planned }
 
+public sealed class ConfigurationRevision
+{
+    private ConfigurationRevision() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid DeviceId { get; private set; }
+    public int Revision { get; private set; }
+    public string BeforeHash { get; private set; } = string.Empty;
+    public string AfterHash { get; private set; } = string.Empty;
+    public string Source { get; private set; } = string.Empty;
+    public string Reason { get; private set; } = string.Empty;
+    public string Actor { get; private set; } = string.Empty;
+    public bool KnownGood { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
+    public ConfigurationRevision(Guid deviceId, int revision, string beforeHash, string afterHash, string source, string reason, string actor)
+    { if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision)); DeviceId = deviceId; Revision = revision; BeforeHash = beforeHash; AfterHash = afterHash; Source = source; Reason = reason; Actor = actor; }
+    public void MarkKnownGood() => KnownGood = true;
+}
+
 public sealed class Customer
 {
     private Customer() { }

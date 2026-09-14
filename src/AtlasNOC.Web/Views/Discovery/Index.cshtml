@@ -5,7 +5,28 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Descubrimiento</h1>
-    <a asp-action="Start" class="btn btn-primary btn-sm">Nuevo descubrimiento</a>
+    <div class="d-flex gap-2">
+        <form asp-action="DetectLocalNetwork" method="post" class="d-inline">
+            @Html.AntiForgeryToken()
+            <button class="btn btn-success btn-sm" type="submit">Detectar mi red</button>
+        </form>
+        <a asp-action="Start" class="btn btn-primary btn-sm">Nuevo descubrimiento</a>
+    </div>
+</div>
+
+@if (TempData["DiscoveryInfo"] is string info)
+{
+    <div class="alert alert-info">@info</div>
+}
+@if (TempData["DiscoveryError"] is string error)
+{
+    <div class="alert alert-warning">@error</div>
+}
+
+<div class="alert alert-secondary small">
+    El modo automático usa la interfaz IPv4 activa y realiza consultas de sólo lectura.
+    Puede ver equipos de la LAN; redes detrás de NAT, VLAN o enlaces WISP requieren un conector autorizado.
+    SNMP mejora la identificación, pero no es obligatorio para registrar presencia detectada.
 </div>
 
 <div class="noc-card">

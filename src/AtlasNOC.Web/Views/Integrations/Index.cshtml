@@ -1,8 +1,71 @@
 @{
     ViewData["Title"] = "Integraciones";
 }
+@model IReadOnlyList<AtlasNOC.Application.Wisp.WispConnectorDescriptor>
+@{ var supported = (IReadOnlyList<AtlasNOC.Application.Wisp.WispConnectorDescriptor>)ViewBag.SupportedWisp; }
+@{ var observations = (IReadOnlyList<AtlasNOC.Domain.Entities.WispClientObservation>)ViewBag.RecentWispObservations; }
 
 <h1 class="h4 mb-3">Integraciones</h1>
+
+<div class="alert alert-secondary small">
+    Conectores WISP habilitados: <strong>@Model.Count</strong>.
+    Sólo aparecen después de configurarse con un canal autorizado.
+    Las credenciales nunca se muestran ni se reutilizan para acciones de corte.
+</div>
+
+@if (Model.Count > 0)
+{
+    <div class="noc-card mb-3">
+        <h2 class="h6">Conectores activos</h2>
+        @foreach (var connector in Model)
+        {
+            <div class="border-bottom border-secondary py-2">
+                <span>@connector.DisplayName</span>
+                <span class="badge text-bg-success ms-2">@connector.Key</span>
+                <span class="text-secondary small ms-2">@(connector.ReadOnlyByDefault ? "Sólo lectura por defecto" : "Revisión requerida")</span>
+            </div>
+        }
+    </div>
+}
+
+<div class="noc-card mb-3">
+    <h2 class="h6">Evidencia WISP reciente</h2>
+    <p class="text-secondary small">Sólo observaciones de lectura. Una IP o MAC aislada no autoriza una suspensión.</p>
+    @if (observations.Count == 0)
+    {
+        <p class="text-secondary small mb-0">Aún no hay observaciones de conectores configurados.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-dark align-middle mb-0">
+                <thead><tr><th>Identidad externa</th><th>CPE</th><th>Sesión</th><th>Origen</th><th>Confianza</th><th>Observado</th></tr></thead>
+                <tbody>
+                @foreach (var item in observations)
+                {
+                    <tr>
+                        <td>@item.ExternalId</td><td>@(item.CpeAddress ?? "—")</td><td>@(item.SessionReference ?? "—")</td>
+                        <td>@item.Source</td><td>@item.Confidence.ToString("P0")</td><td>@item.ObservedAtUtc.ToLocalTime().ToString("g")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="noc-card mb-3">
+    <h2 class="h6">Conectores disponibles para configurar</h2>
+    <p class="text-secondary small">La disponibilidad no significa acceso activo. Cada uno requiere un canal autorizado y credenciales del operador.</p>
+    @foreach (var connector in supported)
+    {
+        var configured = Model.Any(c => c.Key.Equals(connector.Key, StringComparison.OrdinalIgnoreCase));
+        <div class="border-bottom border-secondary py-2 d-flex justify-content-between">
+            <span>@connector.DisplayName</span>
+            <span class="badge @(configured ? "text-bg-success" : "text-bg-secondary")">@(configured ? "Configurado" : "No configurado")</span>
+        </div>
+    }
+</div>
 
 <div class="row">
     <div class="col-md-4 mb-3">
@@ -24,6 +87,27 @@
             <h2 class="h6">Canales de notificación</h2>
             <p class="text-secondary small">Email y webhook para alertas, con estado de entrega por canal.</p>
             <span class="text-secondary small">Integración disponible vía notificaciones.</span>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="noc-card h-100">
+            <h2 class="h6">WISP / AAA</h2>
+            <p class="text-secondary small">RADIUS/PPPoE, sesiones y clientes CPE. Requiere un servidor autorizado y credenciales del operador.</p>
+            <span class="badge text-bg-secondary">Preparado · sólo lectura</span>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="noc-card h-100">
+            <h2 class="h6">Routers y controladores</h2>
+            <p class="text-secondary small">MikroTik, Cisco, Aruba, Ubiquiti y otros mediante SNMP o API declarada por capacidades.</p>
+            <span class="badge text-bg-secondary">Preparado · sin acciones automáticas</span>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="noc-card h-100">
+            <h2 class="h6">CPE detrás de NAT</h2>
+            <p class="text-secondary small">TR-069/USP u otro canal gestionado. AtlasNOC no intenta atravesar NAT ni adivina clientes.</p>
+            <span class="badge text-bg-warning">Requiere canal del operador</span>
         </div>
     </div>
 </div>

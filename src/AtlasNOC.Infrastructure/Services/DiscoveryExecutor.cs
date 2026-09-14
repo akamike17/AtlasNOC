@@ -24,6 +24,8 @@ public class DiscoveryExecutor : IDiscoveryExecutor
 {
     private readonly AtlasNOCDbContext _context;
     private readonly IIcmpProbe _icmp;
+    private readonly IArpProbe _arp;
+    private readonly ILanPresenceProbe _lanPresence;
     private readonly ISnmpProbe _snmp;
     private readonly ICredentialService _credentials;
     private readonly IDeviceDriverRegistry _drivers;
@@ -32,7 +34,7 @@ public class DiscoveryExecutor : IDiscoveryExecutor
     private readonly ILogger<DiscoveryExecutor> _logger;
     private readonly DiscoveryOptions _options;
 
-    public DiscoveryExecutor(AtlasNOCDbContext context, IIcmpProbe icmp, ISnmpProbe snmp,
+    public DiscoveryExecutor(AtlasNOCDbContext context, IIcmpProbe icmp, IArpProbe arp, ILanPresenceProbe lanPresence, ISnmpProbe snmp,
         ICredentialService credentials,
         IDeviceDriverRegistry drivers, INetworkFingerprintService fingerprint,
         ITopologyCorrelationEngine correlation, ILogger<DiscoveryExecutor> logger,
@@ -40,6 +42,8 @@ public class DiscoveryExecutor : IDiscoveryExecutor
     {
         _context = context;
         _icmp = icmp;
+        _arp = arp;
+        _lanPresence = lanPresence;
         _snmp = snmp;
         _credentials = credentials;
         _drivers = drivers;
@@ -87,8 +91,15 @@ public class DiscoveryExecutor : IDiscoveryExecutor
             }
 
             var targets = ParseTargets(run.ScopeIp, _options.MaxTargetsPerRun);
+            _logger.LogInformation("Discovery {RunId}: scope {Scope} expanded to {TargetCount} targets", runId, run.ScopeIp, targets.Count);
             // 1. ICMP concurrente con límite.
-            var live = await ProbeLiveTargetsAsync(targets, _icmp, _options, ct);
+            var live = await ProbeReachableTargetsAsync(targets, _icmp, _arp, _options, ct, _logger, runId);
+            var allowedTargets = targets.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var ssdpTargets = await _lanPresence.DiscoverAsync(allowedTargets, Math.Min(2000, Math.Max(250, _options.PingTimeoutMs * 2)), ct);
+            foreach (var target in ssdpTargets)
+                if (!live.Contains(target)) live = live.Append(target).ToList();
+            _logger.LogInformation("Discovery {RunId}: SSDP completed; {PresenceCount} additional LAN targets responded", runId, ssdpTargets.Count);
+            _logger.LogInformation("Discovery {RunId}: ICMP completed; {LiveCount}/{TargetCount} targets responded", runId, live.Count, targets.Count);
 
             int found = 0, added = 0, updated = 0, linkCount = 0, pending = 0, failures = 0;
             var observations = new List<NeighborObservationInput>();
@@ -97,24 +108,31 @@ public class DiscoveryExecutor : IDiscoveryExecutor
             foreach (var ip in live)
             {
                 ct.ThrowIfCancellationRequested();
+                var stage = "snmp-fingerprint";
                 try
                 {
                     var fp = await _snmp.FingerprintAsync(ip, connectionOptions, 2000, ct);
                     var fingerprint = fp ?? new DeviceFingerprint(ip, ip, null, null, null);
+                    _logger.LogInformation("Discovery {RunId} target {Target}: ping=success snmp={Snmp}", runId, ip, fp is null ? "unavailable" : "success");
 
                     var vendorKey = _fingerprint.ResolveVendor(fingerprint);
                     var vendor = ParseVendor(vendorKey);
                     var deviceType = _fingerprint.ResolveDeviceType(fingerprint);
 
+                    stage = "driver-resolve";
                     var driver = _drivers.Resolve(fingerprint);
+                    _logger.LogInformation("Discovery {RunId} target {Target}: driver={Driver}", runId, ip, driver.DriverKey);
                     var credentialAwareDriver = driver as ISnmpCredentialAwareDriver;
                     var deviceCredentialDriver = driver as IDeviceCredentialAwareDriver;
+                    stage = "driver-identity";
                     var identity = deviceCredentialDriver is not null && resolvedCredential is not null
                         ? await deviceCredentialDriver.GetIdentityAsync(ip, resolvedCredential, ct)
                         : credentialAwareDriver is not null
                             ? await credentialAwareDriver.GetIdentityAsync(ip, connectionOptions, ct)
                             : await driver.GetIdentityAsync(ip, ct);
+                    _logger.LogDebug("Discovery {RunId} target {Target}: identity resolved", runId, ip);
 
+                    stage = "persist-device";
                     var existing = await _context.Devices.FirstOrDefaultAsync(d => d.ManagementIp == ip, ct);
                     Device device;
                     if (existing is null)
@@ -141,6 +159,7 @@ public class DiscoveryExecutor : IDiscoveryExecutor
                         : credentialAwareDriver is not null
                             ? await credentialAwareDriver.GetInterfacesAsync(ip, connectionOptions, ct)
                             : await driver.GetInterfacesAsync(ip, ct);
+                    _logger.LogDebug("Discovery {RunId} target {Target}: interfaces={InterfaceCount}", runId, ip, interfaces.Count);
                     // Interfaces ya conocidas del dispositivo para upsert idempotente.
                     var existingInterfaces = await _context.DeviceInterfaces
                         .Where(i => i.DeviceId == device.Id)
@@ -181,6 +200,7 @@ public class DiscoveryExecutor : IDiscoveryExecutor
                         : credentialAwareDriver is not null
                             ? await credentialAwareDriver.GetNeighborsAsync(ip, connectionOptions, ct)
                             : await driver.GetNeighborsAsync(ip, ct);
+                    _logger.LogDebug("Discovery {RunId} target {Target}: neighbors={NeighborCount}", runId, ip, neighbors.Count);
                     foreach (var neighbor in neighbors)
                     {
                         var localIface = existingInterfaces.FirstOrDefault(
@@ -206,18 +226,24 @@ public class DiscoveryExecutor : IDiscoveryExecutor
                         }
                     }
                 }
-                catch (OperationCanceledException) { throw; }
+                catch (OperationCanceledException ex)
+                {
+                    _logger.LogWarning(ex, "Discovery {RunId} target {Target}: cancelled during stage={Stage}; exception={ExceptionType}", runId, ip, stage, ex.GetType().Name);
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     failures++;
-                    _logger.LogWarning(ex, "Fallo de descubrimiento en {Ip}", ip);
+                    _logger.LogWarning(ex, "Discovery {RunId} target {Target}: failed at stage={Stage}; ping=success", runId, ip, stage);
                 }
             }
 
+            _logger.LogInformation("Discovery {RunId}: persisting device and observation changes; found={Found} failures={Failures}", runId, found, failures);
             await _context.SaveChangesAsync(ct);
 
             // 10-11. Correlación → enlaces solo con evidencia suficiente.
             var correlations = await _correlation.CorrelateAsync(observations, ct);
+            _logger.LogInformation("Discovery {RunId}: correlation completed; observations={ObservationCount} relations={RelationCount}", runId, observations.Count, correlations.Count);
             foreach (var c in correlations)
             {
                 var a = await _context.DeviceInterfaces.FirstOrDefaultAsync(i => i.Id == InterfaceId.From(Guid.Parse(c.AInterfaceId)), ct);
@@ -319,6 +345,32 @@ public class DiscoveryExecutor : IDiscoveryExecutor
             if (ping.Success) live.Add(ip);
         });
         return live.ToList();
+    }
+
+    internal static async Task<IReadOnlyList<string>> ProbeReachableTargetsAsync(
+        IReadOnlyList<string> targets, IIcmpProbe icmp, IArpProbe arp, DiscoveryOptions options,
+        CancellationToken ct, ILogger logger, Guid runId)
+    {
+        var reachable = new ConcurrentBag<string>();
+        await Parallel.ForEachAsync(targets, new ParallelOptions
+        {
+            CancellationToken = ct,
+            MaxDegreeOfParallelism = Math.Max(1, options.MaxConcurrentPing)
+        }, async (ip, token) =>
+        {
+            var ping = await icmp.PingAsync(ip, Math.Max(1, options.PingTimeoutMs), token);
+            if (ping.Success)
+            {
+                reachable.Add(ip);
+                return;
+            }
+
+            var arpResult = await arp.ResolveAsync(ip, token);
+            logger.LogDebug("Discovery {RunId} target {Target}: ping=failed reason={Reason} arp={Arp}",
+                runId, ip, ping.ErrorMessage ?? "no-reply", arpResult ? "resolved" : "unresolved");
+            if (arpResult) reachable.Add(ip);
+        });
+        return reachable.ToList();
     }
 
     private static Vendor ParseVendor(string key) => key.ToLowerInvariant() switch

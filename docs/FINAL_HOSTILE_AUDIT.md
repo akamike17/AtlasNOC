@@ -207,3 +207,124 @@ HEAD final verificable con `git rev-parse HEAD`; no se hizo push, merge ni PR.
 ---
 
 *Generado automáticamente tras auditoría hostil completa. No hay hallazgos CRITICAL/HIGH sin resolver en código de producción.*
+
+## 14. Corrección de resultados de la pasada actual
+
+La información de las secciones históricas anteriores no se sobrescribe. La última
+ejecución verificable de esta pasada reportó:
+
+| Suite | Passed | Failed | Skipped |
+|---|---:|---:|---:|
+| Unit | 144 | 0 | 0 |
+| Integration | 8 | 0 | 0 |
+| Runtime | 8 | 0 | 0 |
+| E2E | 13 | 0 | 0 |
+
+HEAD observado al actualizar este registro: `b6accae84b1771b6e8bb6767f437344a7809ecd0`.
+Las bases usadas por las pruebas fueron derivadas de la configuración temporal de
+`atlasnoc_integration_test` con sufijos aislados; no se modificó `atlasnoc`.
+
+El veredicto `READY` histórico no se extiende automáticamente a los nuevos
+conectores WISP. MikroTik y UniFi tienen adaptadores de lectura y pruebas HTTP
+simuladas; RADIUS/PPPoE, Aruba, Cisco, OLT y TR-069/USP siguen pendientes de
+implementación y validación contra sus sistemas autorizados.
+
+## 15. Última ejecución verificable después de la corrección SNMP opcional
+
+Se ejecutó el 2026-09-09 contra `atlasnoc_integration_test`; la variable de conexión
+existió sólo en el proceso de pruebas y no se modificó `atlasnoc`.
+
+| Suite | Resultado | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Unit | PASS | 147 | 0 | 0 |
+| Integration | PASS | 8 | 0 | 0 |
+| Runtime | PASS | 8 | 0 | 0 |
+| E2E | PASS | 13 | 0 | 0 |
+
+`dotnet build -c Release --no-restore`: 0 errores, 18 advertencias (NU1900 por
+vulnerabilidades de NuGet sin acceso al índice y CS1998 en tests).
+La corrección verificada hace que la presencia ICMP/ARP no se convierta en fallo
+sólo por ausencia o rechazo de SNMP: conserva identidad mínima por IP y continúa
+con driver y persistencia.
+
+HEAD real observado: `b6accae84b1771b6e8bb6767f437344a7809ecd0`.
+
+## 16. Verificación posterior: presencia SSDP y seguridad ARP
+
+La pasada posterior verificó el probe SSDP de sólo lectura, limitado a destinos ya
+presentes en el alcance, con cancelación temporal bounded y propagación de la
+cancelación externa. También se verificó que ARP rechaza loopback, any, broadcast y
+multicast.
+
+| Suite | Resultado | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Unit | PASS | 153 | 0 | 0 |
+| Integration | PASS | 8 | 0 | 0 |
+| Runtime | PASS | 8 | 0 | 0 |
+| E2E | PASS | 13 | 0 | 0 |
+
+DB de pruebas: `atlasnoc_integration_test`; `atlasnoc` no fue modificada. No se
+realizó commit, push, merge ni PR.
+
+## 17. Verificación final de presencia mDNS/SSDP
+
+Tras corregir la recepción multicast mDNS y su cancelación bounded, se ejecutaron
+las suites completas contra `atlasnoc_integration_test`:
+
+| Suite | Resultado | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Unit | PASS | 153 | 0 | 0 |
+| Integration | PASS | 8 | 0 | 0 |
+| Runtime | PASS | 8 | 0 | 0 |
+| E2E | PASS | 13 | 0 | 0 |
+
+`git diff --check`: PASS. Build: 0 errores; las advertencias restantes son NU1900
+por el índice de vulnerabilidades de NuGet no disponible y CS1998 existentes en
+pruebas. No se modificó la base normal `atlasnoc`.
+
+## 18. Verificación tras migración de observaciones WISP
+
+La migración `AddWispClientObservations` y la composición del Worker se validaron
+contra `atlasnoc_integration_test`:
+
+| Suite | Resultado | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Unit | PASS | 153 | 0 | 0 |
+| Integration | PASS | 8 | 0 | 0 |
+| Runtime | PASS | 8 | 0 | 0 |
+| E2E | PASS | 13 | 0 | 0 |
+
+La base normal `atlasnoc` no fue usada ni modificada. Build: 0 errores; persistieron
+advertencias NU1900 por disponibilidad del índice de vulnerabilidades de NuGet y
+CS1998 en pruebas existentes.
+
+## 19. Verificación de validación WISP y ciclo automático
+
+Se añadieron pruebas de validación de `WispClientObservation` y se confirmó el
+arranque del `WispObservationWorker`. Resultado de la última suite ejecutada:
+
+| Suite | Resultado | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Unit | PASS | 157 | 0 | 0 |
+| Integration | PASS | 8 | 0 | 0 |
+| Runtime | PASS | 8 | 0 | 0 |
+| E2E | PASS | 13 | 0 | 0 |
+
+Las cuatro suites usan `atlasnoc_integration_test`; `atlasnoc` no fue modificada.
+
+## 20. Última auditoría de límites de evidencia WISP
+
+Se añadieron límites de longitud y validaciones de dominio para impedir que una
+respuesta externa malformada cause truncamientos o errores de persistencia.
+
+| Suite | Resultado | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| Unit | PASS | 158 | 0 | 0 |
+| Integration | PASS | 8 | 0 | 0 |
+| Runtime | PASS | 8 | 0 | 0 |
+| E2E | PASS | 13 | 0 | 0 |
+
+Las cifras de Integration, Runtime y E2E corresponden a la última ejecución completa
+posterior a la migración y al Worker WISP; la última modificación sólo afecta al
+dominio y las pruebas unitarias. Las integraciones externas no se declaran activas
+sin una prueba contra el sistema autorizado correspondiente.

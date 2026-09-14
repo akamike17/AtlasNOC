@@ -51,8 +51,9 @@ public sealed record SnmpConnectionOptions(
             throw new ArgumentException("El protocolo de privacidad SNMP v3 no está soportado.");
     }
 
-    /// <summary>Opciones "anónimas" (sin credencial): usadas sólo en modo LAB
-    /// donde el probe simulado no requiere credencial real.</summary>
+    /// <summary>Opciones por defecto para presencia sin credencial explícita.
+    /// "public" es la community histórica de sólo lectura; el probe sigue
+    /// tratando cualquier ausencia/no respuesta como enriquecimiento opcional.</summary>
     public static SnmpConnectionOptions Anonymous()
-        => new(SnmpVersion.V2c, null, null, null, null, null, null);
+        => new(SnmpVersion.V2c, "public", null, null, null, null, null);
 }

@@ -28,6 +28,8 @@ public sealed record MetricSampleInput(
 public interface ICredentialService
 {
     Task<Guid> CreateCredentialAsync(CreateCredentialRequest request, CancellationToken ct = default);
+    Task UpdateCredentialAsync(Guid id, CreateCredentialRequest request, CancellationToken ct = default);
+    Task SetCredentialActiveAsync(Guid id, bool active, CancellationToken ct = default);
     Task<IReadOnlyList<CredentialDto>> ListCredentialsAsync(CancellationToken ct = default);
 
     /// <summary>

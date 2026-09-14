@@ -47,6 +47,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<InventoryAsset> InventoryAssets => Set<InventoryAsset>();
     public DbSet<CoverageCheck> CoverageChecks => Set<CoverageCheck>();
     public DbSet<TechnicianVisit> TechnicianVisits => Set<TechnicianVisit>();
+    public DbSet<ConfigurationRevision> ConfigurationRevisions => Set<ConfigurationRevision>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -63,6 +64,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<InventoryAsset>().ToTable("InventoryAssets").HasKey(x => x.Id);
         modelBuilder.Entity<CoverageCheck>().ToTable("CoverageChecks").HasKey(x => x.Id);
         modelBuilder.Entity<TechnicianVisit>().ToTable("TechnicianVisits").HasKey(x => x.Id);
+        modelBuilder.Entity<ConfigurationRevision>().ToTable("ConfigurationRevisions").HasKey(x => x.Id);
+        modelBuilder.Entity<ConfigurationRevision>().HasIndex(x => new { x.DeviceId, x.Revision }).IsUnique();
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));

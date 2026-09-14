@@ -133,7 +133,8 @@ if (!isDevOrTest)
 }
 else if (!string.IsNullOrWhiteSpace(keyRingCertThumbprint))
 {
-    // Entornos no productivos: si hay thumbprint configurado y se encuentra, úsalo; si no, keys en claro.
+    // Development/Testing: si hay thumbprint configurado y se encuentra, úsalo;
+    // si no, se permite el anillo local para pruebas controladas.
     using var certStore = new System.Security.Cryptography.X509Certificates.X509Store(
         System.Security.Cryptography.X509Certificates.StoreName.My,
         System.Security.Cryptography.X509Certificates.StoreLocation.CurrentUser);
@@ -195,6 +196,8 @@ builder.Services.AddHealthChecks()
 var labMode = builder.Configuration.GetValue<bool>("LabMode");
 builder.Services.AddSingleton(builder.Configuration.GetSection("Ubiquiti").Get<AtlasNOC.Infrastructure.Devices.UbiquitiOptions>()
     ?? new AtlasNOC.Infrastructure.Devices.UbiquitiOptions());
+builder.Services.AddSingleton(builder.Configuration.GetSection("MikroTik").Get<AtlasNOC.Infrastructure.Devices.MikroTikOptions>()
+    ?? new AtlasNOC.Infrastructure.Devices.MikroTikOptions());
 builder.Services.Configure<AtlasNOC.Infrastructure.Services.DiscoveryOptions>(
     builder.Configuration.GetSection("Discovery"));
 builder.Services.Configure<AtlasNOC.Infrastructure.Services.PollingOptions>(
@@ -202,10 +205,14 @@ builder.Services.Configure<AtlasNOC.Infrastructure.Services.PollingOptions>(
 builder.Services.Configure<AtlasNOC.Infrastructure.Services.NotificationOptions>(
     builder.Configuration.GetSection("Notifications"));
 builder.Services.AddInfrastructure(labMode);
-// Sólo los E2E que arrancan Web sin un proceso Worker separado pueden optar
-// explícitamente por workers embebidos. Producción nunca los habilita aquí.
-if (builder.Environment.IsEnvironment("Testing")
-    && builder.Configuration.GetValue<bool>("RunWorkersInWebForTests"))
+builder.Services.AddWebOnlyServices();
+// En Development el Web local ejecuta también el pipeline de fondo para que
+// Visual Studio no requiera configurar/arrancar otra máquina. En Testing se
+// conserva la opción explícita para WebApplicationFactory. Producción y
+// Staging mantienen el Worker separado.
+if (builder.Environment.IsDevelopment()
+    || (builder.Environment.IsEnvironment("Testing")
+        && builder.Configuration.GetValue<bool>("RunWorkersInWebForTests")))
 {
     builder.Services.AddAtlasWorkers();
 }

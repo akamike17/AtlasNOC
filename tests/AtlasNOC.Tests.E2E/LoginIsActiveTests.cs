@@ -125,6 +125,9 @@ public class LoginTestFactory : WebApplicationFactory<Program>
         }
 
         _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(resolved, "_login");
+        using var db = new AtlasNOCDbContext(new DbContextOptionsBuilder<AtlasNOCDbContext>()
+            .UseMySql(_connectionString, ServerVersion.Parse("8.0.36-mysql")).Options);
+        db.Database.EnsureDeleted();
     }
 
     /// <summary><c>true</c> si el fixture debe omitirse por falta de base de test.</summary>
@@ -140,6 +143,7 @@ public class LoginTestFactory : WebApplicationFactory<Program>
 
         builder.UseSetting("LabMode", "true");
         builder.UseEnvironment("Development");
+        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.ConfigureServices(services =>
         {
             var descriptor = services.Single(d => d.ServiceType == typeof(DbContextOptions<AtlasNOCDbContext>));

@@ -254,6 +254,7 @@ public class MikroTikDriver : IDeviceDriver, IDeviceCredentialAwareDriver
 
 public sealed class MikroTikOptions
 {
+    public string? ManagementIp { get; set; }
     public string? Username { get; set; }
     public string? Password { get; set; }
     public bool SkipCertificateValidation { get; set; }

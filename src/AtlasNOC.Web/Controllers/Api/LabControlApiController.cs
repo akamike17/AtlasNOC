@@ -1,4 +1,5 @@
 using AtlasNOC.Application.Probes;
+using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,6 +23,9 @@ public sealed class LabControlApiController : ControllerBase
     public IActionResult Set(string ipAddress, bool reachable)
     {
         if (!_environment.IsEnvironment("Testing")) return NotFound();
+        if (!IPAddress.TryParse(ipAddress, out var address)
+            || address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            return BadRequest("La dirección LAB debe ser una IPv4 válida.");
         _control.SetReachability(ipAddress, reachable);
         return NoContent();
     }

@@ -127,6 +127,7 @@ public sealed class UbiquitiOptions
     public string Site { get; set; } = "default";
     public string? ApiKey { get; set; }
     public bool UseUniFiOs { get; set; } = true;
+    public bool AllowInsecureHttp { get; set; }
     public bool SkipCertificateValidation { get; set; }
     public string? PinnedCertificateThumbprint { get; set; }
     public int TimeoutSeconds { get; set; } = 10;

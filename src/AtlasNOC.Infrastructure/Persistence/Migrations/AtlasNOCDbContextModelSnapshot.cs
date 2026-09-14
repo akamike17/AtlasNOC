@@ -1031,6 +1031,22 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.ToTable("Subscribers", (string)null);
                 });
 
+            modelBuilder.Entity("AtlasNOC.Domain.Entities.WispClientObservation", b =>
+                {
+                    b.Property<Guid>("Id").HasColumnType("char(36)");
+                    b.Property<string>("ExternalId").IsRequired().HasMaxLength(200).HasColumnType("varchar(200)");
+                    b.Property<string>("AccountReference").HasMaxLength(200).HasColumnType("varchar(200)");
+                    b.Property<string>("CpeAddress").HasMaxLength(200).HasColumnType("varchar(200)");
+                    b.Property<string>("SessionReference").HasMaxLength(200).HasColumnType("varchar(200)");
+                    b.Property<DateTime>("ObservedAtUtc").HasColumnType("datetime(6)");
+                    b.Property<string>("Source").IsRequired().HasMaxLength(100).HasColumnType("varchar(100)");
+                    b.Property<double>("Confidence").HasPrecision(5, 4).HasColumnType("double");
+                    b.HasKey("Id");
+                    b.HasIndex("ExternalId", "Source", "ObservedAtUtc").IsUnique();
+                    b.HasIndex("SessionReference");
+                    b.ToTable("WispClientObservations", (string)null);
+                });
+
             modelBuilder.Entity("AtlasNOC.Domain.Entities.WirelessAssociation", b =>
                 {
                     b.Property<Guid>("Id")
