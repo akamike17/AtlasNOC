@@ -185,6 +185,7 @@ public sealed class CustomerService
     public void Activate() { Status = ServiceStatus.Active; ActivatedAtUtc = DateTime.UtcNow; }
     public void Suspend() => Status = ServiceStatus.Suspended;
     public void Reconnect() => Status = ServiceStatus.Active;
+    public void ChangePlan(Guid planId) { if (planId == Guid.Empty) throw new ArgumentException("Plan inválido."); PlanId = planId; }
 }
 
 public sealed class BillingAccount

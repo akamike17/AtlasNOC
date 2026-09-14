@@ -169,6 +169,20 @@ public sealed class OperationsApiController : ControllerBase
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> Reconnect(Guid id, CancellationToken ct) => await ChangeService(id, s => s.Reconnect(), ct);
 
+    [HttpPost("services/{id:guid}/change-plan")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> ChangePlan(Guid id, [FromBody] ChangePlanRequest request, CancellationToken ct)
+    {
+        if (!request.Confirmed) return BadRequest("Se requiere confirmación explícita del impacto.");
+        var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct);
+        var plan = await _db.ServicePlans.FirstOrDefaultAsync(x => x.Id == request.PlanId && x.IsActive, ct);
+        if (service is null || plan is null) return BadRequest("Servicio o plan inválido.");
+        var previous = await _db.ServicePlans.FindAsync(new object[] { service.PlanId }, ct);
+        service.ChangePlan(plan.Id);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { ServiceId = service.Id, PreviousPlanId = previous?.Id, NewPlanId = plan.Id, MonthlyDifference = plan.MonthlyPrice - (previous?.MonthlyPrice ?? 0), Capacity = new { plan.DownloadMbps, plan.UploadMbps } });
+    }
+
     [HttpPost("billing/{customerId:guid}/charge")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public Task<IActionResult> Charge(Guid customerId, [FromBody] BillingRequest request, CancellationToken ct) => AddLedger(customerId, LedgerEntryType.Charge, request, ct);
@@ -236,3 +250,4 @@ public sealed record InteractionRequest(Guid TicketId, SupportInteractionChannel
 public sealed record CreditRequest(Guid CustomerId, Guid? IncidentId, DateTime FromUtc, DateTime ToUtc, decimal SuggestedAmount, string Reason);
 public sealed record CreditStatusRequest(ServiceCreditStatus Status);
 public sealed record RootIncidentRequest(string Title, string? Description, string? RootCauseDeviceId);
+public sealed record ChangePlanRequest(Guid PlanId, bool Confirmed);
