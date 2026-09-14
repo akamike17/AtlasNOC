@@ -76,6 +76,24 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("installations")]
     public async Task<IActionResult> Installations(CancellationToken ct) => Ok(await _db.InstallationOrders.AsNoTracking().OrderByDescending(x => x.ScheduledAtUtc).ToListAsync(ct));
 
+    [HttpGet("support/interactions/{ticketId:guid}")]
+    public async Task<IActionResult> Interactions(Guid ticketId, CancellationToken ct) => Ok(await _db.SupportInteractions.AsNoTracking().Where(x => x.TicketId == ticketId).OrderByDescending(x => x.StartedAtUtc).ToListAsync(ct));
+
+    [HttpPost("support/interactions")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> AddInteraction([FromBody] InteractionRequest request, CancellationToken ct) { if (!await _db.SupportTickets.AnyAsync(x => x.Id == request.TicketId, ct)) return BadRequest("Ticket inválido."); var item = new SupportInteraction(request.TicketId, request.Channel, request.Symptoms, request.Diagnosis, request.Actions, User.Identity?.Name ?? "unknown", request.Result, request.DurationMinutes, request.RootIncidentId); _db.SupportInteractions.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }
+
+    [HttpGet("credits/{customerId:guid}")]
+    public async Task<IActionResult> Credits(Guid customerId, CancellationToken ct) => Ok(await _db.ServiceCredits.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.FromUtc).ToListAsync(ct));
+
+    [HttpPost("credits")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> CreateCredit([FromBody] CreditRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return NotFound(); var item = new ServiceCredit(request.CustomerId, request.IncidentId, request.FromUtc, request.ToUtc, request.SuggestedAmount, request.Reason); _db.ServiceCredits.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }
+
+    [HttpPost("credits/{id:guid}/status")]
+    [Authorize(Roles = "Administrator")]
+    public async Task<IActionResult> CreditStatus(Guid id, [FromBody] CreditStatusRequest request, CancellationToken ct) { var item = await _db.ServiceCredits.FindAsync(new object[] { id }, ct); if (item is null) return NotFound(); item.SetStatus(request.Status); await _db.SaveChangesAsync(ct); return Ok(item); }
+
     [HttpPost("installations")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> CreateInstallation([FromBody] InstallationRequest request, CancellationToken ct) { if (!await _db.CustomerServices.AnyAsync(x => x.Id == request.ServiceId, ct)) return BadRequest("Servicio inválido."); var order = new InstallationOrder(request.ServiceId, request.OutsideCity, request.InstallationFee, request.RouterFee); if (request.ScheduledAtUtc.HasValue) order.Schedule(request.ScheduledAtUtc.Value); _db.InstallationOrders.Add(order); await _db.SaveChangesAsync(ct); return Ok(order); }
@@ -196,3 +214,6 @@ public sealed record CpeCaseRequest(string MacAddress, string? AccessPoint, stri
 public sealed record CpeDecisionRequest(CpeAuthorizationStatus Status, string Reason);
 public sealed record ContractRequest(Guid CustomerId, Guid ServiceId, string Terms);
 public sealed record InstallationRequest(Guid ServiceId, bool OutsideCity, decimal InstallationFee, decimal RouterFee, DateTime? ScheduledAtUtc);
+public sealed record InteractionRequest(Guid TicketId, SupportInteractionChannel Channel, string Symptoms, string Diagnosis, string Actions, string Result, int DurationMinutes, Guid? RootIncidentId);
+public sealed record CreditRequest(Guid CustomerId, Guid? IncidentId, DateTime FromUtc, DateTime ToUtc, decimal SuggestedAmount, string Reason);
+public sealed record CreditStatusRequest(ServiceCreditStatus Status);

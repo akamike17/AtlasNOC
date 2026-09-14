@@ -11,6 +11,40 @@ public enum ProspectStatus { New, CoverageChecked, Won, Lost }
 public enum CpeAuthorizationStatus { Pending, Authorized, Rejected, FraudReview, Replaced }
 public enum ContractStatus { Draft, Accepted, Cancelled }
 public enum InstallationStatus { Planned, Scheduled, InProgress, Completed, Cancelled }
+public enum SupportInteractionChannel { Phone, Chat, Email, Field }
+public enum ServiceCreditStatus { Suggested, Approved, Applied, Rejected }
+
+public sealed class SupportInteraction
+{
+    private SupportInteraction() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid TicketId { get; private set; }
+    public SupportInteractionChannel Channel { get; private set; }
+    public string Symptoms { get; private set; } = string.Empty;
+    public string Diagnosis { get; private set; } = string.Empty;
+    public string Actions { get; private set; } = string.Empty;
+    public string Operator { get; private set; } = string.Empty;
+    public string Result { get; private set; } = string.Empty;
+    public int DurationMinutes { get; private set; }
+    public DateTime StartedAtUtc { get; private set; } = DateTime.UtcNow;
+    public Guid? RootIncidentId { get; private set; }
+    public SupportInteraction(Guid ticketId, SupportInteractionChannel channel, string symptoms, string diagnosis, string actions, string @operator, string result, int durationMinutes, Guid? rootIncidentId = null) { if (durationMinutes < 0) throw new ArgumentOutOfRangeException(nameof(durationMinutes)); TicketId = ticketId; Channel = channel; Symptoms = symptoms; Diagnosis = diagnosis; Actions = actions; Operator = @operator; Result = result; DurationMinutes = durationMinutes; RootIncidentId = rootIncidentId; }
+}
+
+public sealed class ServiceCredit
+{
+    private ServiceCredit() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid CustomerId { get; private set; }
+    public Guid? IncidentId { get; private set; }
+    public DateTime FromUtc { get; private set; }
+    public DateTime ToUtc { get; private set; }
+    public decimal SuggestedAmount { get; private set; }
+    public ServiceCreditStatus Status { get; private set; } = ServiceCreditStatus.Suggested;
+    public string Reason { get; private set; } = string.Empty;
+    public ServiceCredit(Guid customerId, Guid? incidentId, DateTime fromUtc, DateTime toUtc, decimal suggestedAmount, string reason) { if (toUtc <= fromUtc || suggestedAmount < 0) throw new ArgumentException("Crédito inválido."); CustomerId = customerId; IncidentId = incidentId; FromUtc = fromUtc; ToUtc = toUtc; SuggestedAmount = suggestedAmount; Reason = reason; }
+    public void SetStatus(ServiceCreditStatus status) => Status = status;
+}
 
 public sealed class ServiceContract
 {
