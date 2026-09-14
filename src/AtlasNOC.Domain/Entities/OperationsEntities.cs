@@ -232,7 +232,7 @@ public sealed class SupportTicket
     public string? Description { get; private set; }
     public TicketStatus Status { get; private set; } = TicketStatus.Open;
     public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
-    public SupportTicket(Guid customerId, string title, string? description = null) { CustomerId = customerId; Title = title; Description = description; }
+    public SupportTicket(Guid customerId, string title, string? description = null) { if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("El título es obligatorio."); CustomerId = customerId; Title = title.Trim(); Description = description?.Trim(); }
     public void SetStatus(TicketStatus status) => Status = status;
 }
 
@@ -275,6 +275,6 @@ public sealed class TechnicianVisit
     public int? ActualMinutes { get; private set; }
     public int? TravelMinutes { get; private set; }
     public string? Result { get; private set; }
-    public TechnicianVisit(Guid customerId, DateTime scheduledAtUtc, string workType, int estimatedMinutes) { CustomerId = customerId; ScheduledAtUtc = scheduledAtUtc; WorkType = workType; EstimatedMinutes = estimatedMinutes; }
+    public TechnicianVisit(Guid customerId, DateTime scheduledAtUtc, string workType, int estimatedMinutes) { if (string.IsNullOrWhiteSpace(workType) || estimatedMinutes <= 0) throw new ArgumentException("Trabajo y duración estimada son obligatorios."); CustomerId = customerId; ScheduledAtUtc = scheduledAtUtc; WorkType = workType.Trim(); EstimatedMinutes = estimatedMinutes; }
     public void Complete(int actualMinutes, int travelMinutes, string result) { if (actualMinutes < 0 || travelMinutes < 0) throw new ArgumentOutOfRangeException(); ActualMinutes = actualMinutes; TravelMinutes = travelMinutes; Result = result; }
 }
