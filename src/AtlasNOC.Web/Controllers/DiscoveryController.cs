@@ -31,6 +31,7 @@ public class DiscoveryController : Controller
         => View(await _discovery.ListRunsAsync());
 
     [HttpGet]
+    [HttpGet("/discover")]
     public async Task<IActionResult> Start()
     {
         ViewBag.Sites = await _sites.ListSitesAsync();

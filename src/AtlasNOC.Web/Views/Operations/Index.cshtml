@@ -1,0 +1,18 @@
+@{ ViewData["Title"] = "Operación"; }
+<div class="d-flex justify-content-between align-items-center mb-3"><h1 class="h4">Cabina operativa</h1><a class="btn btn-primary" href="/discover">Descubrir red</a></div>
+<div class="row g-3">
+ <div class="col-md-3"><div class="noc-card"><div class="small text-secondary">Clientes</div><div id="customers-count" class="display-6">—</div><a href="/customers">Abrir</a></div></div>
+ <div class="col-md-3"><div class="noc-card"><div class="small text-secondary">Servicios</div><div id="services-count" class="display-6">—</div><a href="/customers">Abrir</a></div></div>
+ <div class="col-md-3"><div class="noc-card"><div class="small text-secondary">Tickets</div><div id="tickets-count" class="display-6">—</div><a href="/support">Abrir</a></div></div>
+ <div class="col-md-3"><div class="noc-card"><div class="small text-secondary">Visitas</div><div id="visits-count" class="display-6">—</div><a href="/support">Abrir</a></div></div>
+</div>
+<div class="noc-card mt-3"><h2 class="h6">Acciones</h2><p class="small text-secondary">Las acciones mutantes requieren rol y validación de capacidad.</p><div id="operations-status" class="small">Cargando snapshot…</div></div>
+@section Scripts { <script>
+async function loadOperations(){
+ const get=async p=>(await fetch('/api/operations/'+p,{headers:{'Accept':'application/json'}})).json();
+ try { const [s,c,sv,t,v]=await Promise.all([get('snapshot'),get('customers'),get('services'),get('tickets'),get('visits')]);
+  document.getElementById('customers-count').textContent=c.length; document.getElementById('services-count').textContent=sv.length; document.getElementById('tickets-count').textContent=t.length; document.getElementById('visits-count').textContent=v.length;
+  document.getElementById('operations-status').textContent=`${s.devices} equipos · ${s.online} en línea · ${s.openAlerts} alertas · ${s.confirmedLinks} enlaces confirmados`;
+ } catch(e){document.getElementById('operations-status').textContent='No se pudo cargar la operación.';}
+} loadOperations(); setInterval(loadOperations,15000);
+</script> }

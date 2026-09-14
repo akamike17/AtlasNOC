@@ -21,6 +21,7 @@
                     <li class="nav-item"><a class="nav-link" asp-controller="Dashboard" asp-action="Index">Inicio</a></li>
                     @if (User.IsInRole("Administrator") || User.IsInRole("NocOperator")) { <li class="nav-item"><a class="nav-link" asp-controller="Discovery" asp-action="Start">Descubrir</a></li> }
                     <li class="nav-item"><a class="nav-link" asp-controller="Alerts" asp-action="Index">Alertas</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="Operations" asp-action="Index">Operación</a></li>
                     @if (User.IsInRole("Administrator"))
                     {
                         <li class="nav-item dropdown">
