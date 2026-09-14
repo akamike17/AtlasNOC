@@ -28,6 +28,9 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("incidents")]
     public async Task<IActionResult> Incidents(CancellationToken ct) => Ok(await _db.Incidents.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
 
+    [HttpGet("sla/{priority}")]
+    public IActionResult Sla(IncidentPriority priority) => Ok(new SlaPolicy().For(priority));
+
     [HttpPost("incidents/root")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> CreateRootIncident([FromBody] RootIncidentRequest request, CancellationToken ct)

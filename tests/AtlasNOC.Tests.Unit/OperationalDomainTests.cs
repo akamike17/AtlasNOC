@@ -92,4 +92,12 @@ public sealed class OperationalDomainTests
         Assert.Equal(7, quote.BonusDays);
         Assert.Equal(750, quote.Total);
     }
+
+    [Fact]
+    public void Sla_policy_returns_internal_targets_by_priority()
+    {
+        var target = new SlaPolicy().For(IncidentPriority.P1Critical);
+        Assert.Equal(15, target.ResponseMinutes);
+        Assert.Equal(4, target.ResolutionTargetHours);
+    }
 }
