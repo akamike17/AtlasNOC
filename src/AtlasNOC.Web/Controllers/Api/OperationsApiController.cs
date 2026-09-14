@@ -148,7 +148,7 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpPost("cpe-cases/{id:guid}/decision")]
     [Authorize(Roles = "Administrator,NocOperator")]
-    public async Task<IActionResult> DecideCpeCase(Guid id, [FromBody] CpeDecisionRequest request, CancellationToken ct) { var item = await _db.CpeAuthorizationCases.FindAsync(new object[] { id }, ct); if (item is null) return NotFound(); item.Decide(request.Status, request.Reason, User.Identity?.Name ?? "unknown"); await _db.SaveChangesAsync(ct); return Ok(item); }
+    public async Task<IActionResult> DecideCpeCase(Guid id, [FromBody] CpeDecisionRequest request, CancellationToken ct) { var item = await _db.CpeAuthorizationCases.FindAsync(new object[] { id }, ct); if (item is null) return NotFound(); if (request.Status == CpeAuthorizationStatus.Authorized && item.CustomerServiceId is null) return BadRequest("Una CPE sólo puede autorizarse vinculada a un servicio."); item.Decide(request.Status, request.Reason, User.Identity?.Name ?? "unknown"); await _db.SaveChangesAsync(ct); return Ok(item); }
 
     [HttpPost("billing/{customerId:guid}/promises")]
     [Authorize(Roles = "Administrator,NocOperator")]
