@@ -164,6 +164,7 @@ public static class DependencyInjection
         services.AddScoped<ICredentialService, CredentialService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ISystemHealthService, SystemHealthService>();
+        services.AddScoped<IOperationsSnapshotService, OperationsSnapshotService>();
 
         return services;
     }
