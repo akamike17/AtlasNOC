@@ -100,4 +100,12 @@ public sealed class OperationalDomainTests
         Assert.Equal(15, target.ResponseMinutes);
         Assert.Equal(4, target.ResolutionTargetHours);
     }
+
+    [Fact]
+    public void Cancelled_service_cannot_be_reconnected()
+    {
+        var service = new CustomerService(Guid.NewGuid(), Guid.NewGuid(), "Calle 3");
+        service.Cancel();
+        Assert.Throws<InvalidOperationException>(() => service.Reconnect());
+    }
 }

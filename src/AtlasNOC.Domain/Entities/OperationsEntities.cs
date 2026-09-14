@@ -194,9 +194,9 @@ public sealed class CustomerService
     public ServiceStatus Status { get; private set; } = ServiceStatus.Pending;
     public DateTime? ActivatedAtUtc { get; private set; }
     public CustomerService(Guid customerId, Guid planId, string address) { CustomerId = customerId; PlanId = planId; ServiceAddress = address; }
-    public void Activate() { Status = ServiceStatus.Active; ActivatedAtUtc = DateTime.UtcNow; }
+    public void Activate() { if (Status == ServiceStatus.Cancelled) throw new InvalidOperationException("Un servicio cancelado no puede reactivarse."); Status = ServiceStatus.Active; ActivatedAtUtc = DateTime.UtcNow; }
     public void Suspend() => Status = ServiceStatus.Suspended;
-    public void Reconnect() => Status = ServiceStatus.Active;
+    public void Reconnect() { if (Status == ServiceStatus.Cancelled) throw new InvalidOperationException("Un servicio cancelado no puede reconectarse."); Status = ServiceStatus.Active; }
     public void ChangePlan(Guid planId) { if (planId == Guid.Empty) throw new ArgumentException("Plan inválido."); PlanId = planId; }
     public void Cancel() => Status = ServiceStatus.Cancelled;
 }
