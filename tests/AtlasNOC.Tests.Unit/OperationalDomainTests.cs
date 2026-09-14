@@ -83,4 +83,13 @@ public sealed class OperationalDomainTests
         credit.SetStatus(ServiceCreditStatus.Approved);
         Assert.Equal(ServiceCreditStatus.Approved, credit.Status);
     }
+
+    [Fact]
+    public void Prepayment_policy_is_configurable_and_quotes_bonus()
+    {
+        var policy = new PrepaymentPolicy(new Dictionary<int, int> { [3] = 7 });
+        var quote = policy.Quote(3, 250);
+        Assert.Equal(7, quote.BonusDays);
+        Assert.Equal(750, quote.Total);
+    }
 }
