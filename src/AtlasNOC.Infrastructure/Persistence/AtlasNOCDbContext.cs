@@ -51,6 +51,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<Prospect> Prospects => Set<Prospect>();
     public DbSet<PaymentPromise> PaymentPromises => Set<PaymentPromise>();
     public DbSet<CpeAuthorizationCase> CpeAuthorizationCases => Set<CpeAuthorizationCase>();
+    public DbSet<ServiceContract> ServiceContracts => Set<ServiceContract>();
+    public DbSet<InstallationOrder> InstallationOrders => Set<InstallationOrder>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +76,9 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<PaymentPromise>().HasIndex(x => new { x.CustomerId, x.Status });
         modelBuilder.Entity<CpeAuthorizationCase>().ToTable("CpeAuthorizationCases").HasKey(x => x.Id);
         modelBuilder.Entity<CpeAuthorizationCase>().HasIndex(x => new { x.MacAddress, x.Status });
+        modelBuilder.Entity<ServiceContract>().ToTable("ServiceContracts").HasKey(x => x.Id);
+        modelBuilder.Entity<InstallationOrder>().ToTable("InstallationOrders").HasKey(x => x.Id);
+        modelBuilder.Entity<InstallationOrder>().HasIndex(x => new { x.CustomerServiceId, x.Status });
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));

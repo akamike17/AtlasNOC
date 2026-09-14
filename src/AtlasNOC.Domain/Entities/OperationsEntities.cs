@@ -9,6 +9,39 @@ public enum CoverageStatus { Available, ProbablyAvailable, RequiresFieldValidati
 public enum PromiseStatus { Active, Fulfilled, Defaulted, Cancelled }
 public enum ProspectStatus { New, CoverageChecked, Won, Lost }
 public enum CpeAuthorizationStatus { Pending, Authorized, Rejected, FraudReview, Replaced }
+public enum ContractStatus { Draft, Accepted, Cancelled }
+public enum InstallationStatus { Planned, Scheduled, InProgress, Completed, Cancelled }
+
+public sealed class ServiceContract
+{
+    private ServiceContract() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid CustomerId { get; private set; }
+    public Guid ServiceId { get; private set; }
+    public string Terms { get; private set; } = string.Empty;
+    public ContractStatus Status { get; private set; } = ContractStatus.Draft;
+    public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
+    public DateTime? AcceptedAtUtc { get; private set; }
+    public string? AcceptedBy { get; private set; }
+    public ServiceContract(Guid customerId, Guid serviceId, string terms) { if (string.IsNullOrWhiteSpace(terms)) throw new ArgumentException("Términos obligatorios."); CustomerId = customerId; ServiceId = serviceId; Terms = terms.Trim(); }
+    public void Accept(string actor) { Status = ContractStatus.Accepted; AcceptedAtUtc = DateTime.UtcNow; AcceptedBy = actor; }
+    public void Cancel() => Status = ContractStatus.Cancelled;
+}
+
+public sealed class InstallationOrder
+{
+    private InstallationOrder() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid CustomerServiceId { get; private set; }
+    public bool OutsideCity { get; private set; }
+    public decimal InstallationFee { get; private set; }
+    public decimal RouterFee { get; private set; }
+    public InstallationStatus Status { get; private set; } = InstallationStatus.Planned;
+    public DateTime? ScheduledAtUtc { get; private set; }
+    public InstallationOrder(Guid serviceId, bool outsideCity, decimal installationFee, decimal routerFee) { if (installationFee < 0 || routerFee < 0) throw new ArgumentOutOfRangeException(); CustomerServiceId = serviceId; OutsideCity = outsideCity; InstallationFee = installationFee; RouterFee = routerFee; }
+    public void Schedule(DateTime atUtc) { ScheduledAtUtc = atUtc; Status = InstallationStatus.Scheduled; }
+    public void Complete() => Status = InstallationStatus.Completed;
+}
 
 public sealed class CpeAuthorizationCase
 {

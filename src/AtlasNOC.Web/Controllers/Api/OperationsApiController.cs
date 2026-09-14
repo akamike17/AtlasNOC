@@ -62,6 +62,24 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("cpe-cases")]
     public async Task<IActionResult> CpeCases(CancellationToken ct) => Ok(await _db.CpeAuthorizationCases.AsNoTracking().OrderByDescending(x => x.DetectedAtUtc).ToListAsync(ct));
 
+    [HttpGet("contracts/{customerId:guid}")]
+    public async Task<IActionResult> Contracts(Guid customerId, CancellationToken ct) => Ok(await _db.ServiceContracts.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
+
+    [HttpPost("contracts")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> CreateContract([FromBody] ContractRequest request, CancellationToken ct) { if (!await _db.CustomerServices.AnyAsync(x => x.Id == request.ServiceId && x.CustomerId == request.CustomerId, ct)) return BadRequest("Servicio inválido."); var contract = new ServiceContract(request.CustomerId, request.ServiceId, request.Terms); _db.ServiceContracts.Add(contract); await _db.SaveChangesAsync(ct); return Ok(contract); }
+
+    [HttpPost("contracts/{id:guid}/accept")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> AcceptContract(Guid id, CancellationToken ct) { var contract = await _db.ServiceContracts.FindAsync(new object[] { id }, ct); if (contract is null) return NotFound(); contract.Accept(User.Identity?.Name ?? "unknown"); await _db.SaveChangesAsync(ct); return Ok(contract); }
+
+    [HttpGet("installations")]
+    public async Task<IActionResult> Installations(CancellationToken ct) => Ok(await _db.InstallationOrders.AsNoTracking().OrderByDescending(x => x.ScheduledAtUtc).ToListAsync(ct));
+
+    [HttpPost("installations")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> CreateInstallation([FromBody] InstallationRequest request, CancellationToken ct) { if (!await _db.CustomerServices.AnyAsync(x => x.Id == request.ServiceId, ct)) return BadRequest("Servicio inválido."); var order = new InstallationOrder(request.ServiceId, request.OutsideCity, request.InstallationFee, request.RouterFee); if (request.ScheduledAtUtc.HasValue) order.Schedule(request.ScheduledAtUtc.Value); _db.InstallationOrders.Add(order); await _db.SaveChangesAsync(ct); return Ok(order); }
+
     [HttpPost("cpe-cases")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> CreateCpeCase([FromBody] CpeCaseRequest request, CancellationToken ct) { var item = new CpeAuthorizationCase(request.MacAddress, request.AccessPoint, request.IpAddress, request.Rssi, request.Snr, request.CustomerServiceId); _db.CpeAuthorizationCases.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }
@@ -176,3 +194,5 @@ public sealed record ProspectStatusRequest(ProspectStatus Status);
 public sealed record PromiseRequest(decimal Amount, DateTime PromisedAtUtc, DateTime ExpiresAtUtc, string Conditions);
 public sealed record CpeCaseRequest(string MacAddress, string? AccessPoint, string? IpAddress, double? Rssi, double? Snr, Guid? CustomerServiceId);
 public sealed record CpeDecisionRequest(CpeAuthorizationStatus Status, string Reason);
+public sealed record ContractRequest(Guid CustomerId, Guid ServiceId, string Terms);
+public sealed record InstallationRequest(Guid ServiceId, bool OutsideCity, decimal InstallationFee, decimal RouterFee, DateTime? ScheduledAtUtc);
