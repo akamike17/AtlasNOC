@@ -186,6 +186,7 @@ public sealed class CustomerService
     public void Suspend() => Status = ServiceStatus.Suspended;
     public void Reconnect() => Status = ServiceStatus.Active;
     public void ChangePlan(Guid planId) { if (planId == Guid.Empty) throw new ArgumentException("Plan inválido."); PlanId = planId; }
+    public void Cancel() => Status = ServiceStatus.Cancelled;
 }
 
 public sealed class BillingAccount
@@ -236,6 +237,8 @@ public sealed class InventoryAsset
     public InventoryAsset(string assetTag, string type, string? serialNumber = null, string? macAddress = null) { AssetTag = assetTag; Type = type; SerialNumber = serialNumber; MacAddress = macAddress; }
     public void Assign(Guid serviceId) { CustomerServiceId = serviceId; Status = AssetStatus.Assigned; }
     public void SetStatus(AssetStatus status) => Status = status;
+    public void Recover() => Status = AssetStatus.Recovered;
+    public void MarkInspected(bool passed) => Status = passed ? AssetStatus.Tested : AssetStatus.Repair;
 }
 
 public sealed class CoverageCheck

@@ -183,6 +183,18 @@ public sealed class OperationsApiController : ControllerBase
         return Ok(new { ServiceId = service.Id, PreviousPlanId = previous?.Id, NewPlanId = plan.Id, MonthlyDifference = plan.MonthlyPrice - (previous?.MonthlyPrice ?? 0), Capacity = new { plan.DownloadMbps, plan.UploadMbps } });
     }
 
+    [HttpPost("services/{id:guid}/cancel")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> CancelService(Guid id, CancellationToken ct) => await ChangeService(id, s => s.Cancel(), ct);
+
+    [HttpPost("assets/{id:guid}/recover")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> RecoverAsset(Guid id, CancellationToken ct) => await ChangeAsset(id, x => x.Recover(), ct);
+
+    [HttpPost("assets/{id:guid}/inspect")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> InspectAsset(Guid id, [FromBody] AssetInspectionRequest request, CancellationToken ct) => await ChangeAsset(id, x => x.MarkInspected(request.Passed), ct);
+
     [HttpPost("billing/{customerId:guid}/charge")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public Task<IActionResult> Charge(Guid customerId, [FromBody] BillingRequest request, CancellationToken ct) => AddLedger(customerId, LedgerEntryType.Charge, request, ct);
@@ -226,6 +238,7 @@ public sealed class OperationsApiController : ControllerBase
     public async Task<IActionResult> Visit([FromBody] VisitRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return BadRequest("Cliente inválido."); var visit = new TechnicianVisit(request.CustomerId, request.ScheduledAtUtc, request.WorkType, request.EstimatedMinutes); _db.TechnicianVisits.Add(visit); await _db.SaveChangesAsync(ct); return Ok(visit); }
 
     private async Task<IActionResult> ChangeService(Guid id, Action<CustomerService> change, CancellationToken ct) { var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct); if (service is null) return NotFound(); change(service); await _db.SaveChangesAsync(ct); return Ok(service); }
+    private async Task<IActionResult> ChangeAsset(Guid id, Action<InventoryAsset> change, CancellationToken ct) { var asset = await _db.InventoryAssets.FirstOrDefaultAsync(x => x.Id == id, ct); if (asset is null) return NotFound(); change(asset); await _db.SaveChangesAsync(ct); return Ok(asset); }
     private async Task<IActionResult> AddLedger(Guid customerId, LedgerEntryType type, BillingRequest request, CancellationToken ct) { var account = await _db.BillingAccounts.FirstOrDefaultAsync(x => x.CustomerId == customerId, ct); if (account is null || request.Amount <= 0) return BadRequest("Cuenta o monto inválido."); account.Apply(type, request.Amount); _db.BillingEntries.Add(new BillingEntry(account.Id, type, request.Amount, request.Description)); await _db.SaveChangesAsync(ct); return Ok(new { account.Id, account.Balance }); }
 }
 
@@ -251,3 +264,4 @@ public sealed record CreditRequest(Guid CustomerId, Guid? IncidentId, DateTime F
 public sealed record CreditStatusRequest(ServiceCreditStatus Status);
 public sealed record RootIncidentRequest(string Title, string? Description, string? RootCauseDeviceId);
 public sealed record ChangePlanRequest(Guid PlanId, bool Confirmed);
+public sealed record AssetInspectionRequest(bool Passed);
