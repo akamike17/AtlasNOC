@@ -1,7 +1,13 @@
 namespace AtlasNOC.Application.Services;
 
 public sealed record PaymentRequest(Guid CustomerId, Guid? ServiceId, decimal Amount, string Reference);
-public sealed record PaymentResult(bool Accepted, string Reference, string Message);
+public sealed record PaymentResult(bool Accepted, string Reference, string Message, PaymentCaptureState State);
+public enum PaymentCaptureState
+{
+    PendingValidation = 0,
+    Rejected = 1,
+    Accepted = 2
+}
 public interface IPaymentProvider { string ProviderKey { get; } Task<PaymentResult> CaptureAsync(PaymentRequest request, CancellationToken ct = default); }
 
 public sealed record NetworkDiagnosticResult(string Status, string Summary, IReadOnlyList<string> Evidence, IReadOnlyList<Guid> AffectedServices);
