@@ -27,6 +27,6 @@ public sealed class TechnicianRoutePlanner : ITechnicianRoutePlanner
     {
         var visits = await _db.TechnicianVisits.AsNoTracking().Where(x => visitIds.Contains(x.Id)).OrderBy(x => x.ScheduledAtUtc).ToListAsync(ct);
         var eta = DateTime.UtcNow;
-        return visits.Select(v => { eta = eta < v.ScheduledAtUtc ? v.ScheduledAtUtc : eta; var result = new TechnicianRouteStop(v.Id, eta, v.EstimatedMinutes); eta = eta.AddMinutes(v.EstimatedMinutes * 1.15); return result; }).ToList();
+        return visits.Select(v => { eta = eta < v.ScheduledAtUtc ? v.ScheduledAtUtc : eta; var duration = v.ActualMinutes ?? v.EstimatedMinutes; var travel = v.TravelMinutes ?? 0; var result = new TechnicianRouteStop(v.Id, eta, duration); eta = eta.AddMinutes((duration + travel) * (v.ActualMinutes.HasValue ? 1.0 : 1.15)); return result; }).ToList();
     }
 }
