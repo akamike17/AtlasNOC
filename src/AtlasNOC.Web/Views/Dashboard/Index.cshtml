@@ -33,3 +33,45 @@
 </div>
 
 <p class="text-secondary small mt-4">Agrega un sitio y descubre tu red para comenzar a construir la topología.</p>
+
+<div class="noc-card mt-3">
+    <h2 class="h6">Asistente de puesta en marcha</h2>
+    <p class="small text-secondary mb-2">AtlasNOC empieza en modo lectura y sólo usa canales que tú autorices.</p>
+    <div class="small mb-2">
+        <span class="badge text-bg-success">Listo</span> Web, Worker y base de datos
+    </div>
+    @if (((IReadOnlyList<AtlasNOC.Application.Services.LocalNetworkProfileDto>)ViewBag.LocalProfiles).Count > 0)
+    {
+        <div class="small mb-2">
+            <span class="badge text-bg-success">Detectable</span> Red local encontrada automáticamente
+        </div>
+    }
+    else
+    {
+        <div class="small mb-2">
+            <span class="badge text-bg-warning">Revisión</span> No hay interfaz IPv4 activa con gateway
+        </div>
+    }
+    <div class="small mb-3">
+        <span class="badge text-bg-secondary">Opcional</span> SNMP/API/RADIUS sólo para enriquecer o consultar segmentos autorizados
+    </div>
+    <a asp-controller="Discovery" asp-action="Start" class="btn btn-success btn-sm">Descubrir mi red</a>
+    <a asp-controller="Integrations" asp-action="Index" class="btn btn-outline-secondary btn-sm">Ver integraciones</a>
+</div>
+
+<div class="noc-card mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 mb-0">Mi red</h2>
+        <span class="small text-secondary">Topología observada</span>
+    </div>
+    <div id="topology-map" style="height:520px" aria-label="Mapa de mi red"></div>
+    <p class="small text-secondary mt-2 mb-0">Sólo se muestran equipos inventariados y relaciones respaldadas por evidencia.</p>
+</div>
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.3/dist/cytoscape.min.js"></script>
+    <script src="~/js/topology.js" asp-append-version="true"></script>
+    <script>
+      window.atlasTopology = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.Topology));
+      if (window.renderTopology) window.renderTopology('topology-map', window.atlasTopology);
+    </script>
+}

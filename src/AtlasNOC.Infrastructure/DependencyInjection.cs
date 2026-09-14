@@ -9,6 +9,8 @@ using AtlasNOC.Infrastructure.Probes;
 using AtlasNOC.Infrastructure.Security;
 using AtlasNOC.Infrastructure.Services;
 using AtlasNOC.Infrastructure.Workers;
+using AtlasNOC.Infrastructure.Wisp;
+using AtlasNOC.Application.Wisp;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -35,6 +37,14 @@ public static class DependencyInjection
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<ISubscriberRepository, SubscriberRepository>();
         services.AddScoped<IServiceEndpointRepository, ServiceEndpointRepository>();
+        services.AddSingleton<ILocalNetworkProfileService, LocalNetworkProfileService>();
+        services.AddSingleton<ILocalNetworkContextService, LocalNetworkContextService>();
+        // Ningún conector WISP se habilita por defecto: la ausencia de credenciales
+        // produce un registro vacío y mantiene el producto en modo lectura seguro.
+        services.AddSingleton<IWispConnectorRegistry, WispConnectorRegistry>();
+        services.AddSingleton<IWispConnector, MikroTikWispConnector>();
+        services.AddSingleton<IWispConnector, UbiquitiWispConnector>();
+        services.AddScoped<IWispObservationService, WispObservationService>();
 
         // Security
         services.AddScoped<ICredentialProtector, CredentialProtector>();
@@ -49,6 +59,11 @@ public static class DependencyInjection
         services.AddSingleton<ILabNetworkControl, LabNetworkControl>();
         services.AddSingleton<IIcmpProbe>(sp =>
             new SimulatedIcmpProbe(labMode, sp.GetRequiredService<IcmpProbe>(), sp.GetRequiredService<ILabNetworkControl>()));
+        services.AddSingleton<IArpProbe, ArpProbe>();
+        services.AddSingleton<SsdpPresenceProbe>();
+        services.AddSingleton<MdnsPresenceProbe>();
+        services.AddSingleton<ILanPresenceProbe>(sp => new CompositeLanPresenceProbe(
+            [sp.GetRequiredService<SsdpPresenceProbe>(), sp.GetRequiredService<MdnsPresenceProbe>()]));
         services.AddSingleton<ISnmpProbe>(sp =>
             new SimulatedSnmpProbe(labMode, sp.GetRequiredService<SnmpProbe>()));
 
@@ -126,8 +141,6 @@ public static class DependencyInjection
             var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<NotificationOptions>>().Value;
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, options.WebhookTimeoutSeconds));
         });
-        services.AddScoped<ISetupService, SetupService>();
-        services.AddScoped<IUserAdministrationService, UserAdministrationService>();
         services.AddScoped<ISiteService, SiteService>();
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<ILinkService, LinkService>();
@@ -155,6 +168,14 @@ public static class DependencyInjection
         return services;
     }
 
+    /// <summary>Registros exclusivos del host Web, que requiere ASP.NET Identity.</summary>
+    public static IServiceCollection AddWebOnlyServices(this IServiceCollection services)
+    {
+        services.AddScoped<ISetupService, SetupService>();
+        services.AddScoped<IUserAdministrationService, UserAdministrationService>();
+        return services;
+    }
+
     /// <summary>
     /// Registra los procesos NOC en segundo plano. El host Worker debe invocarlo
     /// explícitamente; el host Web permanece exclusivamente HTTP por defecto.
@@ -167,6 +188,7 @@ public static class DependencyInjection
         services.AddHostedService<MetricRetentionWorker>();
         services.AddHostedService<AlertEvaluationWorker>();
         services.AddHostedService<NotificationWorker>();
+        services.AddHostedService<WispObservationWorker>();
 
         return services;
     }
