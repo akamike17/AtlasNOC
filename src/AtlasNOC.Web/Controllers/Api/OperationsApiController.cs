@@ -57,6 +57,9 @@ public sealed class OperationsApiController : ControllerBase
     public async Task<IActionResult> Billing(Guid customerId, CancellationToken ct)
     { var account = await _db.BillingAccounts.AsNoTracking().FirstOrDefaultAsync(x => x.CustomerId == customerId, ct); if (account is null) return NotFound(); return Ok(new { account.Id, account.CustomerId, account.Balance, Entries = await _db.BillingEntries.AsNoTracking().Where(x => x.AccountId == account.Id).OrderByDescending(x => x.OccurredAtUtc).ToListAsync(ct) }); }
 
+    [HttpGet("billing/{customerId:guid}/receipts")]
+    public async Task<IActionResult> Receipts(Guid customerId, CancellationToken ct) => Ok(await _db.PaymentReceipts.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.IssuedAtUtc).ToListAsync(ct));
+
     [HttpGet("tickets")]
     public async Task<IActionResult> Tickets(CancellationToken ct) => Ok(await _db.SupportTickets.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
 
