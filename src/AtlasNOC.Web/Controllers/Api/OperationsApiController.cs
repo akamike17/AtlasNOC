@@ -256,6 +256,18 @@ public sealed class OperationsApiController : ControllerBase
         return Ok(new PrepaymentPolicy().Quote(months, plan.MonthlyPrice));
     }
 
+    [HttpPost("services/{id:guid}/prepayment")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> RegisterPrepayment(Guid id, [FromBody] PrepaymentRequest request, CancellationToken ct)
+    {
+        if (!request.Confirmed) return BadRequest("Se requiere confirmación explícita del prepago.");
+        var service = await _db.CustomerServices.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        var plan = service is null ? null : await _db.ServicePlans.AsNoTracking().FirstOrDefaultAsync(x => x.Id == service.PlanId, ct);
+        if (service is null || plan is null) return NotFound();
+        var quote = new PrepaymentPolicy().Quote(request.Months, plan.MonthlyPrice);
+        return await AddLedger(service.CustomerId, LedgerEntryType.Payment, new BillingRequest(quote.Total, $"Prepago {quote.Months} meses; bonificación {quote.BonusDays} días"), ct);
+    }
+
     [HttpPost("services/{id:guid}/pay-and-reconnect")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> PayAndReconnect(Guid id, [FromBody] BillingRequest request, CancellationToken ct)
@@ -322,4 +334,5 @@ public sealed record ChangePlanRequest(Guid PlanId, bool Confirmed);
 public sealed record AssetInspectionRequest(bool Passed);
 public sealed record VisitCompletionRequest(int ActualMinutes, int TravelMinutes, string Result);
 public sealed record TicketStatusRequest(TicketStatus Status);
+public sealed record PrepaymentRequest(int Months, bool Confirmed);
 public sealed record AssetAssignmentRequest(Guid ServiceId);
