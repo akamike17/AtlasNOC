@@ -23,6 +23,21 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("snapshot")]
     public Task<OperationsSnapshotDto> Snapshot(CancellationToken ct) => _snapshot.GetAsync(ct);
 
+    [HttpGet("incidents")]
+    public async Task<IActionResult> Incidents(CancellationToken ct) => Ok(await _db.Incidents.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
+
+    [HttpPost("incidents/root")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> CreateRootIncident([FromBody] RootIncidentRequest request, CancellationToken ct)
+    {
+        if (request.RootCauseDeviceId is not null && !Guid.TryParse(request.RootCauseDeviceId, out _)) return BadRequest("RootCauseDeviceId inválido.");
+        var incident = new Incident(request.Title, User.Identity?.Name ?? "unknown", request.Description, request.RootCauseDeviceId);
+        incident.MarkRootCauseCandidate();
+        _db.Incidents.Add(incident);
+        await _db.SaveChangesAsync(ct);
+        return Ok(incident);
+    }
+
     [HttpGet("customers")]
     public async Task<IActionResult> Customers(CancellationToken ct) => Ok(await _db.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct));
 
@@ -220,3 +235,4 @@ public sealed record InstallationRequest(Guid ServiceId, bool OutsideCity, decim
 public sealed record InteractionRequest(Guid TicketId, SupportInteractionChannel Channel, string Symptoms, string Diagnosis, string Actions, string Result, int DurationMinutes, Guid? RootIncidentId);
 public sealed record CreditRequest(Guid CustomerId, Guid? IncidentId, DateTime FromUtc, DateTime ToUtc, decimal SuggestedAmount, string Reason);
 public sealed record CreditStatusRequest(ServiceCreditStatus Status);
+public sealed record RootIncidentRequest(string Title, string? Description, string? RootCauseDeviceId);
