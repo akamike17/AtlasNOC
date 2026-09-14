@@ -30,7 +30,6 @@ public class DiscoveryController : Controller
     public async Task<IActionResult> Index()
         => View(await _discovery.ListRunsAsync());
 
-    [HttpGet]
     [HttpGet("/discover")]
     public async Task<IActionResult> Start()
     {
