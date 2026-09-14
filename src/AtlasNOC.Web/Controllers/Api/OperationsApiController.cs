@@ -154,6 +154,10 @@ public sealed class OperationsApiController : ControllerBase
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> Promise(Guid customerId, [FromBody] PromiseRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == customerId, ct)) return NotFound(); var promise = new PaymentPromise(customerId, request.Amount, request.PromisedAtUtc, request.ExpiresAtUtc, User.Identity?.Name ?? "unknown", request.Conditions); _db.PaymentPromises.Add(promise); await _db.SaveChangesAsync(ct); return Ok(promise); }
 
+    [HttpPost("billing/promises/{id:guid}/default")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> DefaultPromise(Guid id, CancellationToken ct) { var promise = await _db.PaymentPromises.FindAsync(new object[] { id }, ct); if (promise is null) return NotFound(); promise.Default(); await _db.SaveChangesAsync(ct); return Ok(promise); }
+
     [HttpPost("visits/route")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Route([FromBody] RouteRequest request, CancellationToken ct) => Ok(await _routes.PlanAsync(request.VisitIds, ct));
