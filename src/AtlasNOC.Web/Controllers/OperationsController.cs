@@ -8,7 +8,7 @@ public sealed class OperationsController : Controller
 {
     [HttpGet("operations")]
     public IActionResult Index() => View();
-    [HttpGet("customers")]
+    [HttpGet("operations/customers")]
     public IActionResult Customers() => View("Index");
     [HttpGet("support")]
     public IActionResult Support() => View("Index");

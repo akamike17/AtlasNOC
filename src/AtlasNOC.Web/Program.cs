@@ -259,7 +259,10 @@ if (knownProxies.Length > 0 || knownNetworks.Length > 0)
     app.UseForwardedHeaders(forwardedOptions);
 }
 
-app.UseHttpsRedirection();
+// E2E Testing levanta explícitamente un listener HTTP de loopback; redirigir
+// POST hacia HTTPS sin listener TLS convierte el flujo en 405 y oculta la API.
+if (!builder.Environment.IsEnvironment("Testing"))
+    app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
@@ -289,6 +292,11 @@ app.Use(async (ctx, next) =>
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
+
+// Publica explícitamente los controladores con rutas de atributos (/api/*).
+// Sin este mapeo, las acciones POST no quedan en el endpoint routing y
+// responden 405 aunque exista el atributo [HttpPost].
+app.MapControllers();
 
 app.MapControllerRoute(
     name: "default",

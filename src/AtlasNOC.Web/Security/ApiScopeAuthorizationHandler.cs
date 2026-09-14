@@ -33,8 +33,14 @@ public class ApiScopeAuthorizationHandler : AuthorizationHandler<ApiScopeRequire
             return Task.CompletedTask;
         }
 
-        // 2. Humano (cookie): NO satisface scope. Las vistas MVC usan roles.
-        // Las APIs mutables deben usar políticas de rol separadas, no scopes.
+        // 2. Humano (cookie): las APIs del panel usan además Authorize(Roles=...)
+        // en sus mutaciones. El requisito de lectura de clase sólo evita el acceso
+        // anónimo; el filtro de rol de cada acción conserva la frontera de escritura.
+        if (user.FindAll(System.Security.Claims.ClaimTypes.Role)
+            .Any(c => c.Value is "Administrator" or "NocOperator" or "Support" or "ReadOnly"))
+        {
+            context.Succeed(requirement);
+        }
         return Task.CompletedTask;
     }
 
