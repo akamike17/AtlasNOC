@@ -55,6 +55,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<InstallationOrder> InstallationOrders => Set<InstallationOrder>();
     public DbSet<SupportInteraction> SupportInteractions => Set<SupportInteraction>();
     public DbSet<ServiceCredit> ServiceCredits => Set<ServiceCredit>();
+    public DbSet<PaymentReceipt> PaymentReceipts => Set<PaymentReceipt>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -84,6 +85,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<SupportInteraction>().ToTable("SupportInteractions").HasKey(x => x.Id);
         modelBuilder.Entity<ServiceCredit>().ToTable("ServiceCredits").HasKey(x => x.Id);
         modelBuilder.Entity<ServiceCredit>().HasIndex(x => new { x.CustomerId, x.Status });
+        modelBuilder.Entity<PaymentReceipt>().ToTable("PaymentReceipts").HasKey(x => x.Id);
+        modelBuilder.Entity<PaymentReceipt>().HasIndex(x => x.Reference).IsUnique();
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));

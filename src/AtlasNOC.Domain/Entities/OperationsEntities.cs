@@ -14,6 +14,18 @@ public enum InstallationStatus { Planned, Scheduled, InProgress, Completed, Canc
 public enum SupportInteractionChannel { Phone, Chat, Email, Field }
 public enum ServiceCreditStatus { Suggested, Approved, Applied, Rejected }
 
+public sealed class PaymentReceipt
+{
+    private PaymentReceipt() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid CustomerId { get; private set; }
+    public Guid AccountId { get; private set; }
+    public decimal Amount { get; private set; }
+    public string Reference { get; private set; } = string.Empty;
+    public DateTime IssuedAtUtc { get; private set; } = DateTime.UtcNow;
+    public PaymentReceipt(Guid customerId, Guid accountId, decimal amount, string reference) { if (amount <= 0 || string.IsNullOrWhiteSpace(reference)) throw new ArgumentException("Comprobante inválido."); CustomerId = customerId; AccountId = accountId; Amount = amount; Reference = reference.Trim(); }
+}
+
 public sealed class SupportInteraction
 {
     private SupportInteraction() { }
