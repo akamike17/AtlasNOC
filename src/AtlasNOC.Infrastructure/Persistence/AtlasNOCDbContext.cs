@@ -17,6 +17,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<WispOrganization> Organizations => Set<WispOrganization>();
     public DbSet<NetworkSite> Sites => Set<NetworkSite>();
     public DbSet<Subscriber> Subscribers => Set<Subscriber>();
+    public DbSet<WispClientObservation> WispClientObservations => Set<WispClientObservation>();
     public DbSet<ServiceEndpoint> ServiceEndpoints => Set<ServiceEndpoint>();
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<DeviceInterface> DeviceInterfaces => Set<DeviceInterface>();
@@ -37,11 +38,33 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<ServicePlan> ServicePlans => Set<ServicePlan>();
+    public DbSet<CustomerService> CustomerServices => Set<CustomerService>();
+    public DbSet<BillingAccount> BillingAccounts => Set<BillingAccount>();
+    public DbSet<BillingEntry> BillingEntries => Set<BillingEntry>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<InventoryAsset> InventoryAssets => Set<InventoryAsset>();
+    public DbSet<CoverageCheck> CoverageChecks => Set<CoverageCheck>();
+    public DbSet<TechnicianVisit> TechnicianVisits => Set<TechnicianVisit>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Customer>().ToTable("Customers").HasKey(x => x.Id);
+        modelBuilder.Entity<Customer>().HasIndex(x => x.ServiceCode).IsUnique();
+        modelBuilder.Entity<ServicePlan>().ToTable("ServicePlans").HasKey(x => x.Id);
+        modelBuilder.Entity<CustomerService>().ToTable("CustomerServices").HasKey(x => x.Id);
+        modelBuilder.Entity<BillingAccount>().ToTable("BillingAccounts").HasKey(x => x.Id);
+        modelBuilder.Entity<BillingEntry>().ToTable("BillingEntries").HasKey(x => x.Id);
+        modelBuilder.Entity<SupportTicket>().ToTable("SupportTickets").HasKey(x => x.Id);
+        modelBuilder.Entity<InventoryAsset>().ToTable("InventoryAssets").HasKey(x => x.Id);
+        modelBuilder.Entity<CoverageCheck>().ToTable("CoverageChecks").HasKey(x => x.Id);
+        modelBuilder.Entity<TechnicianVisit>().ToTable("TechnicianVisits").HasKey(x => x.Id);
+        foreach (var type in new[] { typeof(Customer), typeof(ServicePlan), typeof(CustomerService), typeof(BillingAccount), typeof(BillingEntry), typeof(SupportTicket), typeof(InventoryAsset), typeof(CoverageCheck), typeof(TechnicianVisit) })
+            modelBuilder.Entity(type).Property<DateTime>("CreatedAtUtc").IsRequired(false);
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));
@@ -95,6 +118,20 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
                 .OnDelete(DeleteBehavior.Restrict);
             e.HasOne<NetworkSite>().WithMany().HasForeignKey(x => x.SiteId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WispClientObservation>(e =>
+        {
+            e.ToTable("WispClientObservations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ExternalId).IsRequired().HasMaxLength(200);
+            e.Property(x => x.AccountReference).HasMaxLength(200);
+            e.Property(x => x.CpeAddress).HasMaxLength(200);
+            e.Property(x => x.SessionReference).HasMaxLength(200);
+            e.Property(x => x.Source).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Confidence).HasPrecision(5, 4);
+            e.HasIndex(x => new { x.ExternalId, x.Source, x.ObservedAtUtc }).IsUnique();
+            e.HasIndex(x => x.SessionReference);
         });
 
         modelBuilder.Entity<ServiceEndpoint>(e =>
