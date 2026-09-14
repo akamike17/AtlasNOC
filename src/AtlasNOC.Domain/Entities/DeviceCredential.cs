@@ -18,6 +18,10 @@ public class DeviceCredential
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? LastUsedAtUtc { get; private set; }
     public bool IsActive { get; private set; } = true;
+    public DeviceId? DeviceId { get; private set; }
+    public SiteId? SiteId { get; private set; }
+    public string? DriverKey { get; private set; }
+    public bool IsPreferred { get; private set; }
 
     private DeviceCredential() { }
 
@@ -54,6 +58,22 @@ public class DeviceCredential
     public void Touch() => LastUsedAtUtc = DateTime.UtcNow;
     public void Deactivate() => IsActive = false;
     public void Activate() => IsActive = true;
+
+    public void ScopeTo(DeviceId deviceId, string driverKey, SiteId? siteId = null, bool preferred = true)
+    {
+        DeviceId = deviceId ?? throw new ArgumentNullException(nameof(deviceId));
+        DriverKey = string.IsNullOrWhiteSpace(driverKey) ? throw new ArgumentException("El driver es obligatorio.", nameof(driverKey)) : driverKey.Trim();
+        SiteId = siteId;
+        IsPreferred = preferred;
+    }
+
+    public void ClearScope()
+    {
+        DeviceId = null;
+        SiteId = null;
+        DriverKey = null;
+        IsPreferred = false;
+    }
 
     public bool CanUse => IsActive;
 }

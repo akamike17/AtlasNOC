@@ -265,6 +265,10 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.CommunityProtected).HasMaxLength(1024);
             e.Property(x => x.AuthPasswordProtected).HasMaxLength(1024);
             e.Property(x => x.PrivPasswordProtected).HasMaxLength(1024);
+            e.Property(x => x.DeviceId).HasConversion(deviceIdConv);
+            e.Property(x => x.SiteId).HasConversion(siteIdNullableConv);
+            e.Property(x => x.DriverKey).HasMaxLength(64);
+            e.HasIndex(x => new { x.DeviceId, x.DriverKey, x.IsPreferred });
             e.HasIndex(x => x.Name).IsUnique();
         });
 

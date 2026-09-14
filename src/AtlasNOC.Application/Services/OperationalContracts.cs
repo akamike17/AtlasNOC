@@ -22,7 +22,13 @@ public interface IWispOperationsService
 }
 
 public sealed record NetworkActionResult(bool Succeeded, string Message, string? Evidence);
+public enum NetworkActionRisk { ReadOnly, Low, Medium, High }
+public sealed record NetworkActionPreview(Guid DeviceId, Application.Devices.DeviceAction Action, bool Supported,
+    string CredentialState, NetworkActionRisk RiskLevel, NetworkImpactResult Impact,
+    bool RequiresConfirmation, bool RequiresBackup, string TruthState, IReadOnlyList<string> Warnings);
 public interface INetworkActionService
 {
+    Task<NetworkActionPreview> PreviewAsync(Guid deviceId, Application.Devices.DeviceAction action, string? interfaceName,
+        CancellationToken ct = default);
     Task<NetworkActionResult> ExecuteAsync(Guid deviceId, Application.Devices.DeviceAction action, string? interfaceName, string? description, string actor, CancellationToken ct = default);
 }

@@ -25,18 +25,25 @@ public sealed class MikroTikControlDriver : IDeviceControlDriver
         if (request.Action == DeviceAction.SetInterfaceDescription && request.Description is null)
             return new(false, "La descripción es obligatoria.");
         using var client = _http.CreateClient("mikrotik");
-        using var req = new HttpRequestMessage(HttpMethod.Post, Endpoint(request));
+        using var req = new HttpRequestMessage(request.Action == DeviceAction.Reboot ? HttpMethod.Post : HttpMethod.Patch, Endpoint(request));
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{credential.UserName}:{credential.AuthPassword}"));
         req.Headers.Authorization = new AuthenticationHeaderValue("Basic", token);
         if (request.Action != DeviceAction.Reboot)
-            req.Content = JsonContent.Create(new Dictionary<string, string> { [".id"] = request.InterfaceName!,
-                ["disabled"] = request.Action == DeviceAction.DisableInterface ? "true" : "false",
-                ["comment"] = request.Description ?? string.Empty });
+        {
+            var body = request.Action switch
+            {
+                DeviceAction.EnableInterface => new Dictionary<string, string> { ["disabled"] = "false" },
+                DeviceAction.DisableInterface => new Dictionary<string, string> { ["disabled"] = "true" },
+                DeviceAction.SetInterfaceDescription => new Dictionary<string, string> { ["comment"] = request.Description! },
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            req.Content = JsonContent.Create(body);
+        }
         using var response = await client.SendAsync(req, ct);
         if (!response.IsSuccessStatusCode) return new(false, $"RouterOS devolvió HTTP {(int)response.StatusCode}.");
         return new(true, "Acción ejecutada y aceptada por RouterOS.", $"HTTP {(int)response.StatusCode} {request.Action}");
     }
     private static string Endpoint(DeviceActionRequest r) => r.Action == DeviceAction.Reboot
         ? $"https://{r.ManagementIp}/rest/system/reboot"
-        : $"https://{r.ManagementIp}/rest/interface/set";
+        : $"https://{r.ManagementIp}/rest/interface/{Uri.EscapeDataString(r.InterfaceName!)}";
 }

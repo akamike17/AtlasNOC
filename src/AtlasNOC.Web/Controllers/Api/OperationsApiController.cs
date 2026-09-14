@@ -1,5 +1,6 @@
 using AtlasNOC.Application.Services;
 using AtlasNOC.Domain.Entities;
+using AtlasNOC.Application.Devices;
 using AtlasNOC.Infrastructure.Persistence;
 using AtlasNOC.Web.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -20,10 +21,16 @@ public sealed class OperationsApiController : ControllerBase
     private readonly IOperationsSnapshotService _snapshot;
     private readonly AtlasNOCDbContext _db;
     private readonly ITechnicianRoutePlanner _routes;
-    public OperationsApiController(IOperationsSnapshotService snapshot, AtlasNOCDbContext db, ITechnicianRoutePlanner routes) { _snapshot = snapshot; _db = db; _routes = routes; }
+    private readonly INetworkActionService _networkActions;
+    public OperationsApiController(IOperationsSnapshotService snapshot, AtlasNOCDbContext db, ITechnicianRoutePlanner routes,
+        INetworkActionService networkActions) { _snapshot = snapshot; _db = db; _routes = routes; _networkActions = networkActions; }
 
     [HttpGet("snapshot")]
     public Task<OperationsSnapshotDto> Snapshot(CancellationToken ct) => _snapshot.GetAsync(ct);
+
+    [HttpGet("devices/{deviceId:guid}/actions/{action}/preview")]
+    public async Task<IActionResult> PreviewAction(Guid deviceId, DeviceAction action, [FromQuery] string? interfaceName,
+        CancellationToken ct) => Ok(await _networkActions.PreviewAsync(deviceId, action, interfaceName, ct));
 
     [HttpGet("incidents")]
     public async Task<IActionResult> Incidents(CancellationToken ct) => Ok(await _db.Incidents.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
