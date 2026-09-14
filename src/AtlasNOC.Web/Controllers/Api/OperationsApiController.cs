@@ -236,6 +236,19 @@ public sealed class OperationsApiController : ControllerBase
     [Authorize(Roles = "Administrator,NocOperator")]
     public Task<IActionResult> Payment(Guid customerId, [FromBody] BillingRequest request, CancellationToken ct) => AddLedger(customerId, LedgerEntryType.Payment, request, ct);
 
+    [HttpPost("billing/{customerId:guid}/suspend-if-overdue")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> SuspendIfOverdue(Guid customerId, CancellationToken ct)
+    {
+        var account = await _db.BillingAccounts.AsNoTracking().FirstOrDefaultAsync(x => x.CustomerId == customerId, ct);
+        if (account is null) return NotFound();
+        if (account.Balance <= 0) return Ok(new { Suspended = 0, account.Balance, Reason = "Saldo no vencido." });
+        var services = await _db.CustomerServices.Where(x => x.CustomerId == customerId && x.Status == ServiceStatus.Active).ToListAsync(ct);
+        foreach (var service in services) service.Suspend();
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { Suspended = services.Count, account.Balance, Reason = "Saldo vencido persistido." });
+    }
+
     [HttpPost("billing/{customerId:guid}/monthly-charge")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> MonthlyCharge(Guid customerId, CancellationToken ct)
