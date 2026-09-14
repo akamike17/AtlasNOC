@@ -273,6 +273,9 @@ public sealed class OperationsApiController : ControllerBase
     [HttpPost("assets")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> Asset([FromBody] AssetRequest request, CancellationToken ct) { if (string.IsNullOrWhiteSpace(request.AssetTag) || string.IsNullOrWhiteSpace(request.Type)) return BadRequest("AssetTag y tipo son obligatorios."); if (await _db.InventoryAssets.AnyAsync(x => x.AssetTag == request.AssetTag || (request.SerialNumber != null && x.SerialNumber == request.SerialNumber) || (request.MacAddress != null && x.MacAddress == request.MacAddress), ct)) return Conflict("AssetTag, serial o MAC ya registrados."); var asset = new InventoryAsset(request.AssetTag, request.Type, request.SerialNumber, request.MacAddress); _db.InventoryAssets.Add(asset); await _db.SaveChangesAsync(ct); return Ok(asset); }
+    [HttpPost("assets/{id:guid}/assign")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> AssignAsset(Guid id, [FromBody] AssetAssignmentRequest request, CancellationToken ct) { var asset = await _db.InventoryAssets.FindAsync(new object[] { id }, ct); if (asset is null) return NotFound(); if (!await _db.CustomerServices.AnyAsync(x => x.Id == request.ServiceId && x.Status != ServiceStatus.Cancelled, ct)) return BadRequest("Servicio inválido o cancelado."); asset.Assign(request.ServiceId); await _db.SaveChangesAsync(ct); return Ok(asset); }
     [HttpPost("coverage")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Coverage([FromBody] CoverageRequest request, CancellationToken ct) { var check = new CoverageCheck(request.Address, request.Status, request.CapacityMbps); _db.CoverageChecks.Add(check); await _db.SaveChangesAsync(ct); return Ok(check); }
@@ -315,3 +318,4 @@ public sealed record ChangePlanRequest(Guid PlanId, bool Confirmed);
 public sealed record AssetInspectionRequest(bool Passed);
 public sealed record VisitCompletionRequest(int ActualMinutes, int TravelMinutes, string Result);
 public sealed record TicketStatusRequest(TicketStatus Status);
+public sealed record AssetAssignmentRequest(Guid ServiceId);
