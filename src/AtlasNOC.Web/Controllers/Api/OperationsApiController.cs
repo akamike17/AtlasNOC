@@ -158,6 +158,10 @@ public sealed class OperationsApiController : ControllerBase
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> DefaultPromise(Guid id, CancellationToken ct) { var promise = await _db.PaymentPromises.FindAsync(new object[] { id }, ct); if (promise is null) return NotFound(); promise.Default(); await _db.SaveChangesAsync(ct); return Ok(promise); }
 
+    [HttpPost("billing/promises/reconcile")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> ReconcilePromises(CancellationToken ct) { var expired = await _db.PaymentPromises.Where(x => x.Status == PromiseStatus.Active && x.ExpiresAtUtc < DateTime.UtcNow).ToListAsync(ct); foreach (var promise in expired) promise.Default(); await _db.SaveChangesAsync(ct); return Ok(new { Defaulted = expired.Count }); }
+
     [HttpPost("visits/route")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Route([FromBody] RouteRequest request, CancellationToken ct) => Ok(await _routes.PlanAsync(request.VisitIds, ct));
