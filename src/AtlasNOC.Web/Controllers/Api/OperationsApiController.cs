@@ -155,7 +155,7 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpPost("cpe-cases/{id:guid}/decision")]
     [Authorize(Roles = "Administrator,NocOperator")]
-    public async Task<IActionResult> DecideCpeCase(Guid id, [FromBody] CpeDecisionRequest request, CancellationToken ct) { var item = await _db.CpeAuthorizationCases.FindAsync(new object[] { id }, ct); if (item is null) return NotFound(); if (request.Status == CpeAuthorizationStatus.Authorized && item.CustomerServiceId is null) return BadRequest("Una CPE sólo puede autorizarse vinculada a un servicio."); item.Decide(request.Status, request.Reason, User.Identity?.Name ?? "unknown"); await _db.SaveChangesAsync(ct); return Ok(item); }
+    public async Task<IActionResult> DecideCpeCase(Guid id, [FromBody] CpeDecisionRequest request, CancellationToken ct) { var item = await _db.CpeAuthorizationCases.FindAsync(new object[] { id }, ct); if (item is null) return NotFound(); if (request.Status == CpeAuthorizationStatus.Authorized && item.CustomerServiceId is null) return BadRequest("Una CPE sólo puede autorizarse vinculada a un servicio."); item.Decide(request.Status, request.Reason, User.Identity?.Name ?? "unknown"); item.SetProvisioning(ProvisioningStatus.Unsupported, request.Status == CpeAuthorizationStatus.Authorized ? "Autorización persistida; provisioning de red no ejecutado." : "Rechazo persistido; enforcement de red no ejecutado."); await _db.SaveChangesAsync(ct); return Ok(item); }
 
     [HttpPost("billing/{customerId:guid}/promises")]
     [Authorize(Roles = "Administrator,NocOperator")]
@@ -249,7 +249,10 @@ public sealed class OperationsApiController : ControllerBase
     {
         var account = await _db.BillingAccounts.AsNoTracking().FirstOrDefaultAsync(x => x.CustomerId == customerId, ct);
         if (account is null) return NotFound();
-        if (account.Balance <= 0) return Ok(new { Suspended = 0, account.Balance, Reason = "Saldo no vencido." });
+        var overdue = await _db.BillingEntries.AsNoTracking()
+            .Where(x => x.AccountId == account.Id && x.Type == LedgerEntryType.Charge && x.DueAtUtc != null)
+            .AnyAsync(x => x.DueAtUtc!.Value.AddDays(3) < DateTime.UtcNow, ct);
+        if (account.Balance <= 0 || !overdue) return Ok(new { Suspended = 0, account.Balance, Reason = "Saldo no vencido o dentro de gracia de 3 días." });
         var services = await _db.CustomerServices.Where(x => x.CustomerId == customerId && x.Status == ServiceStatus.Active).ToListAsync(ct);
         foreach (var service in services) service.Suspend();
         await _db.SaveChangesAsync(ct);
@@ -323,15 +326,15 @@ public sealed class OperationsApiController : ControllerBase
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> CompleteVisit(Guid id, [FromBody] VisitCompletionRequest request, CancellationToken ct) { var visit = await _db.TechnicianVisits.FindAsync(new object[] { id }, ct); if (visit is null) return NotFound(); visit.Complete(request.ActualMinutes, request.TravelMinutes, request.Result); await _db.SaveChangesAsync(ct); return Ok(visit); }
 
-    private async Task<IActionResult> ChangeService(Guid id, Action<CustomerService> change, CancellationToken ct) { var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct); if (service is null) return NotFound(); change(service); await _db.SaveChangesAsync(ct); return Ok(service); }
+    private async Task<IActionResult> ChangeService(Guid id, Action<CustomerService> change, CancellationToken ct) { var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct); if (service is null) return NotFound(); change(service); service.SetProvisioning(ProvisioningStatus.Unsupported, "Business record updated, network provisioning NOT EXECUTED."); await _db.SaveChangesAsync(ct); return Ok(service); }
     private async Task<IActionResult> ChangeAsset(Guid id, Action<InventoryAsset> change, CancellationToken ct) { var asset = await _db.InventoryAssets.FirstOrDefaultAsync(x => x.Id == id, ct); if (asset is null) return NotFound(); change(asset); await _db.SaveChangesAsync(ct); return Ok(asset); }
-    private async Task<IActionResult> AddLedger(Guid customerId, LedgerEntryType type, BillingRequest request, CancellationToken ct) { var account = await _db.BillingAccounts.FirstOrDefaultAsync(x => x.CustomerId == customerId, ct); if (account is null || request.Amount <= 0) return BadRequest("Cuenta o monto inválido."); account.Apply(type, request.Amount); _db.BillingEntries.Add(new BillingEntry(account.Id, type, request.Amount, request.Description)); PaymentReceipt? receipt = null; if (type == LedgerEntryType.Payment) { foreach (var promise in await _db.PaymentPromises.Where(x => x.CustomerId == customerId && x.Status == PromiseStatus.Active).OrderBy(x => x.ExpiresAtUtc).ToListAsync(ct)) { promise.ApplyPayment(request.Amount); break; } receipt = new PaymentReceipt(customerId, account.Id, request.Amount, $"PAY-{Guid.NewGuid():N}"); _db.PaymentReceipts.Add(receipt); } await _db.SaveChangesAsync(ct); return Ok(new { account.Id, account.Balance, Receipt = receipt }); }
+    private async Task<IActionResult> AddLedger(Guid customerId, LedgerEntryType type, BillingRequest request, CancellationToken ct) { var account = await _db.BillingAccounts.FirstOrDefaultAsync(x => x.CustomerId == customerId, ct); if (account is null || request.Amount <= 0) return BadRequest("Cuenta o monto inválido."); account.Apply(type, request.Amount); _db.BillingEntries.Add(new BillingEntry(account.Id, type, request.Amount, request.Description, request.DueAtUtc, request.Period)); PaymentReceipt? receipt = null; if (type == LedgerEntryType.Payment) { var remaining = request.Amount; foreach (var promise in await _db.PaymentPromises.Where(x => x.CustomerId == customerId && x.Status == PromiseStatus.Active).OrderBy(x => x.ExpiresAtUtc).ToListAsync(ct)) { var allocated = Math.Min(remaining, promise.Remaining); if (allocated > 0) { promise.ApplyPayment(allocated); remaining -= allocated; } if (remaining <= 0) break; } receipt = new PaymentReceipt(customerId, account.Id, request.Amount, $"PAY-{Guid.NewGuid():N}"); _db.PaymentReceipts.Add(receipt); } await _db.SaveChangesAsync(ct); return Ok(new { account.Id, account.Balance, Receipt = receipt }); }
 }
 
 public sealed record CreateCustomerRequest(string ServiceCode, string Name, string? Phone, string? Email);
 public sealed record CreatePlanRequest(string Name, decimal MonthlyPrice, int DownloadMbps, int UploadMbps);
 public sealed record CreateServiceRequest(Guid CustomerId, Guid PlanId, string Address);
-public sealed record BillingRequest(decimal Amount, string Description);
+public sealed record BillingRequest(decimal Amount, string Description, DateTime? DueAtUtc = null, string? Period = null);
 public sealed record TicketRequest(Guid CustomerId, string Title, string? Description);
 public sealed record AssetRequest(string AssetTag, string Type, string? SerialNumber, string? MacAddress);
 public sealed record CoverageRequest(string Address, CoverageStatus Status, int? CapacityMbps);

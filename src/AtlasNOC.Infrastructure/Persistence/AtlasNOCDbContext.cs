@@ -87,6 +87,9 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<ServiceCredit>().HasIndex(x => new { x.CustomerId, x.Status });
         modelBuilder.Entity<PaymentReceipt>().ToTable("PaymentReceipts").HasKey(x => x.Id);
         modelBuilder.Entity<PaymentReceipt>().HasIndex(x => x.Reference).IsUnique();
+        modelBuilder.Entity<BillingEntry>().Property(x => x.Period).HasMaxLength(64);
+        modelBuilder.Entity<CustomerService>().Property(x => x.Provisioning).HasConversion<int>();
+        modelBuilder.Entity<CpeAuthorizationCase>().Property(x => x.Provisioning).HasConversion<int>();
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));

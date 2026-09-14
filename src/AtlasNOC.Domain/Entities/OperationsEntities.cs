@@ -13,6 +13,7 @@ public enum ContractStatus { Draft, Accepted, Cancelled }
 public enum InstallationStatus { Planned, Scheduled, InProgress, Completed, Cancelled }
 public enum SupportInteractionChannel { Phone, Chat, Email, Field }
 public enum ServiceCreditStatus { Suggested, Approved, Applied, Rejected }
+public enum ProvisioningStatus { NotRequested, Requested, Provisioning, Applied, Failed, PartiallyApplied, Unsupported }
 
 public sealed class PaymentReceipt
 {
@@ -100,12 +101,15 @@ public sealed class CpeAuthorizationCase
     public double? Rssi { get; private set; }
     public double? Snr { get; private set; }
     public CpeAuthorizationStatus Status { get; private set; } = CpeAuthorizationStatus.Pending;
+    public ProvisioningStatus Provisioning { get; private set; } = ProvisioningStatus.NotRequested;
+    public string? EnforcementEvidence { get; private set; }
     public string? DecisionReason { get; private set; }
     public string? DecidedBy { get; private set; }
     public DateTime DetectedAtUtc { get; private set; } = DateTime.UtcNow;
     public DateTime? DecidedAtUtc { get; private set; }
     public CpeAuthorizationCase(string macAddress, string? accessPoint, string? ipAddress, double? rssi, double? snr, Guid? customerServiceId = null) { if (string.IsNullOrWhiteSpace(macAddress)) throw new ArgumentException("MAC obligatoria."); MacAddress = macAddress.Trim().ToUpperInvariant(); AccessPoint = accessPoint?.Trim(); IpAddress = ipAddress?.Trim(); Rssi = rssi; Snr = snr; CustomerServiceId = customerServiceId; }
     public void Decide(CpeAuthorizationStatus status, string reason, string actor) { if (status is not (CpeAuthorizationStatus.Authorized or CpeAuthorizationStatus.Rejected or CpeAuthorizationStatus.FraudReview or CpeAuthorizationStatus.Replaced)) throw new ArgumentException("Decisión inválida."); Status = status; DecisionReason = reason; DecidedBy = actor; DecidedAtUtc = DateTime.UtcNow; }
+    public void SetProvisioning(ProvisioningStatus status, string? evidence = null) { Provisioning = status; EnforcementEvidence = evidence; }
 }
 
 public sealed class Prospect
@@ -192,6 +196,8 @@ public sealed class CustomerService
     public Guid PlanId { get; private set; }
     public string ServiceAddress { get; private set; } = string.Empty;
     public ServiceStatus Status { get; private set; } = ServiceStatus.Pending;
+    public ProvisioningStatus Provisioning { get; private set; } = ProvisioningStatus.NotRequested;
+    public string? ProvisioningEvidence { get; private set; }
     public DateTime? ActivatedAtUtc { get; private set; }
     public CustomerService(Guid customerId, Guid planId, string address) { CustomerId = customerId; PlanId = planId; ServiceAddress = address; }
     public void Activate() { if (Status == ServiceStatus.Cancelled) throw new InvalidOperationException("Un servicio cancelado no puede reactivarse."); Status = ServiceStatus.Active; ActivatedAtUtc = DateTime.UtcNow; }
@@ -199,6 +205,7 @@ public sealed class CustomerService
     public void Reconnect() { if (Status == ServiceStatus.Cancelled) throw new InvalidOperationException("Un servicio cancelado no puede reconectarse."); Status = ServiceStatus.Active; }
     public void ChangePlan(Guid planId) { if (planId == Guid.Empty) throw new ArgumentException("Plan inválido."); PlanId = planId; }
     public void Cancel() => Status = ServiceStatus.Cancelled;
+    public void SetProvisioning(ProvisioningStatus status, string? evidence = null) { Provisioning = status; ProvisioningEvidence = evidence; }
 }
 
 public sealed class BillingAccount
@@ -220,7 +227,10 @@ public sealed class BillingEntry
     public decimal Amount { get; private set; }
     public string Description { get; private set; } = string.Empty;
     public DateTime OccurredAtUtc { get; private set; } = DateTime.UtcNow;
-    public BillingEntry(Guid accountId, LedgerEntryType type, decimal amount, string description) { AccountId = accountId; Type = type; Amount = amount; Description = description; }
+    public DateTime? DueAtUtc { get; private set; }
+    public string? Period { get; private set; }
+    public BillingEntry(Guid accountId, LedgerEntryType type, decimal amount, string description, DateTime? dueAtUtc = null, string? period = null) { AccountId = accountId; Type = type; Amount = amount; Description = description; DueAtUtc = dueAtUtc; Period = period; }
+    public bool IsOverdue(DateTime nowUtc, int graceDays) => Type == LedgerEntryType.Charge && DueAtUtc.HasValue && nowUtc > DueAtUtc.Value.AddDays(graceDays);
 }
 
 public sealed class SupportTicket
