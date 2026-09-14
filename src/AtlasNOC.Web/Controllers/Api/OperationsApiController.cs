@@ -267,6 +267,9 @@ public sealed class OperationsApiController : ControllerBase
     [HttpPost("tickets")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Ticket([FromBody] TicketRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return BadRequest("Cliente inválido."); var ticket = new SupportTicket(request.CustomerId, request.Title, request.Description); _db.SupportTickets.Add(ticket); await _db.SaveChangesAsync(ct); return Ok(ticket); }
+    [HttpPost("tickets/{id:guid}/status")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> TicketStatus(Guid id, [FromBody] TicketStatusRequest request, CancellationToken ct) { var ticket = await _db.SupportTickets.FindAsync(new object[] { id }, ct); if (ticket is null) return NotFound(); ticket.SetStatus(request.Status); await _db.SaveChangesAsync(ct); return Ok(ticket); }
     [HttpPost("assets")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> Asset([FromBody] AssetRequest request, CancellationToken ct) { if (string.IsNullOrWhiteSpace(request.AssetTag) || string.IsNullOrWhiteSpace(request.Type)) return BadRequest("AssetTag y tipo son obligatorios."); if (await _db.InventoryAssets.AnyAsync(x => x.AssetTag == request.AssetTag || (request.SerialNumber != null && x.SerialNumber == request.SerialNumber) || (request.MacAddress != null && x.MacAddress == request.MacAddress), ct)) return Conflict("AssetTag, serial o MAC ya registrados."); var asset = new InventoryAsset(request.AssetTag, request.Type, request.SerialNumber, request.MacAddress); _db.InventoryAssets.Add(asset); await _db.SaveChangesAsync(ct); return Ok(asset); }
@@ -311,3 +314,4 @@ public sealed record IncidentPriorityRequest(IncidentPriority Priority, string R
 public sealed record ChangePlanRequest(Guid PlanId, bool Confirmed);
 public sealed record AssetInspectionRequest(bool Passed);
 public sealed record VisitCompletionRequest(int ActualMinutes, int TravelMinutes, string Result);
+public sealed record TicketStatusRequest(TicketStatus Status);
