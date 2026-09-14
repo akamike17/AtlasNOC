@@ -106,6 +106,9 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("customers/{customerId:guid}/diagnostic")]
     public async Task<IActionResult> Diagnostic(Guid customerId, [FromServices] INetworkDiagnosticService diagnostics, CancellationToken ct) => Ok(await diagnostics.DiagnoseCustomerAsync(customerId, ct));
 
+    [HttpGet("devices/{deviceId:guid}/impact")]
+    public async Task<IActionResult> Impact(Guid deviceId, [FromServices] INetworkImpactService impact, CancellationToken ct) => Ok(await impact.PreviewAsync(deviceId, ct));
+
     [HttpPost("credits")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> CreateCredit([FromBody] CreditRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return NotFound(); var item = new ServiceCredit(request.CustomerId, request.IncidentId, request.FromUtc, request.ToUtc, request.SuggestedAmount, request.Reason); _db.ServiceCredits.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }

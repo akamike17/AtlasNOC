@@ -172,6 +172,7 @@ public static class DependencyInjection
         services.AddScoped<ITechnicianRoutePlanner, TechnicianRoutePlanner>();
         services.AddScoped<INetworkActionService, NetworkActionService>();
         services.AddScoped<INetworkDiagnosticService, NetworkDiagnosticsService>();
+        services.AddScoped<INetworkImpactService, NetworkImpactService>();
 
         return services;
     }
