@@ -66,6 +66,17 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("coverage")]
     public async Task<IActionResult> CoverageList(CancellationToken ct) => Ok(await _db.CoverageChecks.AsNoTracking().OrderByDescending(x => x.CheckedAtUtc).ToListAsync(ct));
 
+    [HttpGet("coverage/evaluate")]
+    public async Task<IActionResult> EvaluateCoverage([FromQuery] string address, [FromQuery] int requiredMbps = 0, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return BadRequest("Domicilio obligatorio.");
+        var check = await _db.CoverageChecks.AsNoTracking().Where(x => x.Address == address).OrderByDescending(x => x.CheckedAtUtc).FirstOrDefaultAsync(ct);
+        if (check is null) return Ok(new { Status = CoverageStatus.RequiresFieldValidation, CapacityMbps = (int?)null, Evidence = "No existe chequeo persistido." });
+        var capacityOk = !check.CapacityMbps.HasValue || requiredMbps <= check.CapacityMbps.Value;
+        var available = check.Status is CoverageStatus.Available or CoverageStatus.ProbablyAvailable;
+        return Ok(new { Status = available && capacityOk ? check.Status : CoverageStatus.CapacityLimited, check.CapacityMbps, RequiredMbps = requiredMbps, Evidence = "Último chequeo persistido." });
+    }
+
     [HttpGet("visits")]
     public async Task<IActionResult> Visits(CancellationToken ct) => Ok(await _db.TechnicianVisits.AsNoTracking().OrderBy(x => x.ScheduledAtUtc).ToListAsync(ct));
 
