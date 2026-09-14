@@ -169,6 +169,7 @@ public static class DependencyInjection
         services.AddSingleton<IPaymentProvider, ManualPaymentProvider>();
         services.AddScoped<IWispOperationsService, WispOperationsService>();
         services.AddScoped<ITechnicianRoutePlanner, TechnicianRoutePlanner>();
+        services.AddScoped<INetworkActionService, NetworkActionService>();
 
         return services;
     }

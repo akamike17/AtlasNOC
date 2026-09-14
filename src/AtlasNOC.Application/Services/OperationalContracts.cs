@@ -20,3 +20,9 @@ public interface IWispOperationsService
 {
     Task<IReadOnlyList<OperationsDeviceDto>> ListOperationalClientsAsync(CancellationToken ct = default);
 }
+
+public sealed record NetworkActionResult(bool Succeeded, string Message, string? Evidence);
+public interface INetworkActionService
+{
+    Task<NetworkActionResult> ExecuteAsync(Guid deviceId, Application.Devices.DeviceAction action, string? interfaceName, string? description, string actor, CancellationToken ct = default);
+}
