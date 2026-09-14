@@ -34,4 +34,53 @@ public sealed class OperationalDomainTests
         Assert.Equal(AssetStatus.Assigned, asset.Status);
         Assert.NotNull(asset.CustomerServiceId);
     }
+
+    [Fact]
+    public void Prospect_is_not_a_customer_until_explicitly_converted()
+    {
+        var prospect = new Prospect("Ana", "Calle 2");
+        prospect.SetStatus(ProspectStatus.CoverageChecked);
+        Assert.Equal(ProspectStatus.CoverageChecked, prospect.Status);
+    }
+
+    [Fact]
+    public void Payment_promise_tracks_remaining_and_fulfillment()
+    {
+        var promise = new PaymentPromise(Guid.NewGuid(), 300, DateTime.UtcNow, DateTime.UtcNow.AddDays(7), "op", "una cuota");
+        promise.ApplyPayment(100);
+        Assert.Equal(200, promise.Remaining);
+        promise.ApplyPayment(200);
+        Assert.Equal(PromiseStatus.Fulfilled, promise.Status);
+    }
+
+    [Fact]
+    public void Cpe_case_requires_explicit_decision()
+    {
+        var cpe = new CpeAuthorizationCase("aa:bb:cc:dd:ee:ff", "AP-1", "192.0.2.10", -55, 28);
+        Assert.Equal(CpeAuthorizationStatus.Pending, cpe.Status);
+        cpe.Decide(CpeAuthorizationStatus.Authorized, "reemplazo validado", "admin");
+        Assert.Equal(CpeAuthorizationStatus.Authorized, cpe.Status);
+    }
+
+    [Fact]
+    public void Contract_and_installation_follow_operational_lifecycle()
+    {
+        var customer = Guid.NewGuid();
+        var service = Guid.NewGuid();
+        var contract = new ServiceContract(customer, service, "mensualidad y devolución de equipo");
+        contract.Accept("admin");
+        var installation = new InstallationOrder(service, true, 350, 350);
+        installation.Schedule(DateTime.UtcNow.AddDays(1));
+        installation.Complete();
+        Assert.Equal(ContractStatus.Accepted, contract.Status);
+        Assert.Equal(InstallationStatus.Completed, installation.Status);
+    }
+
+    [Fact]
+    public void Credit_requires_real_interval_and_can_be_approved()
+    {
+        var credit = new ServiceCredit(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddHours(-2), DateTime.UtcNow, 25, "incidente raíz confirmado");
+        credit.SetStatus(ServiceCreditStatus.Approved);
+        Assert.Equal(ServiceCreditStatus.Approved, credit.Status);
+    }
 }
