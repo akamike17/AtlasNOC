@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Text.RegularExpressions;
 
 namespace AtlasNOC.Web.Controllers.Api;
 
@@ -118,7 +120,7 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpPost("cpe-cases")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
-    public async Task<IActionResult> CreateCpeCase([FromBody] CpeCaseRequest request, CancellationToken ct) { var item = new CpeAuthorizationCase(request.MacAddress, request.AccessPoint, request.IpAddress, request.Rssi, request.Snr, request.CustomerServiceId); _db.CpeAuthorizationCases.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }
+    public async Task<IActionResult> CreateCpeCase([FromBody] CpeCaseRequest request, CancellationToken ct) { if (!Regex.IsMatch(request.MacAddress ?? string.Empty, "^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")) return BadRequest("MAC inválida."); if (request.IpAddress is not null && (!IPAddress.TryParse(request.IpAddress, out var ip) || ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)) return BadRequest("IP observada inválida."); if (await _db.CpeAuthorizationCases.AnyAsync(x => x.MacAddress == request.MacAddress.ToUpperInvariant().Replace('-', ':') && x.Status == CpeAuthorizationStatus.Pending, ct)) return Conflict("Ya existe un caso pendiente para esa MAC."); var item = new CpeAuthorizationCase(request.MacAddress, request.AccessPoint, request.IpAddress, request.Rssi, request.Snr, request.CustomerServiceId); _db.CpeAuthorizationCases.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }
 
     [HttpPost("cpe-cases/{id:guid}/decision")]
     [Authorize(Roles = "Administrator,NocOperator")]
