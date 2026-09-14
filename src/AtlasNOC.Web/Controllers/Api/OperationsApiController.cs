@@ -45,6 +45,24 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("visits")]
     public async Task<IActionResult> Visits(CancellationToken ct) => Ok(await _db.TechnicianVisits.AsNoTracking().OrderBy(x => x.ScheduledAtUtc).ToListAsync(ct));
 
+    [HttpGet("prospects")]
+    public async Task<IActionResult> Prospects(CancellationToken ct) => Ok(await _db.Prospects.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
+
+    [HttpPost("prospects")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> CreateProspect([FromBody] ProspectRequest request, CancellationToken ct) { var prospect = new Prospect(request.Name, request.Address, request.Phone); _db.Prospects.Add(prospect); await _db.SaveChangesAsync(ct); return Ok(prospect); }
+
+    [HttpPost("prospects/{id:guid}/status")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> ProspectStatus(Guid id, [FromBody] ProspectStatusRequest request, CancellationToken ct) { var prospect = await _db.Prospects.FindAsync(new object[] { id }, ct); if (prospect is null) return NotFound(); prospect.SetStatus(request.Status); await _db.SaveChangesAsync(ct); return Ok(prospect); }
+
+    [HttpGet("billing/{customerId:guid}/promises")]
+    public async Task<IActionResult> Promises(Guid customerId, CancellationToken ct) => Ok(await _db.PaymentPromises.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.ExpiresAtUtc).ToListAsync(ct));
+
+    [HttpPost("billing/{customerId:guid}/promises")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> Promise(Guid customerId, [FromBody] PromiseRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == customerId, ct)) return NotFound(); var promise = new PaymentPromise(customerId, request.Amount, request.PromisedAtUtc, request.ExpiresAtUtc, User.Identity?.Name ?? "unknown", request.Conditions); _db.PaymentPromises.Add(promise); await _db.SaveChangesAsync(ct); return Ok(promise); }
+
     [HttpPost("visits/route")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Route([FromBody] RouteRequest request, CancellationToken ct) => Ok(await _routes.PlanAsync(request.VisitIds, ct));
@@ -142,3 +160,6 @@ public sealed record CoverageRequest(string Address, CoverageStatus Status, int?
 public sealed record VisitRequest(Guid CustomerId, DateTime ScheduledAtUtc, string WorkType, int EstimatedMinutes);
 public sealed record RouteRequest(IReadOnlyList<Guid> VisitIds);
 public sealed record ConfigurationRevisionRequest(string BeforeHash, string AfterHash, string Source, string Reason);
+public sealed record ProspectRequest(string Name, string Address, string? Phone);
+public sealed record ProspectStatusRequest(ProspectStatus Status);
+public sealed record PromiseRequest(decimal Amount, DateTime PromisedAtUtc, DateTime ExpiresAtUtc, string Conditions);

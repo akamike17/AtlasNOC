@@ -6,6 +6,38 @@ public enum LedgerEntryType { Charge, Payment, Credit, Adjustment }
 public enum TicketStatus { Open, InProgress, Resolved, Closed }
 public enum AssetStatus { UnknownDetected, Stock, Reserved, Assigned, Recovered, PendingInspection, Tested, Repair, Damaged, Retired }
 public enum CoverageStatus { Available, ProbablyAvailable, RequiresFieldValidation, NoCoverageConfirmed, CapacityLimited, Saturated, Planned }
+public enum PromiseStatus { Active, Fulfilled, Defaulted, Cancelled }
+public enum ProspectStatus { New, CoverageChecked, Won, Lost }
+
+public sealed class Prospect
+{
+    private Prospect() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public string Name { get; private set; } = string.Empty;
+    public string Address { get; private set; } = string.Empty;
+    public string? Phone { get; private set; }
+    public ProspectStatus Status { get; private set; } = ProspectStatus.New;
+    public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
+    public Prospect(string name, string address, string? phone = null) { if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(address)) throw new ArgumentException("Nombre y domicilio son obligatorios."); Name = name.Trim(); Address = address.Trim(); Phone = phone?.Trim(); }
+    public void SetStatus(ProspectStatus status) => Status = status;
+}
+
+public sealed class PaymentPromise
+{
+    private PaymentPromise() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid CustomerId { get; private set; }
+    public decimal Amount { get; private set; }
+    public decimal Remaining { get; private set; }
+    public DateTime PromisedAtUtc { get; private set; }
+    public DateTime ExpiresAtUtc { get; private set; }
+    public string AuthorizedBy { get; private set; } = string.Empty;
+    public string Conditions { get; private set; } = string.Empty;
+    public PromiseStatus Status { get; private set; } = PromiseStatus.Active;
+    public PaymentPromise(Guid customerId, decimal amount, DateTime promisedAtUtc, DateTime expiresAtUtc, string authorizedBy, string conditions) { if (amount <= 0 || expiresAtUtc < promisedAtUtc) throw new ArgumentException("Promesa inválida."); CustomerId = customerId; Amount = amount; Remaining = amount; PromisedAtUtc = promisedAtUtc; ExpiresAtUtc = expiresAtUtc; AuthorizedBy = authorizedBy; Conditions = conditions; }
+    public void ApplyPayment(decimal amount) { if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount)); Remaining = Math.Max(0, Remaining - amount); if (Remaining == 0) Status = PromiseStatus.Fulfilled; }
+    public void Default() => Status = PromiseStatus.Defaulted;
+}
 
 public sealed class ConfigurationRevision
 {
