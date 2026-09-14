@@ -17,13 +17,37 @@ public sealed class OperationsApiController : ControllerBase
 {
     private readonly IOperationsSnapshotService _snapshot;
     private readonly AtlasNOCDbContext _db;
-    public OperationsApiController(IOperationsSnapshotService snapshot, AtlasNOCDbContext db) { _snapshot = snapshot; _db = db; }
+    private readonly ITechnicianRoutePlanner _routes;
+    public OperationsApiController(IOperationsSnapshotService snapshot, AtlasNOCDbContext db, ITechnicianRoutePlanner routes) { _snapshot = snapshot; _db = db; _routes = routes; }
 
     [HttpGet("snapshot")]
     public Task<OperationsSnapshotDto> Snapshot(CancellationToken ct) => _snapshot.GetAsync(ct);
 
     [HttpGet("customers")]
     public async Task<IActionResult> Customers(CancellationToken ct) => Ok(await _db.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct));
+
+    [HttpGet("services")]
+    public async Task<IActionResult> Services(CancellationToken ct) => Ok(await _db.CustomerServices.AsNoTracking().OrderByDescending(x => x.ActivatedAtUtc).ToListAsync(ct));
+
+    [HttpGet("billing/{customerId:guid}")]
+    public async Task<IActionResult> Billing(Guid customerId, CancellationToken ct)
+    { var account = await _db.BillingAccounts.AsNoTracking().FirstOrDefaultAsync(x => x.CustomerId == customerId, ct); if (account is null) return NotFound(); return Ok(new { account.Id, account.CustomerId, account.Balance, Entries = await _db.BillingEntries.AsNoTracking().Where(x => x.AccountId == account.Id).OrderByDescending(x => x.OccurredAtUtc).ToListAsync(ct) }); }
+
+    [HttpGet("tickets")]
+    public async Task<IActionResult> Tickets(CancellationToken ct) => Ok(await _db.SupportTickets.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
+
+    [HttpGet("assets")]
+    public async Task<IActionResult> Assets(CancellationToken ct) => Ok(await _db.InventoryAssets.AsNoTracking().OrderBy(x => x.AssetTag).ToListAsync(ct));
+
+    [HttpGet("coverage")]
+    public async Task<IActionResult> CoverageList(CancellationToken ct) => Ok(await _db.CoverageChecks.AsNoTracking().OrderByDescending(x => x.CheckedAtUtc).ToListAsync(ct));
+
+    [HttpGet("visits")]
+    public async Task<IActionResult> Visits(CancellationToken ct) => Ok(await _db.TechnicianVisits.AsNoTracking().OrderBy(x => x.ScheduledAtUtc).ToListAsync(ct));
+
+    [HttpPost("visits/route")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> Route([FromBody] RouteRequest request, CancellationToken ct) => Ok(await _routes.PlanAsync(request.VisitIds, ct));
 
     [HttpPost("customers")]
     [Authorize(Roles = "Administrator,NocOperator")]
@@ -104,3 +128,4 @@ public sealed record TicketRequest(Guid CustomerId, string Title, string? Descri
 public sealed record AssetRequest(string AssetTag, string Type, string? SerialNumber, string? MacAddress);
 public sealed record CoverageRequest(string Address, CoverageStatus Status, int? CapacityMbps);
 public sealed record VisitRequest(Guid CustomerId, DateTime ScheduledAtUtc, string WorkType, int EstimatedMinutes);
+public sealed record RouteRequest(IReadOnlyList<Guid> VisitIds);
