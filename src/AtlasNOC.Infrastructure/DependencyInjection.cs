@@ -132,6 +132,7 @@ public static class DependencyInjection
         services.AddSingleton<IDeviceDriver, GenericSnmpDriver>();
         services.AddSingleton<IDeviceDriverRegistry, DeviceDriverRegistry>();
         services.AddSingleton<IDeviceControlDriver, MikroTikControlDriver>();
+        if (labMode) services.AddSingleton<IDeviceControlDriver, SimulatedDeviceControlDriver>();
 
         // Application services
         services.AddOptions<DiscoveryOptions>();
