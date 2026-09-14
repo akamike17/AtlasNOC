@@ -152,7 +152,7 @@ public sealed class ConfigurationRevision
     public bool KnownGood { get; private set; }
     public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
     public ConfigurationRevision(Guid deviceId, int revision, string beforeHash, string afterHash, string source, string reason, string actor)
-    { if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision)); DeviceId = deviceId; Revision = revision; BeforeHash = beforeHash; AfterHash = afterHash; Source = source; Reason = reason; Actor = actor; }
+    { if (deviceId == Guid.Empty || revision < 1 || string.IsNullOrWhiteSpace(beforeHash) || string.IsNullOrWhiteSpace(afterHash) || string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(reason) || string.IsNullOrWhiteSpace(actor)) throw new ArgumentException("Revisión de configuración incompleta."); DeviceId = deviceId; Revision = revision; BeforeHash = beforeHash.Trim(); AfterHash = afterHash.Trim(); Source = source.Trim(); Reason = reason.Trim(); Actor = actor.Trim(); }
     public void MarkKnownGood() => KnownGood = true;
 }
 
