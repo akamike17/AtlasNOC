@@ -63,8 +63,6 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<InventoryAsset>().ToTable("InventoryAssets").HasKey(x => x.Id);
         modelBuilder.Entity<CoverageCheck>().ToTable("CoverageChecks").HasKey(x => x.Id);
         modelBuilder.Entity<TechnicianVisit>().ToTable("TechnicianVisits").HasKey(x => x.Id);
-        foreach (var type in new[] { typeof(Customer), typeof(ServicePlan), typeof(CustomerService), typeof(BillingAccount), typeof(BillingEntry), typeof(SupportTicket), typeof(InventoryAsset), typeof(CoverageCheck), typeof(TechnicianVisit) })
-            modelBuilder.Entity(type).Property<DateTime>("CreatedAtUtc").IsRequired(false);
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));
