@@ -260,5 +260,9 @@ public sealed class TechnicianVisit
     public DateTime ScheduledAtUtc { get; private set; }
     public string WorkType { get; private set; } = string.Empty;
     public int EstimatedMinutes { get; private set; }
+    public int? ActualMinutes { get; private set; }
+    public int? TravelMinutes { get; private set; }
+    public string? Result { get; private set; }
     public TechnicianVisit(Guid customerId, DateTime scheduledAtUtc, string workType, int estimatedMinutes) { CustomerId = customerId; ScheduledAtUtc = scheduledAtUtc; WorkType = workType; EstimatedMinutes = estimatedMinutes; }
+    public void Complete(int actualMinutes, int travelMinutes, string result) { if (actualMinutes < 0 || travelMinutes < 0) throw new ArgumentOutOfRangeException(); ActualMinutes = actualMinutes; TravelMinutes = travelMinutes; Result = result; }
 }

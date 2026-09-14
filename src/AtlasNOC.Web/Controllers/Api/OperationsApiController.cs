@@ -249,6 +249,10 @@ public sealed class OperationsApiController : ControllerBase
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Visit([FromBody] VisitRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return BadRequest("Cliente inválido."); var visit = new TechnicianVisit(request.CustomerId, request.ScheduledAtUtc, request.WorkType, request.EstimatedMinutes); _db.TechnicianVisits.Add(visit); await _db.SaveChangesAsync(ct); return Ok(visit); }
 
+    [HttpPost("visits/{id:guid}/complete")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> CompleteVisit(Guid id, [FromBody] VisitCompletionRequest request, CancellationToken ct) { var visit = await _db.TechnicianVisits.FindAsync(new object[] { id }, ct); if (visit is null) return NotFound(); visit.Complete(request.ActualMinutes, request.TravelMinutes, request.Result); await _db.SaveChangesAsync(ct); return Ok(visit); }
+
     private async Task<IActionResult> ChangeService(Guid id, Action<CustomerService> change, CancellationToken ct) { var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct); if (service is null) return NotFound(); change(service); await _db.SaveChangesAsync(ct); return Ok(service); }
     private async Task<IActionResult> ChangeAsset(Guid id, Action<InventoryAsset> change, CancellationToken ct) { var asset = await _db.InventoryAssets.FirstOrDefaultAsync(x => x.Id == id, ct); if (asset is null) return NotFound(); change(asset); await _db.SaveChangesAsync(ct); return Ok(asset); }
     private async Task<IActionResult> AddLedger(Guid customerId, LedgerEntryType type, BillingRequest request, CancellationToken ct) { var account = await _db.BillingAccounts.FirstOrDefaultAsync(x => x.CustomerId == customerId, ct); if (account is null || request.Amount <= 0) return BadRequest("Cuenta o monto inválido."); account.Apply(type, request.Amount); _db.BillingEntries.Add(new BillingEntry(account.Id, type, request.Amount, request.Description)); await _db.SaveChangesAsync(ct); return Ok(new { account.Id, account.Balance }); }
@@ -278,3 +282,4 @@ public sealed record RootIncidentRequest(string Title, string? Description, stri
 public sealed record IncidentPriorityRequest(IncidentPriority Priority, string Reason);
 public sealed record ChangePlanRequest(Guid PlanId, bool Confirmed);
 public sealed record AssetInspectionRequest(bool Passed);
+public sealed record VisitCompletionRequest(int ActualMinutes, int TravelMinutes, string Result);
