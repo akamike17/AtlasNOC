@@ -238,6 +238,16 @@ public sealed class OperationsApiController : ControllerBase
         return plan is null ? BadRequest("El plan no existe.") : await AddLedger(customerId, LedgerEntryType.Charge, new BillingRequest(plan.MonthlyPrice, $"Mensualidad {plan.Name}"), ct);
     }
 
+    [HttpGet("services/{id:guid}/prepayment-quote")]
+    public async Task<IActionResult> PrepaymentQuote(Guid id, [FromQuery] int months, CancellationToken ct)
+    {
+        var service = await _db.CustomerServices.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (service is null) return NotFound();
+        var plan = await _db.ServicePlans.AsNoTracking().FirstOrDefaultAsync(x => x.Id == service.PlanId, ct);
+        if (plan is null) return BadRequest("El plan no existe.");
+        return Ok(new PrepaymentPolicy().Quote(months, plan.MonthlyPrice));
+    }
+
     [HttpPost("services/{id:guid}/pay-and-reconnect")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> PayAndReconnect(Guid id, [FromBody] BillingRequest request, CancellationToken ct)
