@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using AtlasNOC.Infrastructure.Persistence;
 #nullable disable
 namespace AtlasNOC.Infrastructure.Persistence.Migrations;
+[DbContext(typeof(AtlasNOCDbContext))]
+[Migration("20260914120000_AddOperationalCore")]
 public partial class AddOperationalCore : Migration
 {
  protected override void Up(MigrationBuilder m)
