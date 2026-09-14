@@ -16,7 +16,13 @@
         @foreach (var i in Model)
         {
             <tr>
-                <td>@i.Title</td>
+                <td>
+                    @i.Title
+                    @if (!string.IsNullOrWhiteSpace(i.RootCauseDeviceId))
+                    {
+                        <div class="small text-info">Dispositivo: @i.RootCauseDeviceId</div>
+                    }
+                </td>
                 <td>@((AtlasNOC.Domain.Enums.IncidentStatus)i.Status)</td>
                 <td>@(i.IsRootCauseCandidate ? "Sí" : "—")</td>
                 <td>@i.CreatedAtUtc.ToLocalTime().ToString("g")</td>

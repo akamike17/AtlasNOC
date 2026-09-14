@@ -54,7 +54,8 @@ public sealed record MetricPointDto(DateTime TimestampUtc, double Value, string?
 public sealed record AlertDto(Guid Id, string ResourceType, string ResourceId, string MetricName,
     double Value, double Threshold, int Severity, int State, DateTime FirstSeenUtc, DateTime LastSeenUtc);
 
-public sealed record IncidentDto(Guid Id, string Title, int Status, bool IsRootCauseCandidate, DateTime CreatedAtUtc);
+public sealed record IncidentDto(Guid Id, string Title, int Status, bool IsRootCauseCandidate, DateTime CreatedAtUtc,
+    string? RootCauseDeviceId = null);
 
 public sealed record CreateApiKeyRequest(string Name, string Description, string Scopes, DateTime? ExpiresAtUtc, string? OwnerUserId = null);
 

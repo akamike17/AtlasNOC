@@ -80,7 +80,8 @@ public class IncidentService : IIncidentService
     {
         var list = activeOnly ? await _incidents.ListActiveAsync(ct)
             : await _context.Incidents.AsNoTracking().ToListAsync(ct);
-        return list.Select(i => new IncidentDto(i.Id, i.Title, (int)i.Status, i.IsRootCauseCandidate, i.CreatedAtUtc)).ToList();
+        return list.Select(i => new IncidentDto(i.Id, i.Title, (int)i.Status, i.IsRootCauseCandidate,
+            i.CreatedAtUtc, i.RootCauseDeviceId)).ToList();
     }
 
     public async Task ResolveAsync(Guid id, string by, CancellationToken ct = default)

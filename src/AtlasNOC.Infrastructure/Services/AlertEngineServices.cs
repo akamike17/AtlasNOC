@@ -152,9 +152,24 @@ public class IncidentCorrelationEngine : IIncidentCorrelationEngine
             var affected = FindDownstream(graph, downDeviceId)
                 .Where(downDeviceIds.Contains)
                 .ToList();
-            // Sin orientación y sin una alerta compatible downstream no hay
-            // evidencia para declarar siquiera un candidato.
-            if (affected.Count == 0) continue;
+            // Una caída aislada sí merece un incidente operativo, pero no se
+            // presenta como causa raíz sin evidencia de dependencias.
+            if (affected.Count == 0)
+            {
+                var standalone = await _context.Incidents
+                    .FirstOrDefaultAsync(i => i.CreatedBy == "system"
+                        && i.RootCauseDeviceId == null
+                        && i.Title == $"Dispositivo no disponible: {device.Hostname}"
+                        && i.Status != IncidentStatus.Resolved, ct);
+                if (standalone is null)
+                {
+                    _context.Incidents.Add(new Incident(
+                        $"Dispositivo no disponible: {device.Hostname}", "system",
+                        $"Evidencia directa: la métrica availability del dispositivo {device.Hostname} está en 0. " +
+                        "No se declara causa raíz ni impacto downstream sin enlaces confirmados.", null));
+                }
+                continue;
+            }
             var downDevice = downDeviceId.ToString();
             candidatesSeen.Add(downDevice);
             var affectedNames = affected.Select(id =>
