@@ -2,6 +2,8 @@ using AtlasNOC.Domain.Enums;
 
 namespace AtlasNOC.Domain.Entities;
 
+public enum IncidentPriority { P1Critical = 1, P2High = 2, P3Medium = 3, P4Low = 4 }
+
 /// <summary>Incidente que correlaciona una o varias alertas y sus dependencias.</summary>
 public class Incident
 {
@@ -15,6 +17,8 @@ public class Incident
     public DateTime? ResolvedAtUtc { get; private set; }
     public string CreatedBy { get; private set; } = string.Empty;
     public string? ResolvedBy { get; private set; }
+    public IncidentPriority Priority { get; private set; } = IncidentPriority.P3Medium;
+    public string? PriorityChangeReason { get; private set; }
 
     private Incident() { }
 
@@ -34,6 +38,7 @@ public class Incident
     public void RefreshEvidence(string description) => Description = description;
     public void Investigate() => Status = IncidentStatus.Investigating;
     public void Monitor() => Status = IncidentStatus.Monitoring;
+    public void Reclassify(IncidentPriority priority, string reason) { if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("El motivo es obligatorio."); Priority = priority; PriorityChangeReason = reason.Trim(); }
 
     public void Resolve(string by)
     {

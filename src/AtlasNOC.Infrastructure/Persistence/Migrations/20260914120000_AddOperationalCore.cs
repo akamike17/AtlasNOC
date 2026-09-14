@@ -9,6 +9,8 @@ public partial class AddOperationalCore : Migration
 {
  protected override void Up(MigrationBuilder m)
  {
+  m.Sql("ALTER TABLE Incidents ADD COLUMN Priority int NOT NULL DEFAULT 3");
+  m.Sql("ALTER TABLE Incidents ADD COLUMN PriorityChangeReason varchar(500) NULL");
   m.Sql("CREATE TABLE IF NOT EXISTS Customers (Id char(36) NOT NULL, ServiceCode varchar(64) NOT NULL, Name varchar(200) NOT NULL, Phone varchar(64) NULL, Email varchar(255) NULL, Status int NOT NULL, CreatedAtUtc datetime(6) NOT NULL, PRIMARY KEY (Id), UNIQUE KEY UX_Customers_ServiceCode (ServiceCode))");
   m.Sql("CREATE TABLE IF NOT EXISTS ServicePlans (Id char(36) NOT NULL, Name varchar(200) NOT NULL, MonthlyPrice decimal(18,2) NOT NULL, DownloadMbps int NOT NULL, UploadMbps int NOT NULL, IsActive bit NOT NULL, PRIMARY KEY (Id))");
   m.Sql("CREATE TABLE IF NOT EXISTS CustomerServices (Id char(36) NOT NULL, CustomerId char(36) NOT NULL, PlanId char(36) NOT NULL, ServiceAddress varchar(500) NOT NULL, Status int NOT NULL, ActivatedAtUtc datetime(6) NULL, PRIMARY KEY (Id), KEY IX_CustomerServices_CustomerId (CustomerId), CONSTRAINT FK_CustomerServices_Customers FOREIGN KEY (CustomerId) REFERENCES Customers(Id), CONSTRAINT FK_CustomerServices_ServicePlans FOREIGN KEY (PlanId) REFERENCES ServicePlans(Id))");

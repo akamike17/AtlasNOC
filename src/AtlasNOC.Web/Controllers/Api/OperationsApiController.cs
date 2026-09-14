@@ -40,6 +40,10 @@ public sealed class OperationsApiController : ControllerBase
         return Ok(incident);
     }
 
+    [HttpPost("incidents/{id:guid}/priority")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> ReclassifyIncident(Guid id, [FromBody] IncidentPriorityRequest request, CancellationToken ct) { var incident = await _db.Incidents.FindAsync(new object[] { id }, ct); if (incident is null) return NotFound(); incident.Reclassify(request.Priority, request.Reason); await _db.SaveChangesAsync(ct); return Ok(incident); }
+
     [HttpGet("customers")]
     public async Task<IActionResult> Customers(CancellationToken ct) => Ok(await _db.Customers.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct));
 
@@ -268,5 +272,6 @@ public sealed record InteractionRequest(Guid TicketId, SupportInteractionChannel
 public sealed record CreditRequest(Guid CustomerId, Guid? IncidentId, DateTime FromUtc, DateTime ToUtc, decimal SuggestedAmount, string Reason);
 public sealed record CreditStatusRequest(ServiceCreditStatus Status);
 public sealed record RootIncidentRequest(string Title, string? Description, string? RootCauseDeviceId);
+public sealed record IncidentPriorityRequest(IncidentPriority Priority, string Reason);
 public sealed record ChangePlanRequest(Guid PlanId, bool Confirmed);
 public sealed record AssetInspectionRequest(bool Passed);
