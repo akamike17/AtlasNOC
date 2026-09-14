@@ -8,6 +8,26 @@ public enum AssetStatus { UnknownDetected, Stock, Reserved, Assigned, Recovered,
 public enum CoverageStatus { Available, ProbablyAvailable, RequiresFieldValidation, NoCoverageConfirmed, CapacityLimited, Saturated, Planned }
 public enum PromiseStatus { Active, Fulfilled, Defaulted, Cancelled }
 public enum ProspectStatus { New, CoverageChecked, Won, Lost }
+public enum CpeAuthorizationStatus { Pending, Authorized, Rejected, FraudReview, Replaced }
+
+public sealed class CpeAuthorizationCase
+{
+    private CpeAuthorizationCase() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid? CustomerServiceId { get; private set; }
+    public string MacAddress { get; private set; } = string.Empty;
+    public string? AccessPoint { get; private set; }
+    public string? IpAddress { get; private set; }
+    public double? Rssi { get; private set; }
+    public double? Snr { get; private set; }
+    public CpeAuthorizationStatus Status { get; private set; } = CpeAuthorizationStatus.Pending;
+    public string? DecisionReason { get; private set; }
+    public string? DecidedBy { get; private set; }
+    public DateTime DetectedAtUtc { get; private set; } = DateTime.UtcNow;
+    public DateTime? DecidedAtUtc { get; private set; }
+    public CpeAuthorizationCase(string macAddress, string? accessPoint, string? ipAddress, double? rssi, double? snr, Guid? customerServiceId = null) { if (string.IsNullOrWhiteSpace(macAddress)) throw new ArgumentException("MAC obligatoria."); MacAddress = macAddress.Trim().ToUpperInvariant(); AccessPoint = accessPoint?.Trim(); IpAddress = ipAddress?.Trim(); Rssi = rssi; Snr = snr; CustomerServiceId = customerServiceId; }
+    public void Decide(CpeAuthorizationStatus status, string reason, string actor) { if (status is not (CpeAuthorizationStatus.Authorized or CpeAuthorizationStatus.Rejected or CpeAuthorizationStatus.FraudReview or CpeAuthorizationStatus.Replaced)) throw new ArgumentException("Decisión inválida."); Status = status; DecisionReason = reason; DecidedBy = actor; DecidedAtUtc = DateTime.UtcNow; }
+}
 
 public sealed class Prospect
 {

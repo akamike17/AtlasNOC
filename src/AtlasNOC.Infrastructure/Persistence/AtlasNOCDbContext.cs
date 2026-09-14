@@ -50,6 +50,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<ConfigurationRevision> ConfigurationRevisions => Set<ConfigurationRevision>();
     public DbSet<Prospect> Prospects => Set<Prospect>();
     public DbSet<PaymentPromise> PaymentPromises => Set<PaymentPromise>();
+    public DbSet<CpeAuthorizationCase> CpeAuthorizationCases => Set<CpeAuthorizationCase>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -71,6 +72,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<Prospect>().ToTable("Prospects").HasKey(x => x.Id);
         modelBuilder.Entity<PaymentPromise>().ToTable("PaymentPromises").HasKey(x => x.Id);
         modelBuilder.Entity<PaymentPromise>().HasIndex(x => new { x.CustomerId, x.Status });
+        modelBuilder.Entity<CpeAuthorizationCase>().ToTable("CpeAuthorizationCases").HasKey(x => x.Id);
+        modelBuilder.Entity<CpeAuthorizationCase>().HasIndex(x => new { x.MacAddress, x.Status });
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));

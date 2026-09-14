@@ -59,6 +59,17 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("billing/{customerId:guid}/promises")]
     public async Task<IActionResult> Promises(Guid customerId, CancellationToken ct) => Ok(await _db.PaymentPromises.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.ExpiresAtUtc).ToListAsync(ct));
 
+    [HttpGet("cpe-cases")]
+    public async Task<IActionResult> CpeCases(CancellationToken ct) => Ok(await _db.CpeAuthorizationCases.AsNoTracking().OrderByDescending(x => x.DetectedAtUtc).ToListAsync(ct));
+
+    [HttpPost("cpe-cases")]
+    [Authorize(Roles = "Administrator,NocOperator,Support")]
+    public async Task<IActionResult> CreateCpeCase([FromBody] CpeCaseRequest request, CancellationToken ct) { var item = new CpeAuthorizationCase(request.MacAddress, request.AccessPoint, request.IpAddress, request.Rssi, request.Snr, request.CustomerServiceId); _db.CpeAuthorizationCases.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }
+
+    [HttpPost("cpe-cases/{id:guid}/decision")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> DecideCpeCase(Guid id, [FromBody] CpeDecisionRequest request, CancellationToken ct) { var item = await _db.CpeAuthorizationCases.FindAsync(new object[] { id }, ct); if (item is null) return NotFound(); item.Decide(request.Status, request.Reason, User.Identity?.Name ?? "unknown"); await _db.SaveChangesAsync(ct); return Ok(item); }
+
     [HttpPost("billing/{customerId:guid}/promises")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> Promise(Guid customerId, [FromBody] PromiseRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == customerId, ct)) return NotFound(); var promise = new PaymentPromise(customerId, request.Amount, request.PromisedAtUtc, request.ExpiresAtUtc, User.Identity?.Name ?? "unknown", request.Conditions); _db.PaymentPromises.Add(promise); await _db.SaveChangesAsync(ct); return Ok(promise); }
@@ -163,3 +174,5 @@ public sealed record ConfigurationRevisionRequest(string BeforeHash, string Afte
 public sealed record ProspectRequest(string Name, string Address, string? Phone);
 public sealed record ProspectStatusRequest(ProspectStatus Status);
 public sealed record PromiseRequest(decimal Amount, DateTime PromisedAtUtc, DateTime ExpiresAtUtc, string Conditions);
+public sealed record CpeCaseRequest(string MacAddress, string? AccessPoint, string? IpAddress, double? Rssi, double? Snr, Guid? CustomerServiceId);
+public sealed record CpeDecisionRequest(CpeAuthorizationStatus Status, string Reason);
