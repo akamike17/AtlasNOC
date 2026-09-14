@@ -173,7 +173,7 @@ public sealed class OperationsApiController : ControllerBase
     [HttpPost("customers")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> CreateCustomer([FromBody] CreateCustomerRequest request, CancellationToken ct)
-    { if (await _db.Customers.AnyAsync(x => x.ServiceCode == request.ServiceCode, ct)) return Conflict("ServiceCode ya existe."); var customer = new Customer(request.ServiceCode, request.Name, request.Phone, request.Email); _db.Customers.Add(customer); _db.BillingAccounts.Add(new BillingAccount(customer.Id)); await _db.SaveChangesAsync(ct); return Created($"/api/operations/customers/{customer.Id}", customer); }
+    { var code = request.ServiceCode?.Trim().ToUpperInvariant() ?? string.Empty; if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Código y nombre son obligatorios."); if (await _db.Customers.AnyAsync(x => x.ServiceCode.ToUpper() == code, ct)) return Conflict("ServiceCode ya existe."); var customer = new Customer(code, request.Name, request.Phone, request.Email); _db.Customers.Add(customer); _db.BillingAccounts.Add(new BillingAccount(customer.Id)); await _db.SaveChangesAsync(ct); return Created($"/api/operations/customers/{customer.Id}", customer); }
 
     [HttpPost("plans")]
     [Authorize(Roles = "Administrator,NocOperator")]
