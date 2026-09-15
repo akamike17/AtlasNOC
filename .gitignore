@@ -48,3 +48,6 @@ test-results/
 # OS
 .DS_Store
 Thumbs.db
+.lab-backups/
+.e2e-server.stdout.log
+.e2e-server.stderr.log
