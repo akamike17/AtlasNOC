@@ -287,11 +287,28 @@ public class SystemHealthService : ISystemHealthService
     public async Task<SystemHealthDto> GetHealthAsync(CancellationToken ct = default)
     {
         bool dbOk;
-        try { dbOk = await _context.Database.CanConnectAsync(ct); }
-        catch { dbOk = false; }
+        try
+        {
+            dbOk = await _context.Database.CanConnectAsync(ct);
+            if (!dbOk)
+                return new SystemHealthDto(false, 0, 0, DateTime.UtcNow);
+        }
+        catch
+        {
+            return new SystemHealthDto(false, 0, 0, DateTime.UtcNow);
+        }
 
-        var deviceCount = await _context.Devices.CountAsync(ct);
-        var openAlerts = await _context.Alerts.CountAsync(a => a.State != AlertState.Resolved, ct);
+        int deviceCount;
+        int openAlerts;
+        try
+        {
+            deviceCount = await _context.Devices.CountAsync(ct);
+            openAlerts = await _context.Alerts.CountAsync(a => a.State != AlertState.Resolved, ct);
+        }
+        catch
+        {
+            return new SystemHealthDto(false, 0, 0, DateTime.UtcNow);
+        }
 
         return new SystemHealthDto(dbOk, deviceCount, openAlerts, DateTime.UtcNow);
     }

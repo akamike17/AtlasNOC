@@ -195,3 +195,9 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 
 - Se añadió prueba de dominio para liberar reservas sin permitir valores negativos ni liberación superior a la reserva.
 - Verificación actualizada: solución Release PASS (0 errores/advertencias) y Unit **178/178 PASS**.
+
+## Loop: health degradado de base de datos
+
+- Gap cerrado: `SystemHealthService` ya no consulta conteos después de una conexión DB fallida; devuelve estado degradado (`DatabaseOk=false`, conteos cero y timestamp) de forma estable.
+- Evita que una caída de infraestructura termine en excepción 500 o falso estado OK.
+- Verificación: solución Release PASS y Unit **178/178 PASS**.
