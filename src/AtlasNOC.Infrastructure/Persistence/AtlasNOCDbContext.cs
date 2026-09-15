@@ -68,6 +68,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<CustomerService>().ToTable("CustomerServices").HasKey(x => x.Id);
         modelBuilder.Entity<BillingAccount>().ToTable("BillingAccounts").HasKey(x => x.Id);
         modelBuilder.Entity<BillingEntry>().ToTable("BillingEntries").HasKey(x => x.Id);
+        modelBuilder.Entity<BillingEntry>().HasIndex(x => new { x.AccountId, x.Type, x.IdempotencyKey }).IsUnique();
+        modelBuilder.Entity<BillingEntry>().Property(x => x.IdempotencyKey).HasMaxLength(128);
         modelBuilder.Entity<SupportTicket>().ToTable("SupportTickets").HasKey(x => x.Id);
         modelBuilder.Entity<InventoryAsset>().ToTable("InventoryAssets").HasKey(x => x.Id);
         modelBuilder.Entity<CoverageCheck>().ToTable("CoverageChecks").HasKey(x => x.Id);

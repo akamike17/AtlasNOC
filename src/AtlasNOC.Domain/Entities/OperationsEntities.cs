@@ -229,7 +229,8 @@ public sealed class BillingEntry
     public DateTime OccurredAtUtc { get; private set; } = DateTime.UtcNow;
     public DateTime? DueAtUtc { get; private set; }
     public string? Period { get; private set; }
-    public BillingEntry(Guid accountId, LedgerEntryType type, decimal amount, string description, DateTime? dueAtUtc = null, string? period = null) { AccountId = accountId; Type = type; Amount = amount; Description = description; DueAtUtc = dueAtUtc; Period = period; }
+    public string? IdempotencyKey { get; private set; }
+    public BillingEntry(Guid accountId, LedgerEntryType type, decimal amount, string description, DateTime? dueAtUtc = null, string? period = null, string? idempotencyKey = null) { AccountId = accountId; Type = type; Amount = amount; Description = description; DueAtUtc = dueAtUtc; Period = period; IdempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim(); }
     public bool IsOverdue(DateTime nowUtc, int graceDays) => Type == LedgerEntryType.Charge && DueAtUtc.HasValue && nowUtc > DueAtUtc.Value.AddDays(graceDays);
 }
 

@@ -16,6 +16,14 @@ public sealed class OperationalDomainTests
     }
 
     [Fact]
+    public void Billing_entry_preserves_idempotency_key_for_retries()
+    {
+        var key = "monthly:customer-1:2026-09";
+        var entry = new BillingEntry(Guid.NewGuid(), LedgerEntryType.Charge, 250, "Mensualidad", period: "2026-09", idempotencyKey: key);
+        Assert.Equal(key, entry.IdempotencyKey);
+    }
+
+    [Fact]
     public void Service_lifecycle_is_explicit_and_reconnectable()
     {
         var service = new CustomerService(Guid.NewGuid(), Guid.NewGuid(), "Calle 1");
