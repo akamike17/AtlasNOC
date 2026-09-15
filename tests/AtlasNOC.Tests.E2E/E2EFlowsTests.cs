@@ -29,6 +29,8 @@ public class E2EFixture : IAsyncLifetime
     public const string LabScope = "10.0.0.1,10.0.0.2,10.0.1.1,10.0.1.2";
 
     private Process? _server;
+    private Task<string>? _serverOutput;
+    private Task<string>? _serverError;
     private string? _skipReason;
     public IPlaywright Playwright { get; private set; } = null!;
     public IBrowser Browser { get; private set; } = null!;
@@ -90,8 +92,8 @@ public class E2EFixture : IAsyncLifetime
 
         _server = Process.Start(startInfo)!;
         // Consume stdout/stderr en segundo plano para evitar el deadlock del buffer.
-        _ = _server.StandardOutput.ReadToEndAsync();
-        _ = _server.StandardError.ReadToEndAsync();
+        _serverOutput = _server.StandardOutput.ReadToEndAsync();
+        _serverError = _server.StandardError.ReadToEndAsync();
         await WaitForServerAsync();
 
         Playwright = await Microsoft.Playwright.Playwright.CreateAsync();
@@ -144,6 +146,11 @@ public class E2EFixture : IAsyncLifetime
             _server.Kill(entireProcessTree: true);
             await _server.WaitForExitAsync();
         }
+
+        if (_serverOutput is not null)
+            await File.WriteAllTextAsync(Path.Combine(FindRepoRoot(), ".e2e-server.stdout.log"), await _serverOutput);
+        if (_serverError is not null)
+            await File.WriteAllTextAsync(Path.Combine(FindRepoRoot(), ".e2e-server.stderr.log"), await _serverError);
 
         if (ConnectionString is not null)
         {

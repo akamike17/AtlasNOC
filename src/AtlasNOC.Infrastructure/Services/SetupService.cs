@@ -58,10 +58,17 @@ public class SetupService : ISetupService
             if (!lockAcquired)
                 return new SetupResult(false, "Otro proceso está realizando la configuración inicial.");
 
-            await using var transaction = await _context.Database
-                .BeginTransactionAsync(IsolationLevel.Serializable, ct);
-            try
+            // MySQL retry execution strategies reject user transactions unless the
+            // complete unit (including every query and SaveChanges) is executed
+            // through the strategy. Without this wrapper the setup POST fails
+            // internally and UseExceptionHandler exposes a misleading 405.
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                await using var transaction = await _context.Database
+                    .BeginTransactionAsync(IsolationLevel.Serializable, ct);
+                try
+                {
                 // Revalidación obligatoria dentro de la sección crítica y transacción.
                 if (!await IsSetupRequiredAsync(ct))
                 {
@@ -91,7 +98,7 @@ public class SetupService : ISetupService
                 await _context.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
                 return new SetupResult(true, null);
-            }
+                }
             catch (OperationCanceledException)
             {
                 await transaction.RollbackAsync(CancellationToken.None);
@@ -108,6 +115,7 @@ public class SetupService : ISetupService
                 _logger.LogError(ex, "Falló la configuración inicial transaccional");
                 return new SetupResult(false, "No se pudo completar la configuración inicial.");
             }
+            });
         }
         finally
         {
@@ -306,20 +314,24 @@ public class UserAdministrationService : IUserAdministrationService
             }
             if (!acquired) return Failure("Otra operación de usuarios está en curso.");
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-            try
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+                try
+                {
                 var result = await operation();
                 if (!result.Success) { await transaction.RollbackAsync(CancellationToken.None); return result; }
                 await _context.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
                 return result;
-            }
-            catch
-            {
-                await transaction.RollbackAsync(CancellationToken.None);
-                throw;
-            }
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(CancellationToken.None);
+                    throw;
+                }
+            });
         }
         finally
         {

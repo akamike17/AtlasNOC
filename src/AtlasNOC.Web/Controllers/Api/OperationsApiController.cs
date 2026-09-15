@@ -238,12 +238,16 @@ public sealed class OperationsApiController : ControllerBase
         var customer = new Customer(code, request.Name, request.Phone, request.Email);
         // Persistir el Customer primero y luego el BillingAccount (FK_BillingAccounts_Customers),
         // en una transacción: evita violar la FK al insertar la cuenta antes de que exista la fila cliente.
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
-        _db.Customers.Add(customer);
-        await _db.SaveChangesAsync(ct);
-        _db.BillingAccounts.Add(new BillingAccount(customer.Id));
-        await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+            _db.Customers.Add(customer);
+            await _db.SaveChangesAsync(ct);
+            _db.BillingAccounts.Add(new BillingAccount(customer.Id));
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        });
         return Created($"/api/operations/customers/{customer.Id}", customer);
     }
 
@@ -464,6 +468,10 @@ public sealed class OperationsApiController : ControllerBase
     private async Task<IActionResult> ChangeService(Guid id, Action<CustomerService> change, CancellationToken ct) { var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct); if (service is null) return NotFound(); change(service); service.SetProvisioning(ProvisioningStatus.Unsupported, "Business record updated, network provisioning NOT EXECUTED."); await _db.SaveChangesAsync(ct); return Ok(service); }
     private async Task<IActionResult> ChangeAsset(Guid id, Action<InventoryAsset> change, CancellationToken ct) { var asset = await _db.InventoryAssets.FirstOrDefaultAsync(x => x.Id == id, ct); if (asset is null) return NotFound(); change(asset); await _db.SaveChangesAsync(ct); return Ok(asset); }
     private async Task<IActionResult> AddLedger(Guid customerId, LedgerEntryType type, BillingRequest request, CancellationToken ct)
+        => await _db.Database.CreateExecutionStrategy().ExecuteAsync(
+            () => AddLedgerCore(customerId, type, request, ct));
+
+    private async Task<IActionResult> AddLedgerCore(Guid customerId, LedgerEntryType type, BillingRequest request, CancellationToken ct)
     {
         var account = await _db.BillingAccounts.FirstOrDefaultAsync(x => x.CustomerId == customerId, ct);
         if (account is null || request.Amount <= 0) return BadRequest("Cuenta o monto inválido.");
