@@ -184,3 +184,9 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Idempotencia: reactivar un servicio ya activo no duplica la reserva; cancelar sólo libera si estaba activo.
 - La operación se guarda atómicamente con EF en el mismo `SaveChanges` y la regla de capacidad vive en `NetworkZone`, no en el controller.
 - Verificación: solución Release y Unit **177/177 PASS**.
+
+## Loop: cambio de plan y capacidad
+
+- Gap cerrado: `ChangePlan` ahora libera la reserva del plan anterior y reserva el nuevo dentro del mismo contexto persistente.
+- Si la zona está retirada/saturada o no tiene capacidad, devuelve `409` y restaura la reserva anterior; no cambia silenciosamente el plan.
+- Verificación: solución Release PASS (0 errores/advertencias) y Unit **177/177 PASS**.

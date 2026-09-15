@@ -293,6 +293,24 @@ public sealed class OperationsApiController : ControllerBase
         var plan = await _db.ServicePlans.FirstOrDefaultAsync(x => x.Id == request.PlanId && x.IsActive, ct);
         if (service is null || plan is null) return BadRequest("Servicio o plan inválido.");
         var previous = await _db.ServicePlans.FindAsync(new object[] { service.PlanId }, ct);
+        NetworkZone? zone = null;
+        if (service.Status == ServiceStatus.Active && service.ZoneId is Guid zoneId)
+        {
+            zone = await _db.NetworkZones.FirstOrDefaultAsync(x => x.Id == zoneId, ct);
+            if (zone is null) return BadRequest("La zona del servicio no existe.");
+            if (zone.Status is ZoneStatus.Retired or ZoneStatus.Saturated)
+                return Conflict("La zona no admite cambios de plan.");
+            if (previous is not null) zone.ReleaseReservation(previous.DownloadMbps);
+            try
+            {
+                zone.Reserve(plan.DownloadMbps);
+            }
+            catch (InvalidOperationException)
+            {
+                if (previous is not null) zone.Reserve(previous.DownloadMbps);
+                return Conflict("La zona no tiene capacidad para el nuevo plan.");
+            }
+        }
         service.ChangePlan(plan.Id);
         await _db.SaveChangesAsync(ct);
         return Ok(new { ServiceId = service.Id, PreviousPlanId = previous?.Id, NewPlanId = plan.Id, MonthlyDifference = plan.MonthlyPrice - (previous?.MonthlyPrice ?? 0), Capacity = new { plan.DownloadMbps, plan.UploadMbps } });
