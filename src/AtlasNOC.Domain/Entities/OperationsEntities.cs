@@ -283,6 +283,7 @@ public sealed class InventoryAsset
     public string Type { get; private set; } = string.Empty;
     public AssetStatus Status { get; private set; } = AssetStatus.UnknownDetected;
     public Guid? CustomerServiceId { get; private set; }
+    public DateTime RowVersion { get; private set; }
     public InventoryAsset(string assetTag, string type, string? serialNumber = null, string? macAddress = null) { AssetTag = assetTag; Type = type; SerialNumber = serialNumber; MacAddress = macAddress; }
     public void Assign(Guid serviceId) { CustomerServiceId = serviceId; Status = AssetStatus.Assigned; }
     public void SetStatus(AssetStatus status) => Status = status;

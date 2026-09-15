@@ -25,7 +25,7 @@ public class IntegrationFixture : IAsyncLifetime
 {
     public IServiceProvider Services { get; private set; } = null!;
 
-    private string? ConnectionString { get; set; }
+    public string? ConnectionString { get; private set; }
 
     private string? _skipReason;
 
@@ -122,6 +122,15 @@ public class RepositoryIntegrationTests
         {
             throw new SkipTestException(reason);
         }
+    }
+
+    [SkippableFact]
+    public async Task Fresh_schema_is_at_head_with_no_pending_migrations()
+    {
+        SkipIfNoDb();
+        var pending = await Db.Database.GetPendingMigrationsAsync();
+        Assert.Empty(pending);
+        Assert.True(await Db.Database.CanConnectAsync());
     }
 
     [SkippableFact]
@@ -238,6 +247,41 @@ public class RepositoryIntegrationTests
         var byHash = await keys.GetByHashAsync("HASH-ABC123");
         Assert.NotNull(byHash);
         Assert.Equal("CI bot", byHash!.Name);
+    }
+
+    [SkippableFact]
+    public async Task Concurrent_asset_assignment_has_one_winner()
+    {
+        SkipIfNoDb();
+        await _fx.ResetAsync();
+        var db = Db;
+        var asset = new InventoryAsset("CONCURRENT-ASSET", "CPE", "SN-CONCURRENT");
+        db.InventoryAssets.Add(asset);
+        var customer = new Customer("CONCURRENT-CUSTOMER", "Concurrent Customer");
+        var plan = new ServicePlan("Concurrent Plan", 100m, 10, 2);
+        db.Customers.Add(customer);
+        db.ServicePlans.Add(plan);
+        await db.SaveChangesAsync();
+        var first = new CustomerService(customer.Id, plan.Id, "A");
+        var second = new CustomerService(customer.Id, plan.Id, "B");
+        db.CustomerServices.AddRange(first, second);
+        await db.SaveChangesAsync();
+
+        await using var left = new AtlasNOCDbContext(new DbContextOptionsBuilder<AtlasNOCDbContext>()
+            .UseMySql(_fx.ConnectionString,
+                ServerVersion.Parse("8.0.36-mysql")).Options);
+        await using var right = new AtlasNOCDbContext(new DbContextOptionsBuilder<AtlasNOCDbContext>()
+            .UseMySql(_fx.ConnectionString,
+                ServerVersion.Parse("8.0.36-mysql")).Options);
+        var leftAsset = await left.InventoryAssets.SingleAsync(x => x.Id == asset.Id);
+        var rightAsset = await right.InventoryAssets.SingleAsync(x => x.Id == asset.Id);
+        leftAsset.Assign(first.Id);
+        rightAsset.Assign(second.Id);
+        await left.SaveChangesAsync();
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => right.SaveChangesAsync());
+
+        var persisted = await db.InventoryAssets.AsNoTracking().SingleAsync(x => x.Id == asset.Id);
+        Assert.Equal(first.Id, persisted.CustomerServiceId);
     }
 }
 

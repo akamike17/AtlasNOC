@@ -1,39 +1,39 @@
-# Matriz de verificación de la Orden Final (puntos 1–22)
+# Matriz estricta de verificación de la Orden Final (1–22)
 
-Esta matriz separa el requisito de su evidencia. Un conteo de pruebas nunca sustituye la revisión del apartado. Las pruebas LAB usan bases con sufijo seguro y el host E2E selecciona un puerto loopback libre.
+Cada fila exige código y evidencia; no se considera prueba una afirmación documental.
 
-| Punto | Evidencia implementada y verificable |
+| Punto | Código/prueba/evidencia verificable |
 |---:|---|
-| 1 | Migraciones EF Core versionadas, snapshot actualizado, fixture fresh/upgrade y modelo Customer/Service/BillingAccount con servicios múltiples. |
-| 2 | Idempotencia de ledger, referencias de pago, unicidad de asset y transacciones serializables; pruebas unitarias, integración y smoke. |
-| 3 | Controllers, servicios, persistencia, validación, autorización y vistas para los módulos operativos; navegación primaria E2E. |
-| 4 | Discovery conserva evidencia y estados de verdad; workers persisten observaciones y correlación no inventa links. |
-| 5 | Fixture Runtime demuestra cuatro zonas y escala de clientes/servicios; smoke REST demuestra cuatro zonas originales. |
-| 6 | NetworkZone, estados, capacidad, cobertura y reservas/release de capacidad en activación, cancelación y cambio de plan. |
-| 7 | Flujo Customer→Plan→Service→Asset/CPE→activación con provisioning explícitamente Unsupported cuando no hay hardware controlable. |
-| 8 | Billing ledger, cargos idempotentes, pagos, promesas, suspensión y recibos cubiertos por dominio e integración/E2E. |
-| 9 | Tickets, interacciones, incidentes raíz, visitas y créditos requieren evidencia de cliente afectado. |
-| 10 | Identity, roles, API keys con hash/scope/revoke/expiry, antiforgery, rate limits, cookies y middleware de errores sanitizado. |
-| 11 | Configuración de producción, HTTPS fuera de Testing, health, workers, graceful shutdown y script LAB de backup/restore. |
-| 12 | Documentación técnica versionable: arquitectura, dominio, instalación, operación, seguridad, backup, migraciones y estrategia de pruebas. |
-| 13 | Innovation brief describe problema, propuesta, evidencia, límites de hardware y demo sin inventar capacidades. |
-| 14 | Commercial readiness recoge criterios de completitud, confiabilidad, instalación, recuperación, observabilidad, UX y dependencias. |
-| 15 | Dependencias NuGet/JS y assets locales quedan inventariadas en la documentación de proyecto; no se depende de CDN para LAN. |
-| 16 | Guardas de conexión y script de backup rechazan bases sin marcador LAB/test; no se ejecuta reset de base real. |
-| 17 | Solución completa ejecutada con variable LAB: Unit 178/178, Integration 8/8, Runtime 9/9, E2E 16/16; build limpio. |
-| 18 | Playwright cubre setup, login, vistas operativas, acciones, persistencia, errores y captura de fallos de página/red. |
-| 19 | El bucle READ→TRACE→REPRODUCE→IMPLEMENT→BUILD→TEST→E2E se aplicó a la causa raíz EF/retry y al contrato 39/39. |
-| 20 | Hardware físico y servicios externos no se simulan como controlados: se etiquetan como estados explícitos de capability. |
-| 21 | Git sin force/reset/clean destructivo; commits lógicos publicados en `origin/atlasnoc`; artefactos temporales fuera del índice. |
-| 22 | Funciones, defectos, migraciones, billing, escala LAB, discovery, seguridad, E2E, recuperación y documentación tienen rutas de verificación reproducibles. |
+| 1 | Migraciones EF versionadas y snapshot. Fresh usa `MigrateAsync`; upgrade LAB ejecutado desde `20260915145841_AttachZonesToServices` hasta `20260915154954_AddInventoryAssetConcurrency`. |
+| 2 | Ledger serializable/idempotente y asset con `RowVersion`; `Concurrent_asset_assignment_has_one_winner` pasa con dos contextos MySQL. |
+| 3 | `All_primary_views_are_navigable_for_admin` recorre las vistas primarias y `OperationsApiController` expone operaciones autenticadas. |
+| 4 | Runtime prueba 61 nodos, 60 enlaces derivados, ausencia de duplicados e idempotencia de rescan. |
+| 5 | `Four_zones_and_one_hundred_customers_preserve_business_invariants` prueba cuatro zonas con distribución 25/25/25/25, superando el mínimo 4×5. |
+| 6 | `NetworkZone` implementa estados/capacidad/reservas; activación, cancelación y cambio de plan actualizan reservas. |
+| 7 | Smoke recorre Customer→Plan→Service→activación→CPE→Asset y conserva `Unsupported` si no existe capability de hardware. |
+| 8 | Smoke ejecuta charge/replay, consulta, promesa, payment, default y crédito; billing usa idempotencia y transacción serializable. |
+| 9 | Smoke crea ticket/interacción/incidente/visita/crédito; crédito valida evidencia de afectación del cliente. |
+| 10 | Tests E2E de login/lockout/API keys; `Program.cs` configura antiforgery, rate limit, HTTPS fuera de Testing y errores API sanitizados. |
+| 11 | Health, workers, shutdown/restart y script LAB de backup/restore están implementados; restart E2E pasa 1/1. |
+| 12 | Documentación técnica y operativa está versionada bajo `docs/`; cada documento se revisa contra las rutas reales. |
+| 13 | Innovation brief declara propuesta, evidencia y límites de hardware sin presentar simulación como control físico. |
+| 14 | Commercial readiness referencia build, suites, migraciones, recuperación y operación reproducible. |
+| 15 | NuGet está centralizado en `Directory.Packages.props`; JS local vive en `wwwroot/lib`, sin CDN obligatorio. Licencias requieren revisión antes de redistribuir. |
+| 16 | Guardas de conexión y script de backup rechazan DBs sin marcador LAB/test; no se reseteó una base real. |
+| 17 | Ejecución LAB posterior a la migración: Unit 178/178, Integration 10/10, Runtime 9/9, E2E 16/16; build sin errores/warnings. |
+| 18 | Fixture Playwright usa puerto loopback dinámico y captura page errors, consola, requests fallidas y respuestas 4xx/5xx inesperadas. |
+| 19 | La causa EF/retry fue reproducida, instrumentada, corregida con `CreateExecutionStrategy` y repetida en integración/E2E. |
+| 20 | Drivers LAB distinguen `SIMULATED`/`UNSUPPORTED`; no se afirma control de hardware no conectado. |
+| 21 | No se usó force/reset/clean destructivo; commits lógicos publicados y artefactos de prueba fuera del índice. |
+| 22 | La entrega se valida por las filas 1–21 y sus comandos; no se infiere cumplimiento por el número de tests. |
 
-## Comandos reproducibles
+## Ejecución LAB
 
 ```powershell
-$env:ATLASNOC_TEST_CONNECTION='Server=127.0.0.1;Port=3306;Database=atlasnoc_test_all;User=Admin;Password=<secret>;SslMode=None;'
+$env:ATLASNOC_TEST_CONNECTION = $env:LAB_CONNECTION_STRING
 dotnet build .\AtlasNOC.sln -c Release --no-restore
 dotnet test .\AtlasNOC.sln -c Release --no-build
 .\scripts\Invoke-AtlasNocLabBackupRestore.ps1 -Server 127.0.0.1 -User Admin -Password $env:MYSQL_LAB_PASSWORD -SourceDatabase atlasnoc_test -RestoreDatabase atlasnoc_lab_restore_test
 ```
 
-La contraseña se inyecta desde el entorno y nunca forma parte del repositorio, argumentos guardados ni documentación ejecutable.
+Las credenciales se inyectan desde el entorno y no se versionan.

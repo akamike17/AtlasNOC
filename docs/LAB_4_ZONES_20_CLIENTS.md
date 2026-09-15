@@ -1,3 +1,7 @@
 # Laboratorio comercial 4×5
 
-El fixture de dominio usa `ZONA-01` a `ZONA-04`, cinco clientes por zona, códigos únicos, servicios activos y plan compartido. Sus invariantes son: 20 Customer distintos, 20 ServiceCode distintos, cinco registros por zona y ningún cliente convertido en duplicado. Los datos LAB no se cargan en producción.
+El fixture usa `ZONA-01` a `ZONA-04`, códigos únicos, servicios activos, capacidad reservada y BillingAccount asociado. La distribución ampliada comprobada es 100 clientes, 25 por zona, por lo que cubre el mínimo de cinco clientes por zona y permite probar escala.
+
+Las invariantes son: Customer distinto de Service, ServiceCode único, zona válida, ningún Asset doblemente asignado y capacidad liberada al cancelar. El smoke REST conserva `POST /api/operations/zones` como contrato original.
+
+Los datos se crean sólo con conexiones cuyo nombre contiene marcador LAB/test; no se cargan fixtures en producción ni se presentan estados simulados como hardware controlado.

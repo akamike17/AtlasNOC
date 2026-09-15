@@ -73,6 +73,11 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<BillingEntry>().Property(x => x.IdempotencyKey).HasMaxLength(128);
         modelBuilder.Entity<SupportTicket>().ToTable("SupportTickets").HasKey(x => x.Id);
         modelBuilder.Entity<InventoryAsset>().ToTable("InventoryAssets").HasKey(x => x.Id);
+        modelBuilder.Entity<InventoryAsset>().Property(x => x.RowVersion)
+            .HasColumnType("timestamp(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken()
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
         modelBuilder.Entity<CoverageCheck>().ToTable("CoverageChecks").HasKey(x => x.Id);
         modelBuilder.Entity<TechnicianVisit>().ToTable("TechnicianVisits").HasKey(x => x.Id);
         modelBuilder.Entity<ConfigurationRevision>().ToTable("ConfigurationRevisions").HasKey(x => x.Id);

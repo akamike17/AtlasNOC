@@ -431,7 +431,14 @@ public sealed class OperationsApiController : ControllerBase
         if (!await _db.CustomerServices.AnyAsync(x => x.Id == request.ServiceId && x.Status != ServiceStatus.Cancelled, ct)) return BadRequest("Servicio inválido o cancelado.");
         if (asset.CustomerServiceId.HasValue && asset.CustomerServiceId != request.ServiceId) return Conflict("El equipo ya está asignado a otro servicio; primero debe recuperarse.");
         asset.Assign(request.ServiceId);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict("El equipo fue asignado concurrentemente; primero debe recuperarse.");
+        }
         return Ok(asset);
     }
     [HttpPost("coverage")]
