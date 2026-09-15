@@ -49,7 +49,7 @@ No se almacenó la credencial.
 | Unit | 174 | 0 | 0 | 174 |
 | Integration | 8 | 0 | 0 | 8 |
 | Runtime | 8 | 0 | 0 | 8 |
-| E2E / Playwright | 14 | 0 | 0 | 14 |
+| E2E / Playwright | 15 | 0 | 0 | 15 |
 
 La E2E adicional verifica que el conteo de nodos/enlaces del API coincide con
 Cytoscape y que la selección ofrece IP y navegación al detalle.
@@ -75,3 +75,22 @@ No hay seis dispositivos persistidos en `atlasnoc_rebuild` para enumerar. La
 matriz exhaustiva de todas las vistas sigue siendo un pendiente de producto,
 no se marca como validada por la existencia de sus `.cshtml`. Estado de esta
 corrección de topología: `READY`; estado global del producto: `PARTIALLY READY`.
+
+## Corrección continua posterior
+
+- `credits/preview` ahora exige evidencia persistida de afectación:
+  `SupportInteraction.RootIncidentId` enlazado al ticket del mismo cliente.
+- El smoke operativo crea la interacción correlacionada, resuelve el incidente
+  y valida el preview derivado antes de persistir el crédito.
+- `/interfaces` dejó de redirigir a dispositivos: lista interfaces reales y
+  calcula enlaces asociados desde `NetworkLinks`; se conservan listado por
+  dispositivo y detalle.
+- E2E agregó navegación directa por todas las vistas primarias de
+  Administrador, cobertura de Dashboard e Interfaces con persistencia temporal,
+  y reporta la ruta exacta cuando una devuelve status inesperado.
+- El flujo E2E aísla un sitio temporal con 6 dispositivos y 0 enlaces y
+  verifica que el filtro de topología renderiza exactamente 6 nodos y 0 edges;
+  el sitio y los dispositivos se eliminan al finalizar.
+- Se corrigió el detalle de enlaces manuales para que las consultas EF comparen
+  los identificadores fuertemente tipados de forma traducible en MySQL; el
+  detalle ya no devuelve 500 tras crear un enlace válido.

@@ -186,7 +186,7 @@ public class E2EFlowsTests
         page.Console += (_, message) =>
         {
             if (message.Type == "error" && message.Location.StartsWith(E2EFixture.BaseUrl, StringComparison.OrdinalIgnoreCase))
-                consoleErrors.Add(message.Text);
+                consoleErrors.Add($"{message.Location}: {message.Text}");
         };
         page.RequestFailed += (_, request) =>
         {
@@ -201,13 +201,16 @@ public class E2EFlowsTests
 
         // ── 1. Setup inicial ────────────────────────────────────────────────
         await page.GotoAsync(E2EFixture.BaseUrl + "/setup");
-        await page.FillAsync("input[name='WispName']", "Lab WISP");
-        await page.FillAsync("input[name='AdminUserName']", "admin");
-        await page.FillAsync("input[name='AdminDisplayName']", "Admin Lab");
-        await page.FillAsync("input[name='Password']", "Password123!");
-        await page.FillAsync("input[name='ConfirmPassword']", "Password123!");
-        await page.ClickAsync("button[type='submit']");
-        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        if (page.Url.EndsWith("/setup", StringComparison.OrdinalIgnoreCase))
+        {
+            await page.FillAsync("input[name='WispName']", "Lab WISP");
+            await page.FillAsync("input[name='AdminUserName']", "admin");
+            await page.FillAsync("input[name='AdminDisplayName']", "Admin Lab");
+            await page.FillAsync("input[name='Password']", "Password123!");
+            await page.FillAsync("input[name='ConfirmPassword']", "Password123!");
+            await page.ClickAsync("button[type='submit']");
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        }
         Assert.Contains("login", page.Url.ToLowerInvariant());
 
         // ── 2. Login ───────────────────────────────────────────────────────
@@ -295,7 +298,7 @@ public class E2EFlowsTests
         }
         Assert.True(hasMetrics, "No se generaron métricas tras el polling.");
 
-        Assert.Empty(pageErrors);
+        Assert.True(pageErrors.Count == 0, string.Join(" | ", pageErrors));
         Assert.Empty(forbiddenResponses);
 
         await page.CloseAsync();
@@ -305,6 +308,179 @@ public class E2EFlowsTests
 
         // ── 16-18. API key (crear/revocar) y auditoría ────────────────────
         await ApiKey_and_audit_flow();
+    }
+
+    [SkippableFact(Timeout = 120_000)]
+    public async Task All_primary_views_are_navigable_for_admin()
+    {
+        if (_fx.IsSkipped(out var reason)) throw new SkipTestException(reason);
+        var page = await _fx.NewPageAsync();
+        var pageErrors = new List<string>();
+        var consoleErrors = new List<string>();
+        var unexpectedResponses = new List<string>();
+        page.PageError += (_, error) => pageErrors.Add(error);
+        page.Console += (_, message) =>
+        {
+            if (message.Type == "error" && message.Location.StartsWith(E2EFixture.BaseUrl, StringComparison.OrdinalIgnoreCase))
+                consoleErrors.Add(message.Text);
+        };
+        page.Response += (_, response) =>
+        {
+            if (response.Status is 401 or 403 or 404 or >= 500) unexpectedResponses.Add($"{response.Status} {response.Url}");
+        };
+        await page.GotoAsync(E2EFixture.BaseUrl + "/setup");
+        if (page.Url.EndsWith("/setup", StringComparison.OrdinalIgnoreCase))
+        {
+            await page.FillAsync("input[name='WispName']", "Views WISP");
+            await page.FillAsync("input[name='AdminUserName']", "admin");
+            await page.FillAsync("input[name='AdminDisplayName']", "Views Admin");
+            await page.FillAsync("input[name='Password']", "Password123!");
+            await page.FillAsync("input[name='ConfirmPassword']", "Password123!");
+            await page.ClickAsync("button[type='submit']");
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        }
+        await LoginAsync(page);
+        await using (var db = _fx.NewDb())
+        {
+            var organization = await db.Organizations.FirstAsync();
+            var site = new NetworkSite(organization.Id, "E2E Isolated " + Guid.NewGuid().ToString("N")[..8], "E2E-ISO-" + Guid.NewGuid().ToString("N")[..6], SiteType.Pop);
+            var isolatedDevices = Enumerable.Range(1, 6)
+                .Select(i => new Device($"E2E-Isolated-{i}", $"198.51.100.{i}", DeviceType.Router, Vendor.Generic, site.Id))
+                .ToList();
+            db.Sites.Add(site);
+            db.Devices.AddRange(isolatedDevices);
+            await db.SaveChangesAsync();
+            try
+            {
+                await page.GotoAsync(E2EFixture.BaseUrl + "/topology");
+                await page.SelectOptionAsync("#siteFilter", site.Id.Value.ToString());
+                await page.WaitForTimeoutAsync(500);
+                var isolatedGraph = await page.EvaluateAsync<int[]>("() => { const cy = document.getElementById('cy')._atlasCy; return [cy.nodes().length, cy.edges().length]; }");
+                Assert.Equal(new[] { 6, 0 }, isolatedGraph);
+            }
+            finally
+            {
+                db.Devices.RemoveRange(isolatedDevices);
+                db.Sites.Remove(site);
+                await db.SaveChangesAsync();
+            }
+        }
+        await using (var db = _fx.NewDb())
+        {
+            var probe = new Device("Views-Interface-Probe", "192.0.2.250", DeviceType.Router, Vendor.Generic);
+            var iface = new DeviceInterface(probe.Id, 1, "ether1", "probe", "02:00:00:00:00:01", "192.0.2.250");
+            db.Devices.Add(probe);
+            db.DeviceInterfaces.Add(iface);
+            await db.SaveChangesAsync();
+            var interfaceResponse = await page.GotoAsync(E2EFixture.BaseUrl + $"/interfaces/device/{probe.Id.Value}");
+            Assert.Equal(200, interfaceResponse?.Status);
+            Assert.Contains("ether1", await page.ContentAsync());
+            var detailResponse = await page.GotoAsync(E2EFixture.BaseUrl + $"/interfaces/{iface.Id.Value}");
+            Assert.Equal(200, detailResponse?.Status);
+            Assert.Contains("192.0.2.250", await page.ContentAsync());
+            db.DeviceInterfaces.Remove(iface);
+            db.Devices.Remove(probe);
+            await db.SaveChangesAsync();
+        }
+        var paths = new[] { "/dashboard", "/devices", "/discovery", "/topology", "/interfaces",
+            "/links", "/metrics", "/alerts", "/alertrules", "/incidents", "/sites", "/integrations",
+            "/credentials", "/apikeys", "/subscribers", "/operations", "/system", "/users", "/audit" };
+        foreach (var path in paths)
+        {
+            var response = await page.GotoAsync(E2EFixture.BaseUrl + path);
+            Assert.NotNull(response);
+            Assert.True(response!.Status == 200, $"Vista rota: {path} ({response.Status})");
+            Assert.DoesNotContain("Error", await page.TitleAsync(), StringComparison.OrdinalIgnoreCase);
+            if (path == "/dashboard")
+            {
+                Assert.Contains("Dashboard", await page.ContentAsync());
+                Assert.Equal(1, await page.Locator("#topology-map").CountAsync());
+                Assert.Equal(1, await page.Locator("#topology-map-count").CountAsync());
+            }
+        }
+        foreach (var formPath in new[] { "/alertrules/create", "/links/create-manual", "/subscribers/create", "/users/create" })
+        {
+            var response = await page.GotoAsync(E2EFixture.BaseUrl + formPath);
+            Assert.True(response?.Status == 200, $"Formulario roto: {formPath} ({response?.Status})");
+            Assert.True(await page.Locator("form button[type='submit']").CountAsync() >= 1, $"Sin submit: {formPath}");
+        }
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var ruleName = "E2E Rule " + suffix;
+        await page.GotoAsync(E2EFixture.BaseUrl + "/alertrules/create");
+        await page.FillAsync("input[name='Name']", ruleName);
+        await page.FillAsync("input[name='MetricName']", "availability");
+        await page.FillAsync("input[name='Threshold']", "50");
+        await page.FillAsync("input[name='ConsecutiveFaults']", "2");
+        await SubmitFormAsync(page, "Guardar");
+        Assert.Contains("alertrules", page.Url, StringComparison.OrdinalIgnoreCase);
+        await using (var db = _fx.NewDb())
+        {
+            var rule = await db.AlertRules.FirstOrDefaultAsync(x => x.Name == ruleName);
+            Assert.NotNull(rule);
+            db.AlertRules.Remove(rule!);
+            await db.SaveChangesAsync();
+        }
+        var subscriberName = "E2E Subscriber " + suffix;
+        await page.GotoAsync(E2EFixture.BaseUrl + "/subscribers/create");
+        await page.FillAsync("input[name='Name']", subscriberName);
+        await SubmitFormAsync(page, "Crear");
+        Assert.Contains("subscribers", page.Url, StringComparison.OrdinalIgnoreCase);
+        await using (var db = _fx.NewDb())
+        {
+            var subscriber = await db.Subscribers.FirstOrDefaultAsync(x => x.Name == subscriberName);
+            Assert.NotNull(subscriber);
+            db.Subscribers.Remove(subscriber!);
+            await db.SaveChangesAsync();
+        }
+        var linkA = new Device("Views-Link-A-" + suffix, "192.0.2.251", DeviceType.Router, Vendor.Generic);
+        var linkB = new Device("Views-Link-B-" + suffix, "192.0.2.252", DeviceType.Router, Vendor.Generic);
+        var linkIfaceA = new DeviceInterface(linkA.Id, 1, "ether1");
+        var linkIfaceB = new DeviceInterface(linkB.Id, 1, "ether1");
+        await using (var db = _fx.NewDb())
+        {
+            db.Devices.AddRange(linkA, linkB);
+            db.DeviceInterfaces.AddRange(linkIfaceA, linkIfaceB);
+            await db.SaveChangesAsync();
+        }
+        await page.GotoAsync(E2EFixture.BaseUrl + "/links/create-manual");
+        await page.FillAsync("input[name='AInterfaceId']", linkIfaceA.Id.Value.ToString());
+        await page.FillAsync("input[name='BInterfaceId']", linkIfaceB.Id.Value.ToString());
+        await SubmitFormAsync(page, "Crear");
+        Assert.Contains("links", page.Url, StringComparison.OrdinalIgnoreCase);
+        await using (var db = _fx.NewDb())
+        {
+            var manual = await db.NetworkLinks.FirstOrDefaultAsync(x =>
+                (x.AInterfaceId == linkIfaceA.Id && x.BInterfaceId == linkIfaceB.Id) ||
+                (x.AInterfaceId == linkIfaceB.Id && x.BInterfaceId == linkIfaceA.Id));
+            Assert.NotNull(manual);
+            Assert.True(manual!.IsManual);
+            db.NetworkLinks.Remove(manual);
+            db.DeviceInterfaces.RemoveRange(linkIfaceA, linkIfaceB);
+            db.Devices.RemoveRange(linkA, linkB);
+            await db.SaveChangesAsync();
+        }
+        var userName = "e2e-" + suffix;
+        await LoginAsync(page);
+        await page.GotoAsync(E2EFixture.BaseUrl + "/users/create");
+        await page.FillAsync("input[name='UserName']", userName);
+        await page.FillAsync("input[name='DisplayName']", "E2E User");
+        await page.FillAsync("input[name='Password']", "Password123!");
+        await page.FillAsync("input[name='ConfirmPassword']", "Password123!");
+        await page.SelectOptionAsync("select[name='Role']", "ReadOnly");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Crear", Exact = true }).ClickAsync();
+        await page.WaitForTimeoutAsync(1_000);
+        Assert.Contains("users", page.Url, StringComparison.OrdinalIgnoreCase);
+        await using (var db = _fx.NewDb())
+        {
+            var user = await db.Users.FirstOrDefaultAsync(x => x.UserName == userName);
+            Assert.NotNull(user);
+            db.Users.Remove(user!);
+            await db.SaveChangesAsync();
+        }
+        Assert.True(unexpectedResponses.Count == 0, string.Join(" | ", unexpectedResponses));
+        Assert.True(pageErrors.Count == 0, $"Page errors: {string.Join(" | ", pageErrors)}");
+        Assert.True(consoleErrors.Count == 0, $"Console errors: {string.Join(" | ", consoleErrors)}");
+        await page.CloseAsync();
     }
 
     private async Task ApiKey_and_audit_flow()

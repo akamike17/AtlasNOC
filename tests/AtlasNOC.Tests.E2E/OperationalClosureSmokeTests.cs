@@ -25,6 +25,11 @@ public sealed class OperationalClosureSmokeTests
             var status = doc.RootElement.GetProperty("s").GetInt32();
             var json = doc.RootElement.GetProperty("b").GetString()!;
             Assert.True(status == expected, $"POST {path} respondió {status} en {doc.RootElement.GetProperty("u").GetString()} allow={doc.RootElement.GetProperty("a").GetString()}: {json}");
+            if (status == 204 && string.IsNullOrWhiteSpace(json))
+            {
+                n++;
+                return JsonDocument.Parse("{}").RootElement.Clone();
+            }
             Assert.True(JsonDocument.Parse(json).RootElement.ValueKind is not JsonValueKind.Null, $"checkpoint {n + 1} returned null");
             n++;
             return JsonDocument.Parse(json).RootElement.Clone();
@@ -67,12 +72,17 @@ public sealed class OperationalClosureSmokeTests
         await Post("/api/operations/installations", new { serviceId, outsideCity = false, installationFee = 0, routerFee = 0, scheduledAtUtc = DateTime.UtcNow.AddDays(1) }); // 23
         var incident = await Post("/api/operations/incidents/root", new { title = "AP smoke", description = "Falla simulada", rootCauseDeviceId = (string?)null }); // 24
         await Post($"/api/operations/incidents/{Id(incident)}/priority", new { priority = 2, reason = "Smoke" }); // 25
+        await Post("/api/operations/support/interactions", new { ticketId = Id(ticket), channel = 0, symptoms = "Sin enlace", diagnosis = "Incidente correlacionado", actions = "Validación", result = "Afectación confirmada", durationMinutes = 5, rootIncidentId = Id(incident) });
+        await Post($"/api/incidents/{Id(incident)}/resolve", new { }, 204);
+        var preview = await Get($"/api/operations/credits/preview/{customerId}/{Id(incident)}");
+        Assert.Equal(customerId, preview.GetProperty("customerId").GetGuid());
+        Assert.Equal(Id(incident), preview.GetProperty("incidentId").GetGuid());
         var credit = await Post("/api/operations/credits", new { customerId, incidentId = Id(incident), fromUtc = DateTime.UtcNow.AddHours(-2), toUtc = DateTime.UtcNow, suggestedAmount = 41.66m, reason = "Sugerencia simulada" }); // 26
         await Post($"/api/operations/credits/{Id(credit)}/status", new { status = 0 }); // 27
         await Get($"/api/operations/customers/{customerId}/diagnostic"); // 28
         await Get($"/api/operations/coverage/evaluate?address=Av%20Test%20100&requiredMbps=20"); // 29
         await Get("/api/operations/snapshot"); // 30
-        Assert.Equal(30, n);
+        Assert.Equal(33, n);
         await page.CloseAsync();
     }
 

@@ -38,7 +38,8 @@
     <h2 class="h6">Asistente de puesta en marcha</h2>
     <p class="small text-secondary mb-2">AtlasNOC empieza en modo lectura y sólo usa canales que tú autorices.</p>
     <div class="small mb-2">
-        <span class="badge text-bg-success">Listo</span> Web, Worker y base de datos
+        <span class="badge @(Model.DatabaseOk ? "text-bg-success" : "text-bg-danger")">@(Model.DatabaseOk ? "Listo" : "Error")</span>
+        Base de datos; el estado de Workers se confirma desde System
     </div>
     @if (((IReadOnlyList<AtlasNOC.Application.Services.LocalNetworkProfileDto>)ViewBag.LocalProfiles).Count > 0)
     {

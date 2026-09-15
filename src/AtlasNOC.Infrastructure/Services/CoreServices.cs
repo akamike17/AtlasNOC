@@ -125,8 +125,8 @@ public class LinkService : ILinkService
         var link = await _links.GetByIdAsync(id, ct);
         if (link is null) return null;
         var evidence = await _context.NeighborObservations.AsNoTracking()
-            .Where(o => o.LocalInterfaceId.Value == link.AInterfaceId.Value
-                || o.LocalInterfaceId.Value == link.BInterfaceId.Value)
+            .Where(o => o.LocalInterfaceId == link.AInterfaceId
+                || o.LocalInterfaceId == link.BInterfaceId)
             .OrderByDescending(o => o.ObservedAtUtc).FirstOrDefaultAsync(ct);
         return ToDetailDto(link, evidence);
     }
@@ -192,6 +192,17 @@ public class InterfaceService : IInterfaceService
     {
         _interfaces = interfaces;
         _links = links;
+    }
+
+    public async Task<IReadOnlyList<InterfaceDto>> ListAsync(CancellationToken ct = default)
+    {
+        var interfaces = await _interfaces.ListAsync(ct);
+        var allLinks = await _links.ListAsync(ct);
+        var counts = allLinks.SelectMany(l => new[] { l.AInterfaceId, l.BInterfaceId })
+            .GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
+        return interfaces.Select(i => new InterfaceDto(i.Id.Value, i.DeviceId.Value, i.IfIndex, i.Name, i.Description,
+            i.MacAddress, i.IpAddress, (int)i.AdminStatus, (int)i.OperStatus, i.SpeedBps, i.InterfaceType,
+            i.LastSeenAtUtc, counts.TryGetValue(i.Id, out var c) ? c : 0)).ToList();
     }
 
     public async Task<IReadOnlyList<InterfaceDto>> ListByDeviceAsync(Guid deviceId, CancellationToken ct = default)

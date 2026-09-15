@@ -140,6 +140,12 @@ public sealed class OperationsApiController : ControllerBase
         if (service is null) return NotFound("El cliente no tiene servicio activo.");
         var plan = await _db.ServicePlans.AsNoTracking().FirstOrDefaultAsync(x => x.Id == service.PlanId, ct);
         if (plan is null) return NotFound("El plan del servicio no existe.");
+        var isAffectedCustomer = await _db.SupportInteractions.AsNoTracking()
+            .Join(_db.SupportTickets.AsNoTracking(), interaction => interaction.TicketId, ticket => ticket.Id,
+                (interaction, ticket) => new { interaction.RootIncidentId, ticket.CustomerId })
+            .AnyAsync(x => x.RootIncidentId == incidentId && x.CustomerId == customerId, ct);
+        if (!isAffectedCustomer)
+            return BadRequest("No existe evidencia persistida de que el incidente afecte a este cliente.");
         var to = incident.ResolvedAtUtc.Value;
         var minutes = Math.Max(0, (to - incident.CreatedAtUtc).TotalMinutes);
         var amount = ServiceCreditCalculator.Calculate(plan.MonthlyPrice, incident.CreatedAtUtc, to);

@@ -28,6 +28,7 @@ public interface ILinkService
 
 public interface IInterfaceService
 {
+    Task<IReadOnlyList<InterfaceDto>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<InterfaceDto>> ListByDeviceAsync(Guid deviceId, CancellationToken ct = default);
     Task<InterfaceDto?> GetInterfaceAsync(Guid id, CancellationToken ct = default);
 }

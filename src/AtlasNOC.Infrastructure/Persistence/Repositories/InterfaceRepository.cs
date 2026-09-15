@@ -14,6 +14,9 @@ public class InterfaceRepository : IInterfaceRepository
     public async Task<DeviceInterface?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await _context.DeviceInterfaces.FirstOrDefaultAsync(i => i.Id == InterfaceId.From(id), ct);
 
+    public async Task<IReadOnlyList<DeviceInterface>> ListAsync(CancellationToken ct = default)
+        => await _context.DeviceInterfaces.AsNoTracking().OrderBy(i => i.DeviceId).ThenBy(i => i.IfIndex).ToListAsync(ct);
+
     public async Task<IReadOnlyList<DeviceInterface>> ListByDeviceAsync(Guid deviceId, CancellationToken ct = default)
         => await _context.DeviceInterfaces
             .Where(i => i.DeviceId == DeviceId.From(deviceId))

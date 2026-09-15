@@ -80,7 +80,7 @@ public class SnmpProbeTests
     }
 
     [Fact]
-        public async Task SNMP_v3_options_are_accepted_and_validated()
+        public void SNMP_v3_options_are_accepted_and_validated()
         {
             // v3 options currently not implemented in SnmpProbe, but should be accepted without throwing
             var options = new SnmpConnectionOptions(
@@ -95,7 +95,7 @@ public class SnmpProbeTests
         }
 
     [Fact]
-    public async Task SNMP_v2c_community_is_required()
+    public void SNMP_v2c_community_is_required()
     {
         var options = new SnmpConnectionOptions(SnmpVersion.V2c, null, null, null, null, null, null);
         Assert.Throws<InvalidOperationException>(() => options.Validate()); // community required
@@ -105,11 +105,11 @@ public class SnmpProbeTests
     public async Task CDP_neighbors_parsed_with_local_interface_mapping()
     {
         var fake = new FakeSnmpProbe(
-            cdp: async (_, __, ___, ____) => new List<NeighborData>
+            cdp: (_, __, ___, ____) => Task.FromResult<IReadOnlyList<NeighborData>>(new List<NeighborData>
             {
                 new("SW-Core", "Gi1/0/1", "Gi1/0/2", "CDP", "evidence1"),
                 new("SW-Access", "Gi1/0/3", "Gi1/0/4", "CDP", "evidence2")
-            });
+            }));
 
         var neighbors = await fake.GetCdpNeighborsAsync("10.0.0.1", SnmpConnectionOptions.Anonymous(), 2000, CancellationToken.None);
         Assert.Equal(2, neighbors.Count);
@@ -121,14 +121,14 @@ public class SnmpProbeTests
     {
         // When evidence is identical, they should be deduplicated
         var fake = new FakeSnmpProbe(
-            lldp: async (_, __, ___, ____) => new List<NeighborData>
+            lldp: (_, __, ___, ____) => Task.FromResult<IReadOnlyList<NeighborData>>(new List<NeighborData>
             {
                 new("SW-Core", "Gi1/0/1", "Gi1/0/2", "LLDP", "same-evidence")
-            },
-            cdp: async (_, __, ___, ____) => new List<NeighborData>
+            }),
+            cdp: (_, __, ___, ____) => Task.FromResult<IReadOnlyList<NeighborData>>(new List<NeighborData>
             {
                 new("SW-Core", "Gi1/0/1", "Gi1/0/2", "CDP", "same-evidence")
-            });
+            }));
 
         var driver = new CiscoDriver(fake);
         var neighbors = await driver.GetNeighborsAsync("10.0.0.1", SnmpConnectionOptions.Anonymous(), CancellationToken.None);
@@ -141,10 +141,10 @@ public class SnmpProbeTests
     public async Task Unknown_protocol_marked_as_unknown_not_manual()
     {
         var fake = new FakeSnmpProbe(
-            lldp: async (_, __, ___, ____) => new List<NeighborData>
+            lldp: (_, __, ___, ____) => Task.FromResult<IReadOnlyList<NeighborData>>(new List<NeighborData>
             {
                 new("Unknown-Device", "Port1", "Port2", "UnknownProtocol", "evidence")
-            });
+            }));
 
         var driver = new CiscoDriver(fake);
         var neighbors = await driver.GetNeighborsAsync("10.0.0.1", SnmpConnectionOptions.Anonymous(), CancellationToken.None);
@@ -158,14 +158,14 @@ public class SnmpProbeTests
     {
         // When evidence differs, both should be returned (no false deduplication)
         var fake = new FakeSnmpProbe(
-            lldp: async (_, __, ___, ____) => new List<NeighborData>
+            lldp: (_, __, ___, ____) => Task.FromResult<IReadOnlyList<NeighborData>>(new List<NeighborData>
             {
                 new("SW-Remote", "Gi1/0/1", "Gi1/0/1", "LLDP", "ev1")
-            },
-            cdp: async (_, __, ___, ____) => new List<NeighborData>
+            }),
+            cdp: (_, __, ___, ____) => Task.FromResult<IReadOnlyList<NeighborData>>(new List<NeighborData>
             {
                 new("SW-Remote", "Gi1/0/1", "Gi1/0/1", "CDP", "ev2")
-            });
+            }));
 
         var driver = new CiscoDriver(fake);
         var neighbors = await driver.GetNeighborsAsync("10.0.0.1", SnmpConnectionOptions.Anonymous(), CancellationToken.None);

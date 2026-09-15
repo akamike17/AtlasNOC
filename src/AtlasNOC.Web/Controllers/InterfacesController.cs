@@ -32,7 +32,8 @@ public class InterfacesController : Controller
     }
 
     [HttpGet("interfaces")]
-    public IActionResult Index() => RedirectToAction("Index", "Devices");
+    public async Task<IActionResult> Index(CancellationToken ct)
+        => View(await _interfaces.ListAsync(ct));
 
     [HttpGet("interfaces/{id}")]
     public async Task<IActionResult> Detail(Guid id)

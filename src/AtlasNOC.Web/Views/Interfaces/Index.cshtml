@@ -21,7 +21,7 @@
         <tbody>
         @if (!Model.Any())
         {
-            <tr><td colspan="9" class="text-secondary">Sin interfaces registradas para este dispositivo.</td></tr>
+            <tr><td colspan="9" class="text-secondary">@(device is null ? "Sin interfaces registradas." : "Sin interfaces registradas para este dispositivo.")</td></tr>
         }
         @foreach (var i in Model)
         {
