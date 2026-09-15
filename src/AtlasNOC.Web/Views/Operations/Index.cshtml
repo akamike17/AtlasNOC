@@ -7,18 +7,9 @@
  <div class="col-md-3"><div class="noc-card"><div class="small text-secondary">Visitas</div><div id="visits-count" class="display-6">—</div><a href="/support">Abrir</a></div></div>
 </div>
 <div class="noc-card mt-3"><h2 class="h6">Acciones</h2><p class="small text-secondary">Las acciones mutantes requieren rol y validación de capacidad.</p><div id="operations-status" class="small">Cargando snapshot…</div></div>
+<div class="noc-card mt-3"><h2 class="h6">Previsualizar acción de red</h2><div class="d-flex gap-2"><select id="operation-device" class="form-select form-select-sm"><option value="">Cargando dispositivos…</option></select><select id="operation-action" class="form-select form-select-sm"><option value="Reboot">Reiniciar</option><option value="EnableInterface">Activar interfaz</option><option value="DisableInterface">Desactivar interfaz</option></select><button id="operation-preview" class="btn btn-outline-primary btn-sm">Previsualizar</button></div><pre id="operation-preview-result" class="small mt-2 mb-0" aria-live="polite"></pre></div>
 <div class="row g-3 mt-1">
  <div class="col-lg-6"><div class="noc-card"><h2 class="h6">Clientes y servicios</h2><div id="customer-list" class="small text-secondary">Cargando…</div></div></div>
  <div class="col-lg-6"><div class="noc-card"><h2 class="h6">Soporte y campo</h2><div id="ticket-list" class="small text-secondary">Cargando…</div></div></div>
 </div>
-@section Scripts { <script>
-async function loadOperations(){
- const get=async p=>(await fetch('/api/operations/'+p,{headers:{'Accept':'application/json'}})).json();
- try { const [s,c,sv,t,v]=await Promise.all([get('snapshot'),get('customers'),get('services'),get('tickets'),get('visits')]);
-  document.getElementById('customers-count').textContent=c.length; document.getElementById('services-count').textContent=sv.length; document.getElementById('tickets-count').textContent=t.length; document.getElementById('visits-count').textContent=v.length;
-  document.getElementById('operations-status').textContent=`${s.devices} equipos · ${s.online} en línea · ${s.openAlerts} alertas · ${s.confirmedLinks} enlaces confirmados`;
-  document.getElementById('customer-list').innerHTML=c.slice(0,8).map(x=>`<div class="d-flex justify-content-between border-bottom py-1"><span>${escapeHtml(x.name)}</span><span>${escapeHtml(x.serviceCode)}</span></div>`).join('')||'Sin clientes registrados.';
-  document.getElementById('ticket-list').innerHTML=t.slice(0,8).map(x=>`<div class="border-bottom py-1">${escapeHtml(x.title)} <span class="text-secondary">${escapeHtml(x.status)}</span></div>`).join('')||'Sin tickets registrados.';
- } catch(e){document.getElementById('operations-status').textContent='No se pudo cargar la operación.';}
-} function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));} loadOperations(); setInterval(loadOperations,15000);
-</script> }
+@section Scripts { <script src="~/js/operations.js" asp-append-version="true"></script> }

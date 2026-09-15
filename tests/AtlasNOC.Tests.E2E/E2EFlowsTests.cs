@@ -178,6 +178,26 @@ public class E2EFlowsTests
         }
 
         var page = await _fx.NewPageAsync();
+        var pageErrors = new List<string>();
+        var consoleErrors = new List<string>();
+        var failedRequests = new List<string>();
+        var forbiddenResponses = new List<string>();
+        page.PageError += (_, error) => pageErrors.Add(error);
+        page.Console += (_, message) =>
+        {
+            if (message.Type == "error" && message.Location.StartsWith(E2EFixture.BaseUrl, StringComparison.OrdinalIgnoreCase))
+                consoleErrors.Add(message.Text);
+        };
+        page.RequestFailed += (_, request) =>
+        {
+            if (request.Url.StartsWith(E2EFixture.BaseUrl, StringComparison.OrdinalIgnoreCase))
+                failedRequests.Add($"{request.Method} {request.Url}: {request.Failure}");
+        };
+        page.Response += (_, response) =>
+        {
+            if (response.Status is 401 or 403 or 404)
+                forbiddenResponses.Add($"{response.Status} {response.Url}");
+        };
 
         // ── 1. Setup inicial ────────────────────────────────────────────────
         await page.GotoAsync(E2EFixture.BaseUrl + "/setup");
@@ -226,10 +246,35 @@ public class E2EFlowsTests
         // ── 7. Topología: comprobar edges ──────────────────────────────────
         await page.GotoAsync(E2EFixture.BaseUrl + "/topology");
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        var cyType = await page.EvaluateAsync<string>("() => typeof window.cytoscape");
+        Assert.Equal("function", cyType);
         var graph = await page.EvaluateAsync<int[]>(
             "async () => { const r = await fetch('/api/topology/graph'); const j = await r.json(); return [j.nodes.length, j.edges.length]; }");
         Assert.True(graph[0] >= 4, $"Se esperaban >=4 nodos, hubo {graph[0]}");
         Assert.True(graph[1] >= 3, $"Se esperaban >=3 enlaces, hubo {graph[1]}");
+        await page.WaitForTimeoutAsync(1_000);
+        var uiGraph = await page.EvaluateAsync<int[]>("() => { const cy = document.getElementById('cy')._atlasCy; if (!cy) throw new Error('Topology render failed: ' + JSON.stringify(window.__topologyDebug || window.__topologyError || 'unknown')); return [cy.nodes().length, cy.edges().length]; }");
+        Assert.Equal(graph[0], uiGraph[0]);
+        Assert.Equal(graph[1], uiGraph[1]);
+        Assert.Contains("dispositivos", await page.Locator("#cy-count").TextContentAsync());
+        await page.EvaluateAsync("() => document.getElementById('cy')._atlasCy.nodes()[0].emit('tap')");
+        Assert.Contains("IP", await page.Locator("#cy-detail").TextContentAsync());
+        Assert.Equal(1, await page.Locator("#cy-detail a[href^='/devices/detail/']").CountAsync());
+
+        await page.GotoAsync(E2EFixture.BaseUrl + "/operations");
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        Assert.Equal(1, await page.Locator("#operation-preview").CountAsync());
+        await page.Locator("#operation-device option").First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Attached, Timeout = 5_000 });
+        Assert.NotEmpty(await page.Locator("#operation-device").InputValueAsync());
+        await page.ClickAsync("#operation-preview");
+        var previewDeadline = DateTime.UtcNow.AddSeconds(5);
+        string preview = string.Empty;
+        while (string.IsNullOrWhiteSpace(preview) && DateTime.UtcNow < previewDeadline)
+        {
+            await page.WaitForTimeoutAsync(100);
+            preview = await page.Locator("#operation-preview-result").TextContentAsync() ?? string.Empty;
+        }
+        Assert.NotEmpty(preview);
 
         // ── 8. Device detail ───────────────────────────────────────────────
         var deviceId = await GetFirstDeviceIdAsync();
@@ -249,6 +294,9 @@ public class E2EFlowsTests
                 metricUrl);
         }
         Assert.True(hasMetrics, "No se generaron métricas tras el polling.");
+
+        Assert.Empty(pageErrors);
+        Assert.Empty(forbiddenResponses);
 
         await page.CloseAsync();
 

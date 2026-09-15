@@ -1,6 +1,6 @@
 # AtlasNOC — matriz de verdad del producto
 
-Estado al 2026-09-14. `READY` sólo se usa cuando existe código y validación; `PARTIAL` indica que hay piezas, pero falta una integración o prueba completa.
+Estado al 2026-09-15. `READY` sólo se usa cuando existe código y validación; `PARTIAL` indica que hay piezas, pero falta una integración o prueba completa.
 
 | Área | Estado | Evidencia |
 |---|---|---|
@@ -45,6 +45,6 @@ El endpoint `/api/operations/snapshot` expone únicamente estado persistido y ma
 | Simulator failure/timeout/reboot/description | SIMULADO | `SimulatedDeviceControlDriver` | `NetworkDriverTests`; sólo simula, no prueba hardware |
 | Auditoría completa de control | PARCIAL | `NetworkActionService` y `AuditEvent` | Hay acción/actor/device; faltan pre/post-state, correlation y credential reference completos |
 | UI grafo→preview→confirmación | NO IMPLEMENTADO | `Views/Operations/Index.cshtml` | Cabina existente, pero no demuestra flujo completo sin cliente API |
-| Smoke cierre 30 pasos API+MySQL | NO PROBADO | `OperationalClosureSmokeTests` | Test añadido; actualmente falla en POST `/api/operations/customers` con HTTP 405 |
-| MySQL migration clean/upgrade | IMPLEMENTADO | `20260914173000_BillingDueDates`, `20260914180000_ProvisioningState` | `database update`: up to date; restore/rollback no probado |
+| Smoke cierre 30 pasos API+MySQL | IMPLEMENTADO/VALIDADO | `OperationalClosureSmokeTests` | Ejecución 2026-09-15: PASS con MySQL local dedicado y Playwright; no sustituye hardware físico |
+| MySQL migration clean/upgrade | IMPLEMENTADO | Migraciones EF Core y fixtures Integration/Runtime/E2E | Restore/migración limpia validada por las suites con base dedicada; rollback operativo no probado |
 | Lab físico opt-in | NOT PROBADO | `LabControlApiController` y variables `ATLAS_REAL_CONTROL_*` | No ejecutado por instrucción |

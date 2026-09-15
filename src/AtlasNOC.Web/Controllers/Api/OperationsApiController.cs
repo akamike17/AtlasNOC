@@ -28,9 +28,9 @@ public sealed class OperationsApiController : ControllerBase
     [HttpGet("snapshot")]
     public Task<OperationsSnapshotDto> Snapshot(CancellationToken ct) => _snapshot.GetAsync(ct);
 
-    [HttpGet("devices/{deviceId:guid}/actions/{action}/preview")]
-    public async Task<IActionResult> PreviewAction(Guid deviceId, DeviceAction action, [FromQuery] string? interfaceName,
-        CancellationToken ct) => Ok(await _networkActions.PreviewAsync(deviceId, action, interfaceName, ct));
+    [HttpGet("devices/{deviceId:guid}/actions/{deviceAction}/preview")]
+    public async Task<IActionResult> PreviewAction(Guid deviceId, [FromRoute] DeviceAction deviceAction, [FromQuery] string? interfaceName,
+        CancellationToken ct) => Ok(await _networkActions.PreviewAsync(deviceId, deviceAction, interfaceName, ct));
 
     [HttpGet("incidents")]
     public async Task<IActionResult> Incidents(CancellationToken ct) => Ok(await _db.Incidents.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ToListAsync(ct));
@@ -130,6 +130,21 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpGet("credits/{customerId:guid}")]
     public async Task<IActionResult> Credits(Guid customerId, CancellationToken ct) => Ok(await _db.ServiceCredits.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.FromUtc).ToListAsync(ct));
+
+    [HttpGet("credits/preview/{customerId:guid}/{incidentId:guid}")]
+    public async Task<IActionResult> CreditPreview(Guid customerId, Guid incidentId, CancellationToken ct)
+    {
+        var incident = await _db.Incidents.AsNoTracking().FirstOrDefaultAsync(x => x.Id == incidentId, ct);
+        if (incident is null || incident.ResolvedAtUtc is null) return BadRequest("El incidente debe existir y estar resuelto.");
+        var service = await _db.CustomerServices.AsNoTracking().Where(x => x.CustomerId == customerId && x.Status != ServiceStatus.Cancelled).OrderByDescending(x => x.ActivatedAtUtc).FirstOrDefaultAsync(ct);
+        if (service is null) return NotFound("El cliente no tiene servicio activo.");
+        var plan = await _db.ServicePlans.AsNoTracking().FirstOrDefaultAsync(x => x.Id == service.PlanId, ct);
+        if (plan is null) return NotFound("El plan del servicio no existe.");
+        var to = incident.ResolvedAtUtc.Value;
+        var minutes = Math.Max(0, (to - incident.CreatedAtUtc).TotalMinutes);
+        var amount = ServiceCreditCalculator.Calculate(plan.MonthlyPrice, incident.CreatedAtUtc, to);
+        return Ok(new { CustomerId = customerId, IncidentId = incidentId, FromUtc = incident.CreatedAtUtc, ToUtc = to, DowntimeMinutes = (int)Math.Round(minutes), SuggestedAmount = amount, Evidence = "Incidente persistido y resuelto; cálculo proporcional sobre tarifa mensual del plan." });
+    }
 
     [HttpGet("customers/{customerId:guid}/diagnostic")]
     public async Task<IActionResult> Diagnostic(Guid customerId, [FromServices] INetworkDiagnosticService diagnostics, CancellationToken ct) => Ok(await diagnostics.DiagnoseCustomerAsync(customerId, ct));
