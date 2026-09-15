@@ -367,7 +367,6 @@ public sealed class OperationsApiController : ControllerBase
     public async Task<IActionResult> ListNetworkZones(CancellationToken ct) => Ok(await _db.NetworkZones.AsNoTracking().OrderBy(x => x.Code).ToListAsync(ct));
 
     [HttpPost("zones")]
-    [HttpPost("zones/create")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> CreateNetworkZone([FromBody] ZoneRequest request, CancellationToken ct)
     {

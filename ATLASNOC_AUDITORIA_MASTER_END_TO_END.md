@@ -113,3 +113,26 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Corrección: middleware API posterior a `UseRouting` captura el endpoint original (`GetEndpoint()`), registra excepción raíz/inner y diagnóstico EF sanitizado, y responde `500 application/problem+json`; migración `20260915143659_RepairNetworkZones` crea `NetworkZones` e índice único de `Code`.
 - Verificación: build Web PASS (0 errores/0 advertencias). El smoke con MySQL y `SslMode=None` ya supera el POST original y falla únicamente en su aserción interna de contador (`Expected 38, Actual 39`), no por HTTP 405. El smoke no fue modificado.
 - Clasificación: **PARTIAL**: causa raíz corregida; queda pendiente resolver la discrepancia preexistente del contador del smoke sin alterar su contrato ni usar una ruta alternativa.
+
+## Reanudación del ciclo obligatorio — evidencia adicional
+
+- `dotnet build AtlasNOC.sln -c Release --no-restore`: **PASS**, 0 errores y 0 advertencias.
+- Unit: **177/177 PASS**.
+- Runtime: **1 PASS / 7 omitidas** por dependencia de entorno LAB.
+- Integration: **8 omitidas** por no tener `ATLASNOC_TEST_CONNECTION` en la ejecución general; el smoke MySQL se ejecutó explícitamente con conexión local sin TLS.
+- E2E original de zonas: las cuatro altas `POST /api/operations/zones` y el listado GET pasan con persistencia MySQL; el único fallo posterior es el contador fijo del test (`39` operaciones reales vs `38` esperado). No se modificó el smoke ni se añadió ruta sustituta.
+- Estado: **CONTINUE WORKING**. Los gaps de las ocho áreas UI y la prueba de navegador integral siguen requiriendo implementación/evidencia antes de declarar cierre total.
+
+## Reanudación E2E completa
+
+- Ejecución: `dotnet test tests/AtlasNOC.Tests.E2E/AtlasNOC.Tests.E2E.csproj -c Release --no-build` con MySQL local y `SslMode=None`.
+- Resultado: **14/15 PASS, 0 omitidas**.
+- Único fallo: `OperationalClosureSmokeTests` por `Expected: 38 / Actual: 39` en su contador de checkpoints. El flujo HTTP, persistencia y el `POST /api/operations/zones` original pasan; no se modificó el smoke.
+- Conclusión: no quedan fallos E2E funcionales del endpoint de zonas; el pendiente concreto es corregir la expectativa del test sin cambiar su ruta ni reducir cobertura, lo cual queda deliberadamente separado por la prohibición explícita del contrato de revisión.
+- Reauditoría de rutas: se eliminó el atributo accidental `[HttpPost("zones/create")]`; el único contrato publicado vuelve a ser `POST /api/operations/zones`.
+
+## Reanudación: suites con dependencias habilitadas
+
+- Integration MySQL (`SslMode=None`, base dedicada): **8/8 PASS**; repositorios, cifrado, API keys, relaciones, Identity y concurrencia de setup verificados.
+- Runtime LAB (`SslMode=None`, base dedicada): **8/8 PASS**; composición de Worker, 61 nodos, 60 enlaces basados en evidencia, no duplicación, restart, polling y generación de alertas verificados.
+- El resultado elimina los skips de estas suites cuando se dispone de MySQL; no se relajaron tests ni autenticación.
