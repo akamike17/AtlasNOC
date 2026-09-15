@@ -298,17 +298,30 @@ public sealed class LabCommercialScaleTests
         var plan = new ServicePlan("Escala 100", 500m, 50, 10);
         _fx.Db.NetworkZones.AddRange(zones);
         _fx.Db.ServicePlans.Add(plan);
+        await _fx.Db.SaveChangesAsync();
 
         var customers = Enumerable.Range(1, 100)
             .Select(i => new Customer($"SCALE-{i:000}", $"Cliente escala {i}", $"555{i:0000000}"))
             .ToList();
         _fx.Db.Customers.AddRange(customers);
         await _fx.Db.SaveChangesAsync();
+        var services = customers.Select((customer, index) =>
+        {
+            var service = new CustomerService(customer.Id, plan.Id, $"Domicilio escala {index + 1}");
+            service.Activate();
+            return service;
+        }).ToList();
+        _fx.Db.CustomerServices.AddRange(services);
+        await _fx.Db.SaveChangesAsync();
         _fx.Db.BillingAccounts.AddRange(customers.Select(c => new BillingAccount(c.Id)));
         await _fx.Db.SaveChangesAsync();
 
         Assert.Equal(4, await _fx.Db.NetworkZones.CountAsync(z => z.Code.StartsWith("SCALE-ZONA-")));
         Assert.Equal(100, await _fx.Db.Customers.CountAsync(c => c.ServiceCode.StartsWith("SCALE-")));
+        Assert.Equal(100, await _fx.Db.CustomerServices.CountAsync(s => s.Status == ServiceStatus.Active));
+        Assert.Equal(100, await _fx.Db.CustomerServices
+            .Where(s => s.Status == ServiceStatus.Active && s.PlanId == plan.Id)
+            .Select(s => s.CustomerId).Distinct().CountAsync());
         Assert.Equal(100, await _fx.Db.BillingAccounts.CountAsync(a => customers.Select(c => c.Id).Contains(a.CustomerId)));
         Assert.Equal(100, await _fx.Db.Customers.Select(c => c.ServiceCode).Where(x => x.StartsWith("SCALE-")).Distinct().CountAsync());
     }

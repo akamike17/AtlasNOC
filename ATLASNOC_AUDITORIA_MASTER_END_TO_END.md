@@ -168,3 +168,4 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Se añadió prueba Runtime MySQL para cuatro zonas y 100 clientes con cuentas de billing.
 - Hallazgo corregido durante la primera ejecución: la inserción conjunta podía violar FK `BillingAccounts.CustomerId`; el fixture ahora persiste clientes antes de cuentas, reproduciendo el orden seguro del flujo comercial.
 - Verificación: prueba de escala **PASS**; build Runtime Release sin errores/advertencias.
+- Extensión del loop: el fixture ahora crea y verifica también 100 `CustomerService` activos, cada uno con `CustomerId` y `PlanId` válidos y sin duplicar clientes.
