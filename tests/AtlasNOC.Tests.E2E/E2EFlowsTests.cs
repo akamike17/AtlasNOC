@@ -29,6 +29,7 @@ public class E2EFixture : IAsyncLifetime
     public const string LabScope = "10.0.0.1,10.0.0.2,10.0.1.1,10.0.1.2";
 
     private Process? _server;
+    private ProcessStartInfo? _serverStartInfo;
     private Task<string>? _serverOutput;
     private Task<string>? _serverError;
     private string? _skipReason;
@@ -89,8 +90,8 @@ public class E2EFixture : IAsyncLifetime
         startInfo.Environment["LabMode"] = "true";
         startInfo.Environment["RunWorkersInWebForTests"] = "true";
         startInfo.Environment["Polling__DefaultIntervalSeconds"] = "1";
-
-        _server = Process.Start(startInfo)!;
+        _serverStartInfo = startInfo;
+        _server = Process.Start(_serverStartInfo)!;
         // Consume stdout/stderr en segundo plano para evitar el deadlock del buffer.
         _serverOutput = _server.StandardOutput.ReadToEndAsync();
         _serverError = _server.StandardError.ReadToEndAsync();
@@ -135,6 +136,19 @@ public class E2EFixture : IAsyncLifetime
     }
 
     public async Task<IPage> NewPageAsync() => await Browser.NewPageAsync();
+
+    public async Task RestartServerAsync()
+    {
+        if (_server is not null && !_server.HasExited)
+        {
+            _server.Kill(entireProcessTree: true);
+            await _server.WaitForExitAsync();
+        }
+        _server = Process.Start(_serverStartInfo ?? throw new InvalidOperationException("E2E server was not initialized."))!;
+        _serverOutput = _server.StandardOutput.ReadToEndAsync();
+        _serverError = _server.StandardError.ReadToEndAsync();
+        await WaitForServerAsync();
+    }
 
     public async Task DisposeAsync()
     {
@@ -487,6 +501,31 @@ public class E2EFlowsTests
         Assert.True(unexpectedResponses.Count == 0, string.Join(" | ", unexpectedResponses));
         Assert.True(pageErrors.Count == 0, $"Page errors: {string.Join(" | ", pageErrors)}");
         Assert.True(consoleErrors.Count == 0, $"Console errors: {string.Join(" | ", consoleErrors)}");
+        await page.CloseAsync();
+    }
+
+    [SkippableFact(Timeout = 120_000)]
+    public async Task Restart_preserves_schema_and_admin_login()
+    {
+        if (_fx.IsSkipped(out var reason)) throw new SkipTestException(reason);
+        var page = await _fx.NewPageAsync();
+        await page.GotoAsync(E2EFixture.BaseUrl + "/setup");
+        if (page.Url.EndsWith("/setup", StringComparison.OrdinalIgnoreCase))
+        {
+            await page.FillAsync("input[name='WispName']", "Restart WISP");
+            await page.FillAsync("input[name='AdminUserName']", "admin");
+            await page.FillAsync("input[name='AdminDisplayName']", "Restart Admin");
+            await page.FillAsync("input[name='Password']", "Password123!");
+            await page.FillAsync("input[name='ConfirmPassword']", "Password123!");
+            await page.ClickAsync("button[type='submit']");
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        }
+        await _fx.RestartServerAsync();
+        using var http = new HttpClient();
+        var health = await http.GetAsync(E2EFixture.BaseUrl + "/health/live");
+        Assert.True(health.IsSuccessStatusCode);
+        await LoginAsync(page);
+        Assert.Contains("/", page.Url);
         await page.CloseAsync();
     }
 

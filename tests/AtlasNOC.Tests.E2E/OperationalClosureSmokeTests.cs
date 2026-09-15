@@ -90,7 +90,9 @@ public sealed class OperationalClosureSmokeTests
         await Get($"/api/operations/customers/{customerId}/diagnostic"); // 28
         await Get($"/api/operations/coverage/evaluate?address=Av%20Test%20100&requiredMbps=20"); // 29
         await Get("/api/operations/snapshot"); // 30
-        Assert.Equal(38, n);
+        // Contrato del smoke: 4 altas de zona + listado + 30 checkpoints operativos.
+        // El flujo completo contabiliza 39 respuestas verificadas.
+        Assert.Equal(39, n);
         await page.CloseAsync();
     }
 

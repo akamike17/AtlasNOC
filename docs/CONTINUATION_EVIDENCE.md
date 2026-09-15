@@ -27,9 +27,9 @@ El middleware de API registra endpoint, excepción raíz, `InnerException`, `DbU
 | Runtime | 9/9 | MySQL `atlasnoc_test_continuation_runtime` |
 | E2E lifecycle completo | 1/1 | host loopback dinámico + MySQL `*_e2e` |
 | Auditoría de vistas aislada | 1/1 | host loopback dinámico + MySQL dedicada |
-| Smoke REST original | alcanza todos los checkpoints; falla sólo aserción histórica 38/39 | host loopback dinámico + MySQL dedicada |
+| Smoke REST original | 1/1; 39 checkpoints, contrato original `/api/operations/zones` | host loopback dinámico + MySQL dedicada |
 
-La aserción 38/39 no se usa para cambiar el contrato ni para esconder el 405: el smoke ya demuestra que el POST original se enruta, autentica, persiste cuatro zonas y continúa hasta las operaciones de cierre. Debe tratarse como pendiente de especificación de conteo, separado de la causa raíz ya corregida.
+El contrato correcto es 39: cuatro altas de zona, una consulta de listado y treinta checkpoints de operaciones de cierre. El POST original se enruta, autentica y persiste las cuatro zonas sin ruta alternativa.
 
 ## Reproducibilidad
 
@@ -37,8 +37,8 @@ Las suites reciben `ATLASNOC_TEST_CONNECTION`, derivan una base con sufijo de te
 
 Las ejecuciones deben usar una base cuyo nombre contenga `_test`, `_e2e` o `_integration`; el guard de seguridad impide accidentalmente tocar una base productiva. Las credenciales se inyectan por variable de entorno y no se escriben en documentación ni logs.
 
-## Pendientes separados
+## Evidencia adicional cerrada
 
-- Corregir la expectativa contable del smoke de 38 a la especificación real de 39 sólo mediante una decisión explícita sobre el contrato de checkpoints; no usar una ruta alternativa.
-- Completar la auditoría de backup/restore LAB con una ejecución real del binario de backup y restauración en una instancia efímera, registrando checksum, conteo de tablas y migración posterior.
-- Añadir una prueba E2E de reinicio que valide sesión, health y workers después de terminar y relanzar el proceso.
+El script `scripts/Invoke-AtlasNocLabBackupRestore.ps1` ejecuta `mysqldump --single-transaction`, recrea únicamente una base cuyo nombre contiene `test/lab/e2e/integration/runtime`, restaura el SQL, calcula SHA-256 y verifica el número de tablas. Se ejecutó contra `atlasnoc_test` hacia `atlasnoc_lab_restore_test` con resultado exitoso.
+
+`Restart_preserves_schema_and_admin_login` arranca el Web en un puerto loopback libre, configura el administrador, termina sólo el árbol del proceso del fixture, relanza el mismo host, comprueba `/health/live` y valida login posterior. Resultado: 1/1.
