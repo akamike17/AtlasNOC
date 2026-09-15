@@ -34,6 +34,16 @@ public sealed class OperationalDomainTests
     }
 
     [Fact]
+    public void Network_zone_releases_reservation_without_going_negative()
+    {
+        var zone = new NetworkZone("zona-02", "Sur", totalCapacityMbps: 100);
+        zone.Reserve(60);
+        zone.ReleaseReservation(20);
+        zone.Reserve(40);
+        Assert.Throws<InvalidOperationException>(() => zone.ReleaseReservation(81));
+    }
+
+    [Fact]
     public void Commercial_lab_fixture_has_four_zones_and_five_customers_per_zone()
     {
         var zones = Enumerable.Range(1, 4).Select(i => new NetworkZone($"ZONA-{i:00}", $"Zona {i}", $"Geografía {i}", 1000)).ToArray();

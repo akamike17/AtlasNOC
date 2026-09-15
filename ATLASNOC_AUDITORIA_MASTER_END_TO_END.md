@@ -190,3 +190,8 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Gap cerrado: `ChangePlan` ahora libera la reserva del plan anterior y reserva el nuevo dentro del mismo contexto persistente.
 - Si la zona está retirada/saturada o no tiene capacidad, devuelve `409` y restaura la reserva anterior; no cambia silenciosamente el plan.
 - Verificación: solución Release PASS (0 errores/advertencias) y Unit **177/177 PASS**.
+
+## Loop: cobertura de capacidad
+
+- Se añadió prueba de dominio para liberar reservas sin permitir valores negativos ni liberación superior a la reserva.
+- Verificación actualizada: solución Release PASS (0 errores/advertencias) y Unit **178/178 PASS**.
