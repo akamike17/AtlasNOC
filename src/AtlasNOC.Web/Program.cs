@@ -27,7 +27,11 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<AtlasNOCDbContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.Parse("8.0.36-mysql")));
+        ServerVersion.Parse("8.0.36-mysql"),
+        mySql => mySql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 
 builder.Services
     .AddIdentity<ApplicationUser, ApplicationRole>(options =>

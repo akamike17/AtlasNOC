@@ -151,6 +151,12 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Verificación: solución Release compilada sin errores/advertencias; Unit **177/177 PASS**.
 - Clasificación: **READY** para la ventana transaccional de cargos/pagos idempotentes; la prueba E2E concurrente contra MySQL queda como evidencia adicional pendiente.
 
+## Endurecimiento de conexión MySQL
+
+- Corrección: EF Core/Pomelo usa reintentos transitorios acotados (5 intentos, máximo 5 s) para el contexto Web.
+- Alcance: sólo resiliencia de transporte; no reintenta operaciones fuera de la estrategia EF ni modifica el contrato REST.
+- Verificación: solución Release compilada y Unit **177/177 PASS**.
+
 ## Reanudación: suites con dependencias habilitadas
 
 - Integration MySQL (`SslMode=None`, base dedicada): **8/8 PASS**; repositorios, cifrado, API keys, relaciones, Identity y concurrencia de setup verificados.
