@@ -279,3 +279,37 @@ public class LabPollingAndAlertTests
         Assert.True(alert, "Se esperaba una alerta abierta por la métrica de CPU.");
     }
 }
+
+[Collection("lab-runtime")]
+public sealed class LabCommercialScaleTests
+{
+    private readonly LabRuntimeFixture _fx;
+    public LabCommercialScaleTests(LabRuntimeFixture fx) => _fx = fx;
+
+    [SkippableFact]
+    public async Task Four_zones_and_one_hundred_customers_preserve_business_invariants()
+    {
+        if (_fx.IsSkipped(out var reason))
+            throw new SkipTestException(reason);
+
+        var zones = Enumerable.Range(1, 4)
+            .Select(i => new NetworkZone($"SCALE-ZONA-{i:00}", $"Zona escala {i}", $"LAB-{i}", 10_000))
+            .ToList();
+        var plan = new ServicePlan("Escala 100", 500m, 50, 10);
+        _fx.Db.NetworkZones.AddRange(zones);
+        _fx.Db.ServicePlans.Add(plan);
+
+        var customers = Enumerable.Range(1, 100)
+            .Select(i => new Customer($"SCALE-{i:000}", $"Cliente escala {i}", $"555{i:0000000}"))
+            .ToList();
+        _fx.Db.Customers.AddRange(customers);
+        await _fx.Db.SaveChangesAsync();
+        _fx.Db.BillingAccounts.AddRange(customers.Select(c => new BillingAccount(c.Id)));
+        await _fx.Db.SaveChangesAsync();
+
+        Assert.Equal(4, await _fx.Db.NetworkZones.CountAsync(z => z.Code.StartsWith("SCALE-ZONA-")));
+        Assert.Equal(100, await _fx.Db.Customers.CountAsync(c => c.ServiceCode.StartsWith("SCALE-")));
+        Assert.Equal(100, await _fx.Db.BillingAccounts.CountAsync(a => customers.Select(c => c.Id).Contains(a.CustomerId)));
+        Assert.Equal(100, await _fx.Db.Customers.Select(c => c.ServiceCode).Where(x => x.StartsWith("SCALE-")).Distinct().CountAsync());
+    }
+}

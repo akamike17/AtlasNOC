@@ -162,3 +162,9 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Integration MySQL (`SslMode=None`, base dedicada): **8/8 PASS**; repositorios, cifrado, API keys, relaciones, Identity y concurrencia de setup verificados.
 - Runtime LAB (`SslMode=None`, base dedicada): **8/8 PASS**; composición de Worker, 61 nodos, 60 enlaces basados en evidencia, no duplicación, restart, polling y generación de alertas verificados.
 - El resultado elimina los skips de estas suites cuando se dispone de MySQL; no se relajaron tests ni autenticación.
+
+## Fixture de escala comercial
+
+- Se añadió prueba Runtime MySQL para cuatro zonas y 100 clientes con cuentas de billing.
+- Hallazgo corregido durante la primera ejecución: la inserción conjunta podía violar FK `BillingAccounts.CustomerId`; el fixture ahora persiste clientes antes de cuentas, reproduciendo el orden seguro del flujo comercial.
+- Verificación: prueba de escala **PASS**; build Runtime Release sin errores/advertencias.
