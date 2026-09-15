@@ -144,6 +144,13 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Verificación: solución compilada en Release sin errores/advertencias; smoke conserva el flujo válido y sólo mantiene la discrepancia fija `39/38` al final.
 - Clasificación: **READY** para la regla de atribución cliente–incidente, con cobertura E2E válida y rechazo explícito de casos no atribuibles.
 
+## Corrección de concurrencia en billing
+
+- Hallazgo: la lectura de idempotencia ocurría antes de abrir la transacción; dos reintentos simultáneos podían pasar ambas lecturas.
+- Corrección: la lectura de replay y la escritura del ledger ahora están dentro de una transacción `Serializable`; el índice único permanece como barrera final.
+- Verificación: solución Release compilada sin errores/advertencias; Unit **177/177 PASS**.
+- Clasificación: **READY** para la ventana transaccional de cargos/pagos idempotentes; la prueba E2E concurrente contra MySQL queda como evidencia adicional pendiente.
+
 ## Reanudación: suites con dependencias habilitadas
 
 - Integration MySQL (`SslMode=None`, base dedicada): **8/8 PASS**; repositorios, cifrado, API keys, relaciones, Identity y concurrencia de setup verificados.

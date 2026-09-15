@@ -419,12 +419,19 @@ public sealed class OperationsApiController : ControllerBase
         var account = await _db.BillingAccounts.FirstOrDefaultAsync(x => x.CustomerId == customerId, ct);
         if (account is null || request.Amount <= 0) return BadRequest("Cuenta o monto inválido.");
         var key = request.IdempotencyKey?.Trim();
+        await using var tx = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, ct);
         if (!string.IsNullOrWhiteSpace(key))
         {
-            var existing = await _db.BillingEntries.AsNoTracking().FirstOrDefaultAsync(x => x.AccountId == account.Id && x.Type == type && x.IdempotencyKey == key, ct);
-            if (existing is not null) return Ok(new { account.Id, account.Balance, IdempotentReplay = true, Entry = existing, Receipt = (PaymentReceipt?)null });
+            var existing = await _db.BillingEntries.AsNoTracking().FirstOrDefaultAsync(
+                x => x.AccountId == account.Id && x.Type == type && x.IdempotencyKey == key, ct);
+            if (existing is not null)
+            {
+                await tx.CommitAsync(ct);
+                return Ok(new { account.Id, account.Balance, IdempotentReplay = true,
+                    Entry = existing, Receipt = (PaymentReceipt?)null });
+            }
         }
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
         account.Apply(type, request.Amount);
         _db.BillingEntries.Add(new BillingEntry(account.Id, type, request.Amount, request.Description, request.DueAtUtc, request.Period, key));
         PaymentReceipt? receipt = null;
