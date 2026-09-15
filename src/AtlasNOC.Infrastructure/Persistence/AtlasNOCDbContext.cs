@@ -72,6 +72,9 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<BillingEntry>().HasIndex(x => new { x.AccountId, x.Type, x.IdempotencyKey }).IsUnique();
         modelBuilder.Entity<BillingEntry>().Property(x => x.IdempotencyKey).HasMaxLength(128);
         modelBuilder.Entity<SupportTicket>().ToTable("SupportTickets").HasKey(x => x.Id);
+        modelBuilder.Entity<SupportTicket>().HasIndex(x => x.CustomerServiceId);
+        modelBuilder.Entity<SupportTicket>().HasOne<CustomerService>().WithMany()
+            .HasForeignKey(x => x.CustomerServiceId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<InventoryAsset>().ToTable("InventoryAssets").HasKey(x => x.Id);
         modelBuilder.Entity<InventoryAsset>().Property(x => x.RowVersion)
             .HasColumnType("timestamp(6)")

@@ -72,7 +72,8 @@ public sealed class OperationalClosureSmokeTests
         var promise = await Post($"/api/operations/billing/{customerId}/promises", new { amount = 250, promisedAtUtc = DateTime.UtcNow, expiresAtUtc = DateTime.UtcNow.AddDays(7), conditions = "Smoke" }); // 15
         await Post($"/api/operations/billing/{customerId}/payment", new { amount = 250, description = "Pago parcial smoke" }); // 16
         await Post($"/api/operations/billing/promises/{Id(promise)}/default", new { }); // 17
-        var ticket = await Post("/api/operations/tickets", new { customerId, title = "Falla smoke", description = "Prueba E2E" }); // 18
+        var ticket = await Post("/api/operations/tickets", new { customerId, customerServiceId = serviceId, title = "Falla smoke", description = "Prueba E2E" }); // 18
+        Assert.Equal(serviceId, ticket.GetProperty("customerServiceId").GetGuid());
         await Post("/api/operations/support/interactions", new { ticketId = Id(ticket), channel = 0, symptoms = "Sin enlace", diagnosis = "Simulado", actions = "Validación", result = "Abierto", durationMinutes = 5 }); // 19
         await Post($"/api/operations/tickets/{Id(ticket)}/status", new { status = 1 }); // 20
         var visit = await Post("/api/operations/visits", new { customerId, scheduledAtUtc = DateTime.UtcNow.AddDays(1), workType = "Revisión", estimatedMinutes = 60 }); // 21
@@ -142,6 +143,64 @@ public sealed class OperationalClosureSmokeTests
         Assert.All(responses, response => Assert.Equal(200, response.GetProperty("s").GetInt32()));
         Assert.Single(responses, response => !response.GetProperty("b").GetProperty("idempotentReplay").GetBoolean());
         Assert.Single(responses, response => response.GetProperty("b").GetProperty("idempotentReplay").GetBoolean());
+        await page.CloseAsync();
+    }
+
+    [SkippableFact(Timeout = 120_000)]
+    public async Task Support_ticket_rejects_a_service_belonging_to_another_customer()
+    {
+        if (_fx.IsSkipped(out var reason)) throw new SkipTestException(reason);
+        var page = await _fx.NewPageAsync();
+        await SetupAndLogin(page);
+
+        async Task<(int Status, JsonElement Body)> Post(string path, object body)
+        {
+            var raw = await page.EvaluateAsync<string>(
+                "async ({url,body}) => { const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return JSON.stringify({s:r.status,b:await r.text()}); }",
+                new { url = E2EFixture.BaseUrl + path, body });
+            using var doc = JsonDocument.Parse(raw);
+            var bodyText = doc.RootElement.GetProperty("b").GetString() ?? "{}";
+            var parsedBody = bodyText.TrimStart().StartsWith("{", StringComparison.Ordinal)
+                ? JsonDocument.Parse(bodyText).RootElement.Clone()
+                : JsonDocument.Parse(JsonSerializer.Serialize(new { message = bodyText })).RootElement.Clone();
+            return (doc.RootElement.GetProperty("s").GetInt32(), parsedBody);
+        }
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var first = await Post("/api/operations/customers", new
+        {
+            serviceCode = $"SUP-A-{suffix}", name = $"Support A {suffix}", phone = "5550101", email = $"a-{suffix}@example.test"
+        });
+        var second = await Post("/api/operations/customers", new
+        {
+            serviceCode = $"SUP-B-{suffix}", name = $"Support B {suffix}", phone = "5550102", email = $"b-{suffix}@example.test"
+        });
+        Assert.Equal(201, first.Status);
+        Assert.Equal(201, second.Status);
+        var firstId = first.Body.GetProperty("id").GetGuid();
+        var secondId = second.Body.GetProperty("id").GetGuid();
+        var plan = await Post("/api/operations/plans", new
+        {
+            name = $"Support plan {suffix}", monthlyPrice = 500, downloadMbps = 50, uploadMbps = 10
+        });
+        var planId = plan.Body.GetProperty("id").GetGuid();
+        var firstService = await Post("/api/operations/services", new { customerId = firstId, planId, address = $"Support A {suffix}" });
+        var secondService = await Post("/api/operations/services", new { customerId = secondId, planId, address = $"Support B {suffix}" });
+        var firstServiceId = firstService.Body.GetProperty("id").GetGuid();
+        var secondServiceId = secondService.Body.GetProperty("id").GetGuid();
+
+        var mismatch = await Post("/api/operations/tickets", new
+        {
+            customerId = firstId, customerServiceId = secondServiceId, title = "Servicio cruzado", description = "Debe rechazarse"
+        });
+        Assert.Equal(400, mismatch.Status);
+
+        var valid = await Post("/api/operations/tickets", new
+        {
+            customerId = firstId, customerServiceId = firstServiceId, title = "Servicio correcto", description = "Debe persistirse"
+        });
+        Assert.Equal(200, valid.Status);
+        Assert.Equal(firstServiceId, valid.Body.GetProperty("customerServiceId").GetGuid());
         await page.CloseAsync();
     }
 

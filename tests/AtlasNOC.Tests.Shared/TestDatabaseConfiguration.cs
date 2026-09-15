@@ -1,5 +1,7 @@
 namespace AtlasNOC.Tests.Shared;
 
+using MySqlConnector;
+
 /// <summary>
 /// Resuelve de forma segura la cadena de conexión para bases de datos de test.
 ///
@@ -122,6 +124,30 @@ public static class TestDatabaseConfiguration
         }
 
         return ReplaceKeyValue(connectionString, "Database", database + suffix);
+    }
+
+    /// <summary>
+    /// Crea la base de pruebas en el servidor antes de que EF intente migrarla.
+    /// `EnsureDeleted` no puede crear una base inexistente y `Migrate` tampoco
+    /// la crea en MySQL; sin este paso un host limpio falla con "Unknown database".
+    /// Sólo acepta nombres ya validados como bases de test.
+    /// </summary>
+    public static void EnsureDatabaseExists(string connectionString)
+    {
+        ValidatePointsToTestDatabase(connectionString);
+        var database = ExtractDatabaseName(connectionString)!;
+        if (database.Any(ch => !(char.IsLetterOrDigit(ch) || ch == '_')))
+            throw new InvalidOperationException("El nombre de la base de test contiene caracteres no permitidos.");
+
+        var builder = new MySqlConnectionStringBuilder(connectionString)
+        {
+            Database = string.Empty,
+        };
+        using var connection = new MySqlConnection(builder.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE DATABASE IF NOT EXISTS `{database}`";
+        command.ExecuteNonQuery();
     }
 
     private static string ReplaceKeyValue(string connectionString, string key, string newValue)

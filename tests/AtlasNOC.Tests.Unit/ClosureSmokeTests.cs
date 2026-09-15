@@ -30,7 +30,7 @@ public sealed class ClosureSmokeTests
         cpe.Decide(CpeAuthorizationStatus.Authorized, "Validada", "operator"); cpe.SetProvisioning(ProvisioningStatus.Unsupported, "SIMULATED"); Check(15, cpe.Provisioning == ProvisioningStatus.Unsupported);
         var contract = new ServiceContract(customer.Id, service.Id, "Términos"); contract.Accept("operator"); Check(16, contract.Status == ContractStatus.Accepted);
         var install = new InstallationOrder(service.Id, false, 0, 0); install.Schedule(DateTime.UtcNow.AddHours(1)); Check(17, install.Status == InstallationStatus.Scheduled);
-        var ticket = new SupportTicket(customer.Id, "Sin servicio"); ticket.SetStatus(TicketStatus.InProgress); Check(18, ticket.Status == TicketStatus.InProgress);
+        var ticket = new SupportTicket(customer.Id, service.Id, "Sin servicio"); ticket.SetStatus(TicketStatus.InProgress); Check(18, ticket.Status == TicketStatus.InProgress && ticket.CustomerServiceId == service.Id);
         var interaction = new SupportInteraction(ticket.Id, SupportInteractionChannel.Phone, "síntoma", "diagnóstico", "acción", "operator", "resultado", 10); Check(19, interaction.DurationMinutes == 10);
         var visit = new TechnicianVisit(customer.Id, DateTime.UtcNow.AddHours(2), "Revisión", 60); visit.Complete(45, 20, "Resuelto"); Check(20, visit.ActualMinutes == 45);
         var incident = new Incident("AP caído", "operator", "evidencia"); incident.MarkRootCauseCandidate(); incident.Reclassify(IncidentPriority.P2High, "Impacto"); Check(21, incident.Priority == IncidentPriority.P2High);

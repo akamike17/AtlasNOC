@@ -20,7 +20,7 @@ Cada fila exige código y evidencia; no se considera prueba una afirmación docu
 | 14 | Commercial readiness referencia build, suites, migraciones, recuperación y operación reproducible. |
 | 15 | NuGet está centralizado en `Directory.Packages.props`; JS local vive en `wwwroot/lib`, sin CDN obligatorio. Licencias requieren revisión antes de redistribuir. |
 | 16 | Guardas de conexión y script de backup rechazan DBs sin marcador LAB/test; no se reseteó una base real. |
-| 17 | Ejecución LAB posterior a la migración: Unit 178/178, Integration 10/10, Runtime 9/9, E2E 18/18; build sin errores/warnings. |
+| 17 | Ejecución LAB posterior a la migración: Unit 178/178, Integration 10/10, Runtime 9/9, E2E 19/19; build sin errores/warnings. |
 | 18 | Fixture Playwright usa puerto loopback dinámico y captura page errors, consola, requests fallidas y respuestas 4xx/5xx inesperadas. |
 | 19 | La causa EF/retry fue reproducida, instrumentada, corregida con `CreateExecutionStrategy` y repetida en integración/E2E. |
 | 20 | Drivers LAB distinguen `SIMULATED`/`UNSUPPORTED`; no se afirma control de hardware no conectado. |

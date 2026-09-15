@@ -42,6 +42,7 @@ public class IntegrationFixture : IAsyncLifetime
 
         // Aísla esta suite de las demás (Runtime/E2E) con una base propia.
         ConnectionString = TestDatabaseConfiguration.WithDatabaseSuffix(ConnectionString, "_integration");
+        TestDatabaseConfiguration.EnsureDatabaseExists(ConnectionString);
 
         var options = new DbContextOptionsBuilder<AtlasNOCDbContext>()
             .UseMySql(ConnectionString, ServerVersion.Parse("8.0.36-mysql"))

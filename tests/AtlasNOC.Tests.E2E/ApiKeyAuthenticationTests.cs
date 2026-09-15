@@ -137,6 +137,7 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
         }
 
         _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(resolved, "_apikey");
+        TestDatabaseConfiguration.EnsureDatabaseExists(_connectionString);
         using var db = new AtlasNOCDbContext(Options());
         db.Database.EnsureDeleted();
     }
@@ -208,6 +209,11 @@ public class ApiKeyAuthFactory : WebApplicationFactory<Program>
     {
         if (IsSkipped(out _)) return;
         await using var db = new AtlasNOCDbContext(Options());
-        await db.Database.EnsureDeletedAsync();
+        // El WebApplicationFactory permanece vivo entre los casos de esta
+        // clase y sus workers siguen leyendo la base. Borrarla aquí deja al
+        // host apuntando a un esquema inexistente y genera errores de carrera;
+        // SeedAsync ya reemplaza las API keys para el siguiente caso.
+        db.ApiKeys.RemoveRange(await db.ApiKeys.ToListAsync());
+        await db.SaveChangesAsync();
     }
 }

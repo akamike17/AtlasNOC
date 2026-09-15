@@ -45,6 +45,7 @@ public class LabRuntimeFixture : IAsyncLifetime
 
         // Aísla esta suite de las demás (Integration/E2E) con una base propia.
         ConnectionString = TestDatabaseConfiguration.WithDatabaseSuffix(ConnectionString, "_runtime");
+        TestDatabaseConfiguration.EnsureDatabaseExists(ConnectionString);
 
         // Base de datos de test dedicada, limpia en cada ejecución.
         var options = new DbContextOptionsBuilder<AtlasNOCDbContext>()

@@ -1,5 +1,5 @@
 # Customers, services and billing
-La cuenta corriente usa cargos, pagos, créditos y saldo. BillingEntry admite clave idempotente persistida; Customer y CustomerService no se eliminan al cancelar un servicio.
+La cuenta corriente usa cargos, pagos, créditos y saldo. BillingEntry admite clave idempotente persistida; Customer y CustomerService no se eliminan al cancelar un servicio. Los tickets de soporte reciben explícitamente el `CustomerServiceId` y la API rechaza una combinación servicio/cliente inconsistente.
 
 Customer y CustomerService son entidades distintas: un cliente puede tener múltiples servicios, cada uno con plan, domicilio, zona, estado y provisioning. BillingAccount pertenece al cliente y se persiste después de la FK de Customer.
 

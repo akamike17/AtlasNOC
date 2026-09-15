@@ -60,6 +60,7 @@ public class E2EFixture : IAsyncLifetime
 
         // Aísla esta suite de las demás (Integration/Runtime) con una base propia.
         ConnectionString = TestDatabaseConfiguration.WithDatabaseSuffix(ConnectionString, "_e2e");
+        TestDatabaseConfiguration.EnsureDatabaseExists(ConnectionString);
 
         BaseUrl = GetFreeLoopbackUrl();
 

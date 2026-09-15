@@ -265,11 +265,20 @@ public sealed class SupportTicket
     private SupportTicket() { }
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid CustomerId { get; private set; }
+    public Guid? CustomerServiceId { get; private set; }
     public string Title { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public TicketStatus Status { get; private set; } = TicketStatus.Open;
     public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
-    public SupportTicket(Guid customerId, string title, string? description = null) { if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("El título es obligatorio."); CustomerId = customerId; Title = title.Trim(); Description = description?.Trim(); }
+    public SupportTicket(Guid customerId, Guid customerServiceId, string title, string? description = null)
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("El título es obligatorio.");
+        if (customerServiceId == Guid.Empty) throw new ArgumentException("El servicio es obligatorio.", nameof(customerServiceId));
+        CustomerId = customerId;
+        CustomerServiceId = customerServiceId;
+        Title = title.Trim();
+        Description = description?.Trim();
+    }
     public void SetStatus(TicketStatus status) => Status = status;
 }
 

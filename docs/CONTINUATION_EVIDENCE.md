@@ -23,9 +23,9 @@ El middleware de API registra endpoint, excepción raíz, `InnerException`, `DbU
 |---|---:|---|
 | Build Release solución completa | 0 errores, 0 warnings | repositorio local |
 | Unit | 178/178 | sin DB |
-| Integration | 10/10 | MySQL `atlasnoc_test_continuation_integration` |
-| Runtime | 9/9 | MySQL `atlasnoc_test_continuation_runtime` |
-| E2E/browser completo | 18/18 | host loopback dinámico + MySQL `*_e2e`; vistas, acciones, topology aislada, billing concurrente y restart |
+| Integration | 10/10 | MySQL `atlasnoc_test_remate_final_20260915_integration`, base auto-creada y migrada |
+| Runtime | 9/9 | MySQL `atlasnoc_test_remate_final_20260915_runtime`, base auto-creada y migrada |
+| E2E/browser completo | 19/19 | host loopback dinámico + MySQL `atlasnoc_test_remate_final_20260915_e2e`; vistas, acciones, topology aislada, billing concurrente, soporte ligado al servicio y restart |
 | Auditoría de vistas aislada | 1/1 | host loopback dinámico + MySQL dedicada |
 | Smoke REST original | 1/1; 39 checkpoints, contrato original `/api/operations/zones` | host loopback dinámico + MySQL dedicada |
 
@@ -39,10 +39,14 @@ Las ejecuciones deben usar una base cuyo nombre contenga `_test`, `_e2e` o `_int
 
 ## Evidencia adicional cerrada
 
-El script `scripts/Invoke-AtlasNocLabBackupRestore.ps1` ejecuta `mysqldump --single-transaction`, recrea únicamente una base cuyo nombre contiene `test/lab/e2e/integration/runtime`, restaura el SQL, calcula SHA-256 y verifica el número de tablas. La ejecución reproducible más reciente fue `atlasnoc_test` hacia `atlasnoc_lab_restore_clinical_final2`: archivo `atlasnoc_test-20260915-103656.sql`, SHA-256 `F3EB3B15CE4CBF8C78B48C35B1DB7F2F725FAD7D2E522576E921FCAF16B937E6` y 51 tablas restauradas.
+El script `scripts/Invoke-AtlasNocLabBackupRestore.ps1` ejecuta `mysqldump --single-transaction`, recrea únicamente una base cuyo nombre contiene `test/lab/e2e/integration/runtime`, restaura el SQL, calcula SHA-256 y verifica el número de tablas. La ejecución reproducible más reciente fue `atlasnoc_test_remate_upgrade_20260915` hacia `atlasnoc_lab_restore_remate_20260915`: archivo `atlasnoc_test_remate_upgrade_20260915-20260915-173051.sql`, SHA-256 `12E2C17B400C4831D34D8582C9175DFC11F40AC15BB5C075118D26D733C42CDE` y 52 tablas restauradas.
 
 `Restart_preserves_schema_and_admin_login` arranca el Web en un puerto loopback libre, configura el administrador, termina sólo el árbol del proceso del fixture, relanza el mismo host, comprueba `/health/live` y valida login posterior. Resultado: 1/1.
 
 `Topology_six_isolated_devices_render_six_nodes_and_zero_edges` limpia únicamente la base E2E, crea seis dispositivos sin observaciones/enlaces y verifica en browser `6 dispositivos / 0 enlaces`, seis nodos Cytoscape y cero edges. Los assets Bootstrap, Chart.js y Cytoscape se sirven desde `wwwroot/lib`; la prueba falla ante errores de página, consola o HTTP inesperado.
 
 `Billing_concurrent_same_key_creates_one_entry_and_one_replay` ejecuta dos `fetch` simultáneos contra el endpoint original de cargo con la misma clave, exige dos respuestas 200, exactamente un cargo y un replay, y deja la unidad perdedora sin mutación adicional.
+
+`Support_ticket_rejects_a_service_belonging_to_another_customer` prueba el contrato comercial de soporte: una combinación cruzada responde 400 y una combinación del mismo cliente persiste `CustomerServiceId`. La migración `20260915230648_AttachSupportTicketsToServices` se aplicó tanto en fresh como en upgrade; la columna conserva el tipo `char(36)` compatible con MySQL y la FK usa `SET NULL` para no destruir tickets históricos.
+
+Los fixtures llaman `TestDatabaseConfiguration.EnsureDatabaseExists` antes de `EnsureDeleted`/`Migrate`, porque MySQL no crea automáticamente una base inexistente. El helper valida el marcador de test y el nombre del esquema antes de ejecutar `CREATE DATABASE IF NOT EXISTS`; esto hace que el mismo comando sea reproducible en un servidor LAB limpio.

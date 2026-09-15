@@ -415,7 +415,18 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpPost("tickets")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
-    public async Task<IActionResult> Ticket([FromBody] TicketRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return BadRequest("Cliente inválido."); var ticket = new SupportTicket(request.CustomerId, request.Title, request.Description); _db.SupportTickets.Add(ticket); await _db.SaveChangesAsync(ct); return Ok(ticket); }
+    public async Task<IActionResult> Ticket([FromBody] TicketRequest request, CancellationToken ct)
+    {
+        var service = await _db.CustomerServices.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == request.CustomerServiceId && x.CustomerId == request.CustomerId, ct);
+        if (service is null)
+            return BadRequest("Cliente o servicio inválido; el ticket debe ligarse al servicio del cliente.");
+
+        var ticket = new SupportTicket(request.CustomerId, service.Id, request.Title, request.Description);
+        _db.SupportTickets.Add(ticket);
+        await _db.SaveChangesAsync(ct);
+        return Ok(ticket);
+    }
     [HttpPost("tickets/{id:guid}/status")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> TicketStatus(Guid id, [FromBody] TicketStatusRequest request, CancellationToken ct) { var ticket = await _db.SupportTickets.FindAsync(new object[] { id }, ct); if (ticket is null) return NotFound(); ticket.SetStatus(request.Status); await _db.SaveChangesAsync(ct); return Ok(ticket); }
@@ -565,7 +576,7 @@ public sealed record CreateCustomerRequest(string ServiceCode, string Name, stri
 public sealed record CreatePlanRequest(string Name, decimal MonthlyPrice, int DownloadMbps, int UploadMbps);
 public sealed record CreateServiceRequest(Guid CustomerId, Guid PlanId, string Address, Guid? ZoneId = null);
 public sealed record BillingRequest(decimal Amount, string Description, DateTime? DueAtUtc = null, string? Period = null, string? IdempotencyKey = null);
-public sealed record TicketRequest(Guid CustomerId, string Title, string? Description);
+public sealed record TicketRequest(Guid CustomerId, Guid CustomerServiceId, string Title, string? Description);
 public sealed record AssetRequest(string AssetTag, string Type, string? SerialNumber, string? MacAddress);
 public sealed record CoverageRequest(string Address, CoverageStatus Status, int? CapacityMbps);
 public sealed record ZoneRequest(string Code, string Name, string? Geography, int TotalCapacityMbps);

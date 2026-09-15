@@ -125,6 +125,7 @@ public class LoginTestFactory : WebApplicationFactory<Program>
         }
 
         _connectionString = TestDatabaseConfiguration.WithDatabaseSuffix(resolved, "_login");
+        TestDatabaseConfiguration.EnsureDatabaseExists(_connectionString);
         using var db = new AtlasNOCDbContext(new DbContextOptionsBuilder<AtlasNOCDbContext>()
             .UseMySql(_connectionString, ServerVersion.Parse("8.0.36-mysql")).Options);
         db.Database.EnsureDeleted();
