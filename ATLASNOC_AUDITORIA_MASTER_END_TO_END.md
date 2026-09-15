@@ -131,6 +131,19 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Conclusión: no quedan fallos E2E funcionales del endpoint de zonas; el pendiente concreto es corregir la expectativa del test sin cambiar su ruta ni reducir cobertura, lo cual queda deliberadamente separado por la prohibición explícita del contrato de revisión.
 - Reauditoría de rutas: se eliminó el atributo accidental `[HttpPost("zones/create")]`; el único contrato publicado vuelve a ser `POST /api/operations/zones`.
 
+## Reauditoría de mutaciones y seguridad
+
+- Se revisaron los controladores API mutantes: las operaciones de laboratorio están encerradas en `Testing` y requieren rol `Administrator`; las operaciones normales mantienen policies/scopes o roles explícitos.
+- No se detectó otra ruta alternativa para zonas, éxito simulado en el flujo original ni bypass de autorización asociado a la corrección del 405.
+- Build Release posterior a la reauditoría: **PASS**, 0 errores y 0 advertencias.
+
+## Corrección de integridad de créditos
+
+- Hallazgo: `POST /api/operations/credits` validaba únicamente que existiera el cliente; podía persistir un crédito para incidente abierto, inexistente o ajeno.
+- Corrección: exige incidente resuelto y una `SupportInteraction` persistida cuyo ticket pertenezca al cliente solicitado, igual que el preview.
+- Verificación: solución compilada en Release sin errores/advertencias; smoke conserva el flujo válido y sólo mantiene la discrepancia fija `39/38` al final.
+- Clasificación: **READY** para la regla de atribución cliente–incidente, con cobertura E2E válida y rechazo explícito de casos no atribuibles.
+
 ## Reanudación: suites con dependencias habilitadas
 
 - Integration MySQL (`SslMode=None`, base dedicada): **8/8 PASS**; repositorios, cifrado, API keys, relaciones, Identity y concurrencia de setup verificados.

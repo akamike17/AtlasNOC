@@ -160,7 +160,29 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpPost("credits")]
     [Authorize(Roles = "Administrator,NocOperator")]
-    public async Task<IActionResult> CreateCredit([FromBody] CreditRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return NotFound(); var item = new ServiceCredit(request.CustomerId, request.IncidentId, request.FromUtc, request.ToUtc, request.SuggestedAmount, request.Reason); _db.ServiceCredits.Add(item); await _db.SaveChangesAsync(ct); return Ok(item); }
+    public async Task<IActionResult> CreateCredit([FromBody] CreditRequest request, CancellationToken ct)
+    {
+        if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct))
+            return NotFound("El cliente no existe.");
+
+        var incident = await _db.Incidents.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == request.IncidentId, ct);
+        if (incident is null || incident.ResolvedAtUtc is null)
+            return BadRequest("El incidente debe existir y estar resuelto.");
+
+        var affectsCustomer = await _db.SupportInteractions.AsNoTracking()
+            .Join(_db.SupportTickets.AsNoTracking(), interaction => interaction.TicketId,
+                ticket => ticket.Id, (interaction, ticket) => new { interaction.RootIncidentId, ticket.CustomerId })
+            .AnyAsync(x => x.RootIncidentId == request.IncidentId && x.CustomerId == request.CustomerId, ct);
+        if (!affectsCustomer)
+            return BadRequest("No existe evidencia persistida de que el incidente afecte a este cliente.");
+
+        var item = new ServiceCredit(request.CustomerId, request.IncidentId, request.FromUtc,
+            request.ToUtc, request.SuggestedAmount, request.Reason);
+        _db.ServiceCredits.Add(item);
+        await _db.SaveChangesAsync(ct);
+        return Ok(item);
+    }
 
     [HttpPost("credits/{id:guid}/status")]
     [Authorize(Roles = "Administrator")]
