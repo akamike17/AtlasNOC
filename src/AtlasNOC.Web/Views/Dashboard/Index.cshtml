@@ -65,13 +65,16 @@
         <span class="small text-secondary">Topología observada</span>
     </div>
     <div id="topology-map" style="height:520px" aria-label="Mapa de mi red"></div>
+    <div id="topology-map-count" class="small text-secondary mt-2"></div>
+    <div id="topology-map-empty" class="alert alert-secondary mt-2 mb-0" hidden></div>
+    <div id="topology-map-detail" class="small mt-2" aria-live="polite">Selecciona un dispositivo para ver sus datos.</div>
     <p class="small text-secondary mt-2 mb-0">Sólo se muestran equipos inventariados y relaciones respaldadas por evidencia.</p>
 </div>
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.3/dist/cytoscape.min.js"></script>
     <script src="~/js/topology.js" asp-append-version="true"></script>
     <script>
-      window.atlasTopology = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.Topology));
+      window.atlasTopology = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.Topology, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
       if (window.renderTopology) window.renderTopology('topology-map', window.atlasTopology);
     </script>
 }
