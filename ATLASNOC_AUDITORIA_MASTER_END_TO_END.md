@@ -201,3 +201,10 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Gap cerrado: `SystemHealthService` ya no consulta conteos después de una conexión DB fallida; devuelve estado degradado (`DatabaseOk=false`, conteos cero y timestamp) de forma estable.
 - Evita que una caída de infraestructura termine en excepción 500 o falso estado OK.
 - Verificación: solución Release PASS y Unit **178/178 PASS**.
+
+## Pasada integral de suites
+
+- Build Release de la solución: **PASS**, 0 errores y 0 advertencias.
+- Unit: **178/178 PASS**.
+- Integration y Runtime aisladas con bases permitidas: **8/8** y **9/9 PASS**.
+- La ejecución simultánea de toda la solución detectó procesos Web/dotnet antiguos en el entorno y produjo fallos de login E2E por páginas/servidores cruzados; no se modificaron tests ni guardas para ocultarlo. Las suites aisladas reproducibles continúan verdes.
