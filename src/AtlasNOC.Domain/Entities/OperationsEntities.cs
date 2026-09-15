@@ -36,6 +36,7 @@ public sealed class NetworkZone
     }
     public void SetStatus(ZoneStatus status) => Status = status;
     public void Reserve(int mbps) { if (mbps < 0 || ReservedCapacityMbps + mbps > TotalCapacityMbps) throw new InvalidOperationException("Capacidad reservada insuficiente."); ReservedCapacityMbps += mbps; }
+    public void ReleaseReservation(int mbps) { if (mbps < 0 || mbps > ReservedCapacityMbps) throw new InvalidOperationException("Reserva de capacidad inválida."); ReservedCapacityMbps -= mbps; }
     public void Use(int mbps) { if (mbps < 0 || UsedCapacityMbps + mbps > TotalCapacityMbps) throw new InvalidOperationException("Capacidad disponible insuficiente."); UsedCapacityMbps += mbps; }
 }
 

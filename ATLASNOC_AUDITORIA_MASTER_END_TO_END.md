@@ -177,3 +177,10 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Migración regenerada correctamente: `20260915145841_AttachZonesToServices` (snapshot EF actualizado; no migración vacía).
 - Fixture de escala: 100 servicios activos distribuidos 25 por cada una de las 4 zonas.
 - Verificación: build Runtime Release PASS y prueba de escala PASS.
+
+## Loop: capacidad por zona en ciclo de servicio
+
+- Gap cerrado: activar un servicio con zona ahora reserva el downstream del plan; cancelar libera la reserva. Zonas `Retired`/`Saturated` rechazan nuevas activaciones.
+- Idempotencia: reactivar un servicio ya activo no duplica la reserva; cancelar sólo libera si estaba activo.
+- La operación se guarda atómicamente con EF en el mismo `SaveChanges` y la regla de capacidad vive en `NetworkZone`, no en el controller.
+- Verificación: solución Release y Unit **177/177 PASS**.

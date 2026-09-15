@@ -259,7 +259,24 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpPost("services/{id:guid}/activate")]
     [Authorize(Roles = "Administrator,NocOperator")]
-    public async Task<IActionResult> Activate(Guid id, CancellationToken ct) => await ChangeService(id, s => s.Activate(), ct);
+    public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
+    {
+        var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (service is null) return NotFound();
+        if (service.Status != ServiceStatus.Active && service.ZoneId is Guid zoneId)
+        {
+            var zone = await _db.NetworkZones.FirstOrDefaultAsync(x => x.Id == zoneId, ct);
+            var plan = await _db.ServicePlans.AsNoTracking().FirstOrDefaultAsync(x => x.Id == service.PlanId, ct);
+            if (zone is null || plan is null) return BadRequest("Zona o plan inválido.");
+            if (zone.Status is ZoneStatus.Retired or ZoneStatus.Saturated)
+                return Conflict("La zona no admite nuevas activaciones.");
+            zone.Reserve(plan.DownloadMbps);
+        }
+        if (service.Status != ServiceStatus.Active)
+            service.Activate();
+        await _db.SaveChangesAsync(ct);
+        return Ok(service);
+    }
     [HttpPost("services/{id:guid}/suspend")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> Suspend(Guid id, CancellationToken ct) => await ChangeService(id, s => s.Suspend(), ct);
@@ -283,7 +300,21 @@ public sealed class OperationsApiController : ControllerBase
 
     [HttpPost("services/{id:guid}/cancel")]
     [Authorize(Roles = "Administrator,NocOperator")]
-    public async Task<IActionResult> CancelService(Guid id, CancellationToken ct) => await ChangeService(id, s => s.Cancel(), ct);
+    public async Task<IActionResult> CancelService(Guid id, CancellationToken ct)
+    {
+        var service = await _db.CustomerServices.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (service is null) return NotFound();
+        if (service.ZoneId is Guid zoneId && service.Status == ServiceStatus.Active)
+        {
+            var zone = await _db.NetworkZones.FirstOrDefaultAsync(x => x.Id == zoneId, ct);
+            var plan = await _db.ServicePlans.AsNoTracking().FirstOrDefaultAsync(x => x.Id == service.PlanId, ct);
+            if (zone is null || plan is null) return BadRequest("Zona o plan inválido.");
+            zone.ReleaseReservation(plan.DownloadMbps);
+        }
+        service.Cancel();
+        await _db.SaveChangesAsync(ct);
+        return Ok(service);
+    }
 
     [HttpPost("assets/{id:guid}/recover")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
