@@ -169,3 +169,11 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Hallazgo corregido durante la primera ejecución: la inserción conjunta podía violar FK `BillingAccounts.CustomerId`; el fixture ahora persiste clientes antes de cuentas, reproduciendo el orden seguro del flujo comercial.
 - Verificación: prueba de escala **PASS**; build Runtime Release sin errores/advertencias.
 - Extensión del loop: el fixture ahora crea y verifica también 100 `CustomerService` activos, cada uno con `CustomerId` y `PlanId` válidos y sin duplicar clientes.
+
+## Loop: relación servicio–zona
+
+- Gap cerrado: `CustomerService` ahora persiste `ZoneId` opcional con FK a `NetworkZones`, índice y `SetNull` seguro para zonas eliminadas/desactivadas.
+- API: `CreateServiceRequest` acepta `ZoneId` y rechaza zonas inexistentes; los servicios legacy pueden permanecer sin zona hasta su clasificación.
+- Migración regenerada correctamente: `20260915145841_AttachZonesToServices` (snapshot EF actualizado; no migración vacía).
+- Fixture de escala: 100 servicios activos distribuidos 25 por cada una de las 4 zonas.
+- Verificación: build Runtime Release PASS y prueba de escala PASS.

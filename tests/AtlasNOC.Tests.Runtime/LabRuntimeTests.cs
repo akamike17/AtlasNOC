@@ -307,7 +307,7 @@ public sealed class LabCommercialScaleTests
         await _fx.Db.SaveChangesAsync();
         var services = customers.Select((customer, index) =>
         {
-            var service = new CustomerService(customer.Id, plan.Id, $"Domicilio escala {index + 1}");
+            var service = new CustomerService(customer.Id, plan.Id, $"Domicilio escala {index + 1}", zones[index % zones.Count].Id);
             service.Activate();
             return service;
         }).ToList();
@@ -322,6 +322,9 @@ public sealed class LabCommercialScaleTests
         Assert.Equal(100, await _fx.Db.CustomerServices
             .Where(s => s.Status == ServiceStatus.Active && s.PlanId == plan.Id)
             .Select(s => s.CustomerId).Distinct().CountAsync());
+        foreach (var zone in zones)
+            Assert.Equal(25, await _fx.Db.CustomerServices.CountAsync(
+                s => s.Status == ServiceStatus.Active && s.ZoneId == zone.Id));
         Assert.Equal(100, await _fx.Db.BillingAccounts.CountAsync(a => customers.Select(c => c.Id).Contains(a.CustomerId)));
         Assert.Equal(100, await _fx.Db.Customers.Select(c => c.ServiceCode).Where(x => x.StartsWith("SCALE-")).Distinct().CountAsync());
     }

@@ -93,6 +93,8 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<NetworkZone>().ToTable("NetworkZones").HasKey(x => x.Id);
         modelBuilder.Entity<NetworkZone>().HasIndex(x => x.Code).IsUnique();
         modelBuilder.Entity<NetworkZone>().Property(x => x.Status).HasConversion<int>();
+        modelBuilder.Entity<CustomerService>().HasOne<NetworkZone>().WithMany()
+            .HasForeignKey(x => x.ZoneId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<BillingEntry>().Property(x => x.Period).HasMaxLength(64);
         modelBuilder.Entity<CustomerService>().Property(x => x.Provisioning).HasConversion<int>();
         modelBuilder.Entity<CpeAuthorizationCase>().Property(x => x.Provisioning).HasConversion<int>();

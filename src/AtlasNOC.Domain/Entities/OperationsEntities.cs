@@ -218,12 +218,13 @@ public sealed class CustomerService
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid CustomerId { get; private set; }
     public Guid PlanId { get; private set; }
+    public Guid? ZoneId { get; private set; }
     public string ServiceAddress { get; private set; } = string.Empty;
     public ServiceStatus Status { get; private set; } = ServiceStatus.Pending;
     public ProvisioningStatus Provisioning { get; private set; } = ProvisioningStatus.NotRequested;
     public string? ProvisioningEvidence { get; private set; }
     public DateTime? ActivatedAtUtc { get; private set; }
-    public CustomerService(Guid customerId, Guid planId, string address) { CustomerId = customerId; PlanId = planId; ServiceAddress = address; }
+    public CustomerService(Guid customerId, Guid planId, string address, Guid? zoneId = null) { CustomerId = customerId; PlanId = planId; ServiceAddress = address; ZoneId = zoneId; }
     public void Activate() { if (Status == ServiceStatus.Cancelled) throw new InvalidOperationException("Un servicio cancelado no puede reactivarse."); Status = ServiceStatus.Active; ActivatedAtUtc = DateTime.UtcNow; }
     public void Suspend() => Status = ServiceStatus.Suspended;
     public void Reconnect() { if (Status == ServiceStatus.Cancelled) throw new InvalidOperationException("Un servicio cancelado no puede reconectarse."); Status = ServiceStatus.Active; }

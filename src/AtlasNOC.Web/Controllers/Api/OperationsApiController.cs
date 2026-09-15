@@ -255,7 +255,7 @@ public sealed class OperationsApiController : ControllerBase
     [HttpPost("services")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> CreateService([FromBody] CreateServiceRequest request, CancellationToken ct)
-    { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct) || !await _db.ServicePlans.AnyAsync(x => x.Id == request.PlanId && x.IsActive, ct)) return BadRequest("Cliente o plan inválido."); var service = new CustomerService(request.CustomerId, request.PlanId, request.Address); _db.CustomerServices.Add(service); await _db.SaveChangesAsync(ct); return Ok(service); }
+    { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct) || !await _db.ServicePlans.AnyAsync(x => x.Id == request.PlanId && x.IsActive, ct)) return BadRequest("Cliente o plan inválido."); if (request.ZoneId is not null && !await _db.NetworkZones.AnyAsync(x => x.Id == request.ZoneId, ct)) return BadRequest("Zona inválida."); var service = new CustomerService(request.CustomerId, request.PlanId, request.Address, request.ZoneId); _db.CustomerServices.Add(service); await _db.SaveChangesAsync(ct); return Ok(service); }
 
     [HttpPost("services/{id:guid}/activate")]
     [Authorize(Roles = "Administrator,NocOperator")]
@@ -455,7 +455,7 @@ public sealed class OperationsApiController : ControllerBase
 
 public sealed record CreateCustomerRequest(string ServiceCode, string Name, string? Phone, string? Email);
 public sealed record CreatePlanRequest(string Name, decimal MonthlyPrice, int DownloadMbps, int UploadMbps);
-public sealed record CreateServiceRequest(Guid CustomerId, Guid PlanId, string Address);
+public sealed record CreateServiceRequest(Guid CustomerId, Guid PlanId, string Address, Guid? ZoneId = null);
 public sealed record BillingRequest(decimal Amount, string Description, DateTime? DueAtUtc = null, string? Period = null, string? IdempotencyKey = null);
 public sealed record TicketRequest(Guid CustomerId, string Title, string? Description);
 public sealed record AssetRequest(string AssetTag, string Type, string? SerialNumber, string? MacAddress);
