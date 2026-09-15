@@ -96,6 +96,55 @@ public sealed class OperationalClosureSmokeTests
         await page.CloseAsync();
     }
 
+    [SkippableFact(Timeout = 120_000)]
+    public async Task Billing_concurrent_same_key_creates_one_entry_and_one_replay()
+    {
+        if (_fx.IsSkipped(out var reason)) throw new SkipTestException(reason);
+        var page = await _fx.NewPageAsync();
+        await SetupAndLogin(page);
+
+        async Task<JsonElement> Post(string path, object body, int expected = 200)
+        {
+            var raw = await page.EvaluateAsync<string>(
+                "async ({url,body}) => { const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return JSON.stringify({s:r.status,b:await r.text()}); }",
+                new { url = E2EFixture.BaseUrl + path, body });
+            using var doc = JsonDocument.Parse(raw);
+            Assert.Equal(expected, doc.RootElement.GetProperty("s").GetInt32());
+            return JsonDocument.Parse(doc.RootElement.GetProperty("b").GetString()!).RootElement.Clone();
+        }
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var customer = await Post("/api/operations/customers", new
+        {
+            serviceCode = $"CONC-{suffix}", name = $"Concurrent {suffix}", phone = "5550199", email = $"{suffix}@example.test"
+        }, 201);
+        var customerId = customer.GetProperty("id").GetGuid();
+        var plan = await Post("/api/operations/plans", new
+        {
+            name = $"Concurrent plan {suffix}", monthlyPrice = 500, downloadMbps = 50, uploadMbps = 10
+        });
+        var service = await Post("/api/operations/services", new
+        {
+            customerId, planId = plan.GetProperty("id").GetGuid(), address = $"Concurrent {suffix}"
+        });
+        await Post($"/api/operations/services/{service.GetProperty("id").GetGuid()}/activate", new { });
+
+        var rawConcurrent = await page.EvaluateAsync<string>(
+            "async ({url,body}) => JSON.stringify(await Promise.all([1,2].map(async () => { const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return {s:r.status,b:await r.json()}; })))",
+            new
+            {
+                url = E2EFixture.BaseUrl + $"/api/operations/billing/{customerId}/charge",
+                body = new { amount = 500, description = "Concurrent charge", period = "2026-09", idempotencyKey = $"concurrent-{suffix}" }
+            });
+        using var concurrent = JsonDocument.Parse(rawConcurrent);
+        var responses = concurrent.RootElement.EnumerateArray().ToList();
+        Assert.Equal(2, responses.Count);
+        Assert.All(responses, response => Assert.Equal(200, response.GetProperty("s").GetInt32()));
+        Assert.Single(responses, response => !response.GetProperty("b").GetProperty("idempotentReplay").GetBoolean());
+        Assert.Single(responses, response => response.GetProperty("b").GetProperty("idempotentReplay").GetBoolean());
+        await page.CloseAsync();
+    }
+
     private static async Task SetupAndLogin(IPage page)
     {
         await page.GotoAsync(E2EFixture.BaseUrl + "/setup");

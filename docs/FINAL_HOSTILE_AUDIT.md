@@ -1,5 +1,7 @@
 # FINAL_HOSTILE_AUDIT.md
 
+> **Archivo histórico:** conserva el informe hostil de 2026-09-09 y sus hashes de esa revisión. No debe interpretarse como el HEAD actual ni como sustituto de la evidencia de cierre clínico; el estado vigente está en `ORDER_FINAL_22_MATRIX.md`, `UI_FUNCTIONAL_COVERAGE.md` y `COMMERCIAL_READINESS.md`.
+
 **Rama auditada:** `codex/atlasnoc-review-20260909` (HEAD base: `0451f5247eaebb6e9ee73fc5a6bef2b017e18b02`)
 **Fecha:** 2026-09-09
 **Auditor:** Agente autónomo (revisión hostil desde cero)

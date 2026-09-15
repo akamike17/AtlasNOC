@@ -34,6 +34,15 @@ try {
     & $mysql --protocol=tcp --host=$Server --port=$Port --user=$User --execute="DROP DATABASE IF EXISTS ``$RestoreDatabase``; CREATE DATABASE ``$RestoreDatabase``;"
     if ($LASTEXITCODE -ne 0) { throw "restore database preparation failed with exit code $LASTEXITCODE" }
     $sqlArchive = $archive.Replace('\', '/')
+    # A dump made with --databases contains CREATE/USE for the source. Strip
+    # those database selectors so SOURCE cannot silently restore into source.
+    $sql = Get-Content -LiteralPath $archive -Raw
+    $escapedSource = [regex]::Escape($SourceDatabase)
+    $sql = [regex]::Replace($sql, "(?im)^CREATE DATABASE.*$escapedSource.*\r?\n", '')
+    $sourceUse = "USE ``$SourceDatabase``;"
+    $targetUse = "USE ``$RestoreDatabase``;"
+    $sql = $sql.Replace($sourceUse, $targetUse)
+    Set-Content -LiteralPath $archive -Value $sql -Encoding utf8
     & $mysql --protocol=tcp --host=$Server --port=$Port --user=$User --database=$RestoreDatabase --execute="SOURCE $sqlArchive;"
     if ($LASTEXITCODE -ne 0) { throw "mysql restore failed with exit code $LASTEXITCODE" }
     $tables = (& $mysql --protocol=tcp --host=$Server --port=$Port --user=$User --database=$RestoreDatabase --batch --skip-column-names --execute='SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();').Trim()

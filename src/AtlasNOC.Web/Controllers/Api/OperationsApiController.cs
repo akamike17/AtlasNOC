@@ -511,9 +511,53 @@ public sealed class OperationsApiController : ControllerBase
             receipt = new PaymentReceipt(customerId, account.Id, request.Amount, $"PAY-{Guid.NewGuid():N}");
             _db.PaymentReceipts.Add(receipt);
         }
-        await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return Ok(new { account.Id, account.Balance, IdempotentReplay = false, Receipt = receipt });
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return Ok(new { account.Id, account.Balance, IdempotentReplay = false, Receipt = receipt });
+        }
+        catch (DbUpdateException ex) when (!string.IsNullOrWhiteSpace(key) && IsDuplicateKey(ex))
+        {
+            // Two requests with the same idempotency key can pass the initial
+            // read concurrently. The unique index is the final arbiter; after
+            // rolling back the losing unit, return the committed entry as a
+            // replay instead of leaking a false 405/500 to the caller.
+            await tx.RollbackAsync(CancellationToken.None);
+            _db.ChangeTracker.Clear();
+            var committedAccount = await _db.BillingAccounts.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.CustomerId == customerId, ct);
+            var committedEntry = committedAccount is null
+                ? null
+                : await _db.BillingEntries.AsNoTracking().FirstOrDefaultAsync(
+                    x => x.AccountId == committedAccount.Id && x.Type == type && x.IdempotencyKey == key, ct);
+            if (committedAccount is null || committedEntry is null)
+                throw;
+
+            return Ok(new
+            {
+                committedAccount.Id,
+                committedAccount.Balance,
+                IdempotentReplay = true,
+                Entry = committedEntry,
+                Receipt = (PaymentReceipt?)null
+            });
+        }
+    }
+
+    private static bool IsDuplicateKey(DbUpdateException exception)
+    {
+        for (var current = exception.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is MySqlConnector.MySqlException mysql && mysql.Number == 1062)
+                return true;
+
+            if (current.Message.Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase) ||
+                current.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }
 

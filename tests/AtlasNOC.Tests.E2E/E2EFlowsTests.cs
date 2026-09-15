@@ -529,6 +529,49 @@ public class E2EFlowsTests
         await page.CloseAsync();
     }
 
+    [SkippableFact(Timeout = 120_000)]
+    public async Task Topology_six_isolated_devices_render_six_nodes_and_zero_edges()
+    {
+        if (_fx.IsSkipped(out var reason)) throw new SkipTestException(reason);
+        await using (var db = _fx.NewDb())
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "DELETE FROM NeighborObservations; DELETE FROM NetworkLinks; DELETE FROM DeviceInterfaces; DELETE FROM Devices;");
+            db.Devices.AddRange(Enumerable.Range(1, 6).Select(i =>
+                new Device($"Isolated-{i}", $"198.51.100.{i}", DeviceType.Router, Vendor.Generic)));
+            await db.SaveChangesAsync();
+        }
+        var page = await _fx.NewPageAsync();
+        await page.GotoAsync(E2EFixture.BaseUrl + "/setup");
+        if (page.Url.EndsWith("/setup", StringComparison.OrdinalIgnoreCase))
+        {
+            await page.FillAsync("input[name='WispName']", "Topology WISP");
+            await page.FillAsync("input[name='AdminUserName']", "admin");
+            await page.FillAsync("input[name='AdminDisplayName']", "Topology Admin");
+            await page.FillAsync("input[name='Password']", "Password123!");
+            await page.FillAsync("input[name='ConfirmPassword']", "Password123!");
+            await page.ClickAsync("button[type='submit']");
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        }
+        await LoginAsync(page);
+        await page.GotoAsync(E2EFixture.BaseUrl + "/topology");
+        var countLocator = page.Locator("#cy-count");
+        await countLocator.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        string countText;
+        do
+        {
+            countText = await countLocator.InnerTextAsync();
+            if (countText.Contains("6 dispositivos / 0 enlaces", StringComparison.Ordinal)) break;
+            await page.WaitForTimeoutAsync(100);
+        } while (DateTime.UtcNow < deadline);
+        Assert.Contains("6 dispositivos / 0 enlaces", countText);
+        var graph = await page.EvaluateAsync<string>("() => JSON.stringify({nodes: window.document.querySelector('#cy')?._atlasCy?.nodes().length ?? -1, edges: window.document.querySelector('#cy')?._atlasCy?.edges().length ?? -1})");
+        Assert.Contains("\"nodes\":6", graph);
+        Assert.Contains("\"edges\":0", graph);
+        await page.CloseAsync();
+    }
+
     private async Task ApiKey_and_audit_flow()
     {
         var page = await _fx.NewPageAsync();

@@ -322,13 +322,13 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["X-XSS-Protection"] = "1; mode=block";
     ctx.Response.Headers["Permissions-Policy"] =
         "camera=(), microphone=(), geolocation=()";
-    // CSP: permite self, charts.js/cytoscape desde CDN, y data: para imágenes.
+    // CSP: todos los assets de la aplicación se sirven localmente; data sólo para imágenes.
     ctx.Response.Headers["Content-Security-Policy"] =
         "default-src 'self'; " +
-        "script-src 'self' https://cdn.jsdelivr.net; " +
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data:; " +
-        "font-src 'self' https://cdn.jsdelivr.net; " +
+        "font-src 'self'; " +
         "connect-src 'self'; " +
         "frame-ancestors 'none'; " +
         "base-uri 'self'; " +

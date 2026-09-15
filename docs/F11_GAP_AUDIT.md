@@ -1,5 +1,7 @@
 # F11 — Auditoría de huecos reales (GAP AUDIT)
 
+> **Archivo histórico:** esta auditoría documenta una revisión anterior (`88b0975`) y no es el estado de HEAD ni la evidencia de cierre clínico actual. Para el estado vigente usar `ORDER_FINAL_22_MATRIX.md`, `UI_FUNCTIONAL_COVERAGE.md` y `COMMERCIAL_READINESS.md`.
+
 > Rama: `deepseek-rebuild`
 > Commit base auditado: `88b0975` (harden: Fase A–G dominio/infraestructura)
 > Método: comparación de la especificación (`segir.md` §6–10, `rev.md` §27–28) contra lo que existe en disco, verificando compilación y tests.

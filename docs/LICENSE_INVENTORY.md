@@ -1,18 +1,29 @@
 # Inventario de licencias y dependencias
 
-Este inventario se deriva de `Directory.Packages.props` y de los assets locales de `src/AtlasNOC.Web/wwwroot/lib`. La versión es la fijada por el repositorio; la licencia debe verificarse contra el paquete exacto antes de redistribución comercial.
+Este inventario cubre todos los `PackageReference` de los `.csproj`, los pins de `Directory.Packages.props` y cada asset de terceros bajo `src/AtlasNOC.Web/wwwroot/lib`. Los paquetes NuGet disponibles localmente se verificaron en el campo `<license type="expression">` del `.nuspec` de la versión exacta; la fuente primaria enlazada es la metadata oficial del paquete. Un pin central sin referencia de proyecto se conserva como tal y no se considera redistribuido.
 
-| Dependencia | Versión fijada | Uso | Verificación de licencia |
-|---|---:|---|---|
-| Microsoft.EntityFrameworkCore / Relational / Design | 8.0.13 | ORM, migraciones, tooling | revisar metadata NuGet del paquete exacto |
-| Pomelo.EntityFrameworkCore.MySql | 8.0.3 | proveedor MySQL | revisar metadata NuGet del paquete exacto |
-| Microsoft.AspNetCore.Identity.EntityFrameworkCore | 8.0.13 | usuarios/roles | revisar licencia Microsoft del paquete |
-| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 8.0.13 | claves persistentes | revisar licencia Microsoft del paquete |
-| Microsoft.Extensions.Hosting/Http/Resilience | 8.0.1/8.0.1/8.10.0 | workers, HTTP, resiliencia | revisar metadata NuGet |
-| Lextm.SharpSnmpLib | 12.5.7 | probe SNMP | revisar licencia del paquete exacto |
-| Serilog.AspNetCore / Sinks.File | 8.0.2 / 6.0.0 | logging estructurado | revisar metadata NuGet |
-| Swashbuckle.AspNetCore | 6.7.3 | OpenAPI | revisar metadata NuGet |
-| Microsoft.Playwright | 1.50.0 | E2E browser | dependencia de test; revisar metadata |
-| Chart.js / Cytoscape | assets locales | gráficas y topology UI | conservar notices de distribución en publicación |
+| Dependencia | Versión | Uso | Licencia identificada | Fuente de verificación | Redistribución/revisión |
+|---|---:|---|---|---|---|
+| Microsoft.EntityFrameworkCore / Relational / Design | 8.0.13 | ORM, consultas, migraciones y tooling | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.EntityFrameworkCore/8.0.13) | Incluir notice MIT de los paquetes publicados |
+| Pomelo.EntityFrameworkCore.MySql | 8.0.3 | Proveedor EF Core para MySQL | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Pomelo.EntityFrameworkCore.MySql/8.0.3) | Incluir notice MIT |
+| Microsoft.AspNetCore.Identity.EntityFrameworkCore | 8.0.13 | Usuarios, roles y persistencia Identity | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.AspNetCore.Identity.EntityFrameworkCore/8.0.13) | Incluir notice MIT |
+| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 8.0.13 | Claves persistentes de Data Protection | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/8.0.13) | Incluir notice MIT |
+| Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore | 8.0.13 | Health/readiness contra DbContext | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore/8.0.13) | Incluir notice MIT |
+| Microsoft.Extensions.Hosting / Http / Http.Resilience | 8.0.1 / 8.0.1 / 8.10.0 | Workers, clientes HTTP y reintentos | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience/8.10.0) | Incluir notices MIT |
+| Lextm.SharpSnmpLib | 12.5.7 | Probe SNMP | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Lextm.SharpSnmpLib/12.5.7) | Incluir notice MIT |
+| Serilog.AspNetCore / Serilog.Sinks.File | 8.0.2 / 6.0.0 | Logging estructurado y archivo | Apache-2.0 | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Serilog.AspNetCore/8.0.2) | Conservar Apache NOTICE/licencia requerida |
+| Microsoft.NET.Test.Sdk | 17.11.1 | Ejecución de pruebas | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.NET.Test.Sdk/17.11.1) | Sólo test; revisar si se empaqueta |
+| Microsoft.AspNetCore.Mvc.Testing | 8.0.13 | Host de pruebas Web | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.AspNetCore.Mvc.Testing/8.0.13) | Sólo test; no redistribuir con producción |
+| xunit | 2.9.2 | Unit/integration/runtime/E2E tests | Apache-2.0 | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/xunit/2.9.2) | Sólo test; revisar runner en artefacto |
+| xunit.abstractions | 2.0.3 | Abstracciones compartidas de tests | REQUIRES HUMAN/LEGAL REVIEW — el `.nuspec` exacto sólo expone `licenseUrl`, no expresión SPDX | `xunit.abstractions.nuspec` local y [license URL](https://raw.githubusercontent.com/xunit/xunit/master/license.txt) | No incluir salvo que el paquete de test se redistribuya; confirmar legalmente |
+| xunit.runner.visualstudio | 2.8.2 | Adaptador de ejecución de tests | Apache-2.0 | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/xunit.runner.visualstudio/2.8.2) | Sólo test; revisar runner en artefacto |
+| Microsoft.Playwright | 1.50.0 | Automatización browser E2E | MIT | `.nuspec` local exacto; [NuGet](https://www.nuget.org/packages/Microsoft.Playwright/1.50.0) | Revisar licencia de browsers descargados antes de redistribuir |
+| System.Security.Cryptography.Xml | 10.0.11 (pin central no referenciado) | Sin `PackageReference` en los proyectos actuales | N/A — no restaurado ni redistribuido por AtlasNOC | `Directory.Packages.props` y ausencia verificada de `PackageReference` | Eliminar el pin o verificar licencia antes de usarlo |
+| FluentValidation | 11.11.0 (pin central no referenciado) | Sin `PackageReference` en los proyectos actuales | N/A — no restaurado ni redistribuido por AtlasNOC | `Directory.Packages.props` y ausencia verificada de `PackageReference` | Eliminar el pin o verificar licencia antes de usarlo |
+| Chart.js (`chart.umd.js`) | 4.4.1 | Gráficas de métricas local | MIT | Cabecera local: `Released under the MIT License`; versión visible `v4.4.1` | Conservar cabecera/notice MIT |
+| chartjs-adapter-date-fns | 3.0.0 | Adaptador de fechas para Chart.js | MIT | Cabecera local: `chartjs-adapter-date-fns v3.0.0`, `Released under the MIT license` | Conservar cabecera/notice MIT |
+| Cytoscape (`cytoscape.min.js`) | No embebida en el asset | Grafo de topología local | MIT | Cabecera local contiene la licencia MIT completa y copyright del Cytoscape Consortium | REQUIRES HUMAN/LEGAL REVIEW — no se pudo demostrar la versión/procedencia exacta del archivo minificado; confirmar antes de venta |
+| Bootstrap CSS/JS | 5.3.3 | Layout y componentes UI locales | MIT | `wwwroot/lib/bootstrap/LICENSE` y cabecera `Bootstrap v5.3.3` | Conservar `LICENSE` MIT en publicación |
+| jQuery, icon fonts y fuentes externas | No presentes en `wwwroot/lib` | No usados por la UI publicada | N/A | Inventario directo del árbol `wwwroot/lib` y vistas | No redistribuir activos ausentes; cualquier incorporación exige nueva revisión |
 
-No se usan CDNs obligatorios para la LAN: Chart.js y Cytoscape están bajo `wwwroot/lib`. La aplicación no incorpora código de licencia desconocida deliberadamente; cualquier licencia que no pueda confirmarse en la metadata del paquete debe bloquear la venta hasta revisión humana legal/comercial.
+No se usan CDNs obligatorios para la LAN: Bootstrap, Chart.js, el adaptador de fechas y Cytoscape se sirven desde `wwwroot/lib`. Las dependencias transitivas no se copian manualmente y deben aparecer en el SBOM del empaquetado. Este archivo no declara aptitud legal para venta: las filas marcadas `REQUIRES HUMAN/LEGAL REVIEW` y los notices/transitive/browsers deben ser aprobados por legal antes de redistribuir.
