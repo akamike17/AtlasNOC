@@ -8,7 +8,9 @@ public sealed class ManualPaymentProvider : IPaymentProvider
 {
     public string ProviderKey => "manual";
     public Task<PaymentResult> CaptureAsync(PaymentRequest request, CancellationToken ct = default)
-        => Task.FromResult(new PaymentResult(request.Amount > 0, request.Reference, request.Amount > 0 ? "Pago manual registrado para conciliación." : "El monto debe ser mayor a cero.", request.Amount > 0 ? PaymentCaptureState.Accepted : PaymentCaptureState.Rejected));
+        => Task.FromResult(request.Amount > 0
+            ? new PaymentResult(false, request.Reference, "Pago manual registrado para conciliación; requiere validación autorizada.", PaymentCaptureState.PendingValidation)
+            : new PaymentResult(false, request.Reference, "El monto debe ser mayor a cero.", PaymentCaptureState.Rejected));
 }
 
 public sealed class WispOperationsService : IWispOperationsService

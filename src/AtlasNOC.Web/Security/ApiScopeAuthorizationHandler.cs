@@ -33,14 +33,9 @@ public class ApiScopeAuthorizationHandler : AuthorizationHandler<ApiScopeRequire
             return Task.CompletedTask;
         }
 
-        // 2. Humano (cookie): las APIs del panel usan además Authorize(Roles=...)
-        // en sus mutaciones. El requisito de lectura de clase sólo evita el acceso
-        // anónimo; el filtro de rol de cada acción conserva la frontera de escritura.
-        if (user.FindAll(System.Security.Claims.ClaimTypes.Role)
-            .Any(c => c.Value is "Administrator" or "NocOperator" or "Support" or "ReadOnly"))
-        {
-            context.Succeed(requirement);
-        }
+        // 2. Humano (cookie): NO satisface un requisito de scope.
+        //    El acceso humano a la API se autoriza vía ApiPermissionAuthorizationHandler /
+        //    HumanRoleAuthorizationHandler (scope O rol), nunca por satisfacer un scope.
         return Task.CompletedTask;
     }
 

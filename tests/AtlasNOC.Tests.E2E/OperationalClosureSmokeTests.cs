@@ -60,7 +60,7 @@ public sealed class OperationalClosureSmokeTests
         await Post($"/api/operations/billing/{customerId}/payment", new { amount = 250, description = "Pago parcial smoke" }); // 16
         await Post($"/api/operations/billing/promises/{Id(promise)}/default", new { }); // 17
         var ticket = await Post("/api/operations/tickets", new { customerId, title = "Falla smoke", description = "Prueba E2E" }); // 18
-        await Post("/api/operations/support/interactions", new { ticketId = Id(ticket), channel = "Phone", symptoms = "Sin enlace", diagnosis = "Simulado", actions = "Validación", result = "Abierto", durationMinutes = 5 }); // 19
+        await Post("/api/operations/support/interactions", new { ticketId = Id(ticket), channel = 0, symptoms = "Sin enlace", diagnosis = "Simulado", actions = "Validación", result = "Abierto", durationMinutes = 5 }); // 19
         await Post($"/api/operations/tickets/{Id(ticket)}/status", new { status = 1 }); // 20
         var visit = await Post("/api/operations/visits", new { customerId, scheduledAtUtc = DateTime.UtcNow.AddDays(1), workType = "Revisión", estimatedMinutes = 60 }); // 21
         await Post($"/api/operations/visits/{Id(visit)}/complete", new { actualMinutes = 55, travelMinutes = 20, result = "Programado" }); // 22

@@ -188,7 +188,21 @@ public sealed class OperationsApiController : ControllerBase
     [HttpPost("customers")]
     [Authorize(Roles = "Administrator,NocOperator")]
     public async Task<IActionResult> CreateCustomer([FromBody] CreateCustomerRequest request, CancellationToken ct)
-    { var code = request.ServiceCode?.Trim().ToUpperInvariant() ?? string.Empty; if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Código y nombre son obligatorios."); if (await _db.Customers.AnyAsync(x => x.ServiceCode.ToUpper() == code, ct)) return Conflict("ServiceCode ya existe."); var customer = new Customer(code, request.Name, request.Phone, request.Email); _db.Customers.Add(customer); _db.BillingAccounts.Add(new BillingAccount(customer.Id)); await _db.SaveChangesAsync(ct); return Created($"/api/operations/customers/{customer.Id}", customer); }
+    {
+        var code = request.ServiceCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Código y nombre son obligatorios.");
+        if (await _db.Customers.AnyAsync(x => x.ServiceCode.ToUpper() == code, ct)) return Conflict("ServiceCode ya existe.");
+        var customer = new Customer(code, request.Name, request.Phone, request.Email);
+        // Persistir el Customer primero y luego el BillingAccount (FK_BillingAccounts_Customers),
+        // en una transacción: evita violar la FK al insertar la cuenta antes de que exista la fila cliente.
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync(ct);
+        _db.BillingAccounts.Add(new BillingAccount(customer.Id));
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return Created($"/api/operations/customers/{customer.Id}", customer);
+    }
 
     [HttpPost("plans")]
     [Authorize(Roles = "Administrator,NocOperator")]
