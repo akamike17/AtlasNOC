@@ -44,6 +44,11 @@ public sealed class OperationalClosureSmokeTests
         }
         static Guid Id(JsonElement e) => e.GetProperty("id").GetGuid();
 
+        for (var zoneIndex = 1; zoneIndex <= 4; zoneIndex++)
+            await Post("/api/operations/zones", new { code = $"SMOKE-ZONA-{zoneIndex:00}", name = $"Smoke Zona {zoneIndex}", geography = $"Lab {zoneIndex}", totalCapacityMbps = 1000 });
+        var zones = await Get("/api/operations/zones");
+        Assert.True(zones.GetArrayLength() >= 4);
+
         var prospect = await Post("/api/operations/prospects", new { name = "Smoke Cliente", address = "Av. Test 100", phone = "5550100" }); // 1
         await Post($"/api/operations/prospects/{Id(prospect)}/status", new { status = 1 }); // 2
         var customer = await Post("/api/operations/customers", new { serviceCode = "SMOKE-30", name = "Cliente Smoke", phone = "5550101", email = "smoke@example.test" }, 201); // 3
@@ -57,7 +62,10 @@ public sealed class OperationalClosureSmokeTests
         await Post("/api/operations/coverage", new { address = "Av. Test 100", status = 2, capacityMbps = (int?)null }); // 9
         var asset = await Post("/api/operations/assets", new { assetTag = "SMOKE-CPE-30", type = "CPE", serialNumber = "SN-SMOKE-30", macAddress = "02:00:00:00:30:01" }); // 10
         await Post($"/api/operations/assets/{Id(asset)}/assign", new { serviceId }); // 11
-        await Post($"/api/operations/billing/{customerId}/charge", new { amount = 500, description = "Mensualidad smoke", dueAtUtc = DateTime.UtcNow.AddDays(2), period = "2026-09" }); // 12
+        var billingKey = "smoke-monthly-2026-09";
+        await Post($"/api/operations/billing/{customerId}/charge", new { amount = 500, description = "Mensualidad smoke", dueAtUtc = DateTime.UtcNow.AddDays(2), period = "2026-09", idempotencyKey = billingKey }); // 12
+        var replay = await Post($"/api/operations/billing/{customerId}/charge", new { amount = 500, description = "Mensualidad smoke retry", dueAtUtc = DateTime.UtcNow.AddDays(2), period = "2026-09", idempotencyKey = billingKey });
+        Assert.True(replay.GetProperty("idempotentReplay").GetBoolean());
         var billing = await Get($"/api/operations/billing/{customerId}"); // 13
         Assert.True(billing.ValueKind != JsonValueKind.Null);
         await Post($"/api/operations/billing/{customerId}/suspend-if-overdue", new { }); // 14 (within grace/current)
@@ -82,7 +90,7 @@ public sealed class OperationalClosureSmokeTests
         await Get($"/api/operations/customers/{customerId}/diagnostic"); // 28
         await Get($"/api/operations/coverage/evaluate?address=Av%20Test%20100&requiredMbps=20"); // 29
         await Get("/api/operations/snapshot"); // 30
-        Assert.Equal(33, n);
+        Assert.Equal(38, n);
         await page.CloseAsync();
     }
 
@@ -105,5 +113,6 @@ public sealed class OperationalClosureSmokeTests
         await page.FillAsync("input[name='password']", "Password123!");
         await page.ClickAsync("button[type='submit']");
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        Assert.DoesNotContain("/account/login", page.Url, StringComparison.OrdinalIgnoreCase);
     }
 }

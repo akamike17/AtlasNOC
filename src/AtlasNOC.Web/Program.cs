@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Threading.RateLimiting;
@@ -265,6 +266,48 @@ if (!builder.Environment.IsEnvironment("Testing"))
     app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+// Captura excepciones de APIs después de que endpoint routing ya resolvió la
+// acción. Esto conserva el endpoint original y evita que UseExceptionHandler
+// re-ejecute una acción GET (/home/error) para una petición POST, lo que
+// convertiría una excepción interna en un 405 engañoso.
+app.Use(async (ctx, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception exception) when (ctx.Request.Path.StartsWithSegments("/api"))
+    {
+        var logger = ctx.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("AtlasNOC.ApiException");
+        var endpoint = ctx.GetEndpoint();
+        var dbUpdate = exception as DbUpdateException
+            ?? exception.InnerException as DbUpdateException;
+
+        logger.LogError(exception,
+            "Unhandled API request {Method} {Path}. Endpoint={Endpoint}; RootType={RootType}; InnerType={InnerType}; RootMessage={RootMessage}; InnerMessage={InnerMessage}; DbUpdate={DbUpdate}",
+            ctx.Request.Method,
+            ctx.Request.Path,
+            endpoint?.DisplayName ?? "<none>",
+            exception.GetType().FullName,
+            exception.InnerException?.GetType().FullName ?? "<none>",
+            exception.Message,
+            exception.InnerException?.Message ?? "<none>",
+            dbUpdate is not null);
+
+        ctx.Response.Clear();
+        ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        ctx.Response.ContentType = "application/problem+json";
+        await ctx.Response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Status = StatusCodes.Status500InternalServerError,
+            Title = "Error interno de la API",
+            Detail = "La operación no pudo completarse. Revisa el log correlacionado del servidor."
+        });
+    }
+});
 
 // ─── Fase 9: cabeceras de seguridad (CSP, nosniff, frame, referrer) ───────
 app.Use(async (ctx, next) =>

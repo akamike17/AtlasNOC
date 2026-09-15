@@ -83,6 +83,20 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - Evidencia: pendiente de añadir prueba E2E de doble asignación y de validar el flujo `Recovered → PendingInspection → Tested → Stock → Assigned`.
 - Clasificación: **PARTIAL**.
 
+## Ciclo 3 — Desarrollador Senior: zonas persistentes
+
+- Requisitos: secciones 5, 6, 13, 36 y 44 de la especificación; orden final §5–§6.
+- Cambios: entidad `NetworkZone` con código único, estados de ciclo de vida, geografía y contadores de capacidad; `DbSet`/mapeo EF; migración `AddNetworkZones`; endpoints autenticados para listar, crear y cambiar estado.
+- Evidencia: build Release PASS, 0 errores; prueba unitaria añadida para normalización de código y límite de capacidad.
+- Clasificación: **PARTIAL**. Falta fixture LAB `ZONA-01..04` con 5 clientes por zona, relación explícita de servicios/cobertura/sitios y prueba de restart/escala.
+
+## Ciclo 4 — Corrección de migración y verificación MySQL
+
+- Hallazgo reproducido: `BillingEntryIdempotency` generada inicialmente repetía `Incidents.Priority` y otras columnas ya creadas por migraciones operativas anteriores, provocando `Duplicate column name 'Priority'`.
+- Corrección: la migración ahora es estrictamente aditiva: sólo agrega `BillingEntries.IdempotencyKey` y su índice único; no recrea tablas ni repite columnas previas.
+- Verificación: contra `atlasnoc_test` con `SslMode=None`, sin tocar producción: Unit 177/177, Integration 8/8, Runtime 8/8, E2E 15/15; build Release 0 errores/0 advertencias.
+- Clasificación: **READY** para la cadena de migración probada en LAB; falta documentar/ejecutar explícitamente la matriz fresh/upgrade completa con copias controladas.
+
 ## Reauditoría de configuración y seguridad — evidencia
 
 - `Polling`, `Discovery` y `Notifications` viven en configuración tipada; no se detectaron intervalos operativos dispersos en el mapa auditado.
@@ -90,3 +104,12 @@ Cada parche debe indicar: requisito/sección, archivo(s), comportamiento real, p
 - La advertencia restante `CS8620` es de nulabilidad en un converter EF opcional; no rompe build, pero queda como deuda de calidad antes de `Definition of Done`.
 - Worker separado en producción y embebido sólo bajo configuración de Testing/Development; no se encontró evidencia de health detallado de cada job individual.
 - Clasificación: **PARTIAL** hasta probar health degradado, secretos/logs y cierre de setup con runtime.
+
+## Ciclo 5 — 405 del POST original: causa raíz y corrección
+
+- Requisito: conservar el contrato REST original `POST /api/operations/zones`; no crear `/zones/create` ni modificar el smoke para ocultar el defecto.
+- Hallazgo reproducido: en entorno no-Development estaba activo `UseExceptionHandler("/home/error")`. Cuando el POST lanzaba una excepción interna, el middleware reejecutaba una ruta GET-only y el cliente recibía `405` en vez de la causa real.
+- Causa raíz de datos: `20260915141437_AddNetworkZones` tenía `Up`/`Down` vacíos y el snapshot no incluía `NetworkZone`; sobre una base limpia faltaba `NetworkZones`, por lo que la consulta del POST fallaba.
+- Corrección: middleware API posterior a `UseRouting` captura el endpoint original (`GetEndpoint()`), registra excepción raíz/inner y diagnóstico EF sanitizado, y responde `500 application/problem+json`; migración `20260915143659_RepairNetworkZones` crea `NetworkZones` e índice único de `Code`.
+- Verificación: build Web PASS (0 errores/0 advertencias). El smoke con MySQL y `SslMode=None` ya supera el POST original y falla únicamente en su aserción interna de contador (`Expected 38, Actual 39`), no por HTTP 405. El smoke no fue modificado.
+- Clasificación: **PARTIAL**: causa raíz corregida; queda pendiente resolver la discrepancia preexistente del contador del smoke sin alterar su contrato ni usar una ruta alternativa.

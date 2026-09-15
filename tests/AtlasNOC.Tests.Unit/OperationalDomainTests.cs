@@ -24,6 +24,36 @@ public sealed class OperationalDomainTests
     }
 
     [Fact]
+    public void Network_zone_enforces_code_and_capacity_invariants()
+    {
+        var zone = new NetworkZone("zona-01", "Norte", "Municipio Norte", 100);
+        zone.Reserve(40);
+        zone.Use(50);
+        Assert.Equal("ZONA-01", zone.Code);
+        Assert.Throws<InvalidOperationException>(() => zone.Use(51));
+    }
+
+    [Fact]
+    public void Commercial_lab_fixture_has_four_zones_and_five_customers_per_zone()
+    {
+        var zones = Enumerable.Range(1, 4).Select(i => new NetworkZone($"ZONA-{i:00}", $"Zona {i}", $"Geografía {i}", 1000)).ToArray();
+        var plan = new ServicePlan("LAB-100", 500, 100, 20);
+        var records = zones.SelectMany((zone, zoneIndex) => Enumerable.Range(1, 5).Select(customerIndex =>
+        {
+            var customer = new Customer($"{zone.Code}-CLI-{customerIndex:00}", $"Cliente {zoneIndex + 1}-{customerIndex}");
+            var service = new CustomerService(customer.Id, plan.Id, $"Domicilio {zone.Code}-{customerIndex}");
+            service.Activate();
+            return (zone, customer, service);
+        })).ToArray();
+        Assert.Equal(4, zones.Length);
+        Assert.Equal(20, records.Length);
+        Assert.Equal(20, records.Select(x => x.customer.Id).Distinct().Count());
+        Assert.Equal(20, records.Select(x => x.customer.ServiceCode).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(records, x => Assert.Contains(x.zone.Code, x.customer.ServiceCode));
+        Assert.All(records, x => Assert.Equal(ServiceStatus.Active, x.service.Status));
+    }
+
+    [Fact]
     public void Service_lifecycle_is_explicit_and_reconnectable()
     {
         var service = new CustomerService(Guid.NewGuid(), Guid.NewGuid(), "Calle 1");

@@ -362,6 +362,27 @@ public sealed class OperationsApiController : ControllerBase
     [HttpPost("coverage")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Coverage([FromBody] CoverageRequest request, CancellationToken ct) { var check = new CoverageCheck(request.Address, request.Status, request.CapacityMbps); _db.CoverageChecks.Add(check); await _db.SaveChangesAsync(ct); return Ok(check); }
+
+    [HttpGet("zones")]
+    public async Task<IActionResult> ListNetworkZones(CancellationToken ct) => Ok(await _db.NetworkZones.AsNoTracking().OrderBy(x => x.Code).ToListAsync(ct));
+
+    [HttpPost("zones")]
+    [HttpPost("zones/create")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> CreateNetworkZone([FromBody] ZoneRequest request, CancellationToken ct)
+    {
+        if (await _db.NetworkZones.AnyAsync(x => x.Code == request.Code.Trim().ToUpper(), ct)) return Conflict("El código de zona ya existe.");
+        var zone = new NetworkZone(request.Code, request.Name, request.Geography, request.TotalCapacityMbps);
+        _db.NetworkZones.Add(zone); await _db.SaveChangesAsync(ct); return Ok(zone);
+    }
+
+    [HttpPost("zones/{id:guid}/status")]
+    [Authorize(Roles = "Administrator,NocOperator")]
+    public async Task<IActionResult> ChangeNetworkZoneStatus(Guid id, [FromBody] ZoneStatusRequest request, CancellationToken ct)
+    {
+        var zone = await _db.NetworkZones.FindAsync(new object[] { id }, ct); if (zone is null) return NotFound();
+        zone.SetStatus(request.Status); await _db.SaveChangesAsync(ct); return Ok(zone);
+    }
     [HttpPost("visits")]
     [Authorize(Roles = "Administrator,NocOperator,Support")]
     public async Task<IActionResult> Visit([FromBody] VisitRequest request, CancellationToken ct) { if (!await _db.Customers.AnyAsync(x => x.Id == request.CustomerId, ct)) return BadRequest("Cliente inválido."); var visit = new TechnicianVisit(request.CustomerId, request.ScheduledAtUtc, request.WorkType, request.EstimatedMinutes); _db.TechnicianVisits.Add(visit); await _db.SaveChangesAsync(ct); return Ok(visit); }
@@ -411,6 +432,8 @@ public sealed record BillingRequest(decimal Amount, string Description, DateTime
 public sealed record TicketRequest(Guid CustomerId, string Title, string? Description);
 public sealed record AssetRequest(string AssetTag, string Type, string? SerialNumber, string? MacAddress);
 public sealed record CoverageRequest(string Address, CoverageStatus Status, int? CapacityMbps);
+public sealed record ZoneRequest(string Code, string Name, string? Geography, int TotalCapacityMbps);
+public sealed record ZoneStatusRequest(ZoneStatus Status);
 public sealed record VisitRequest(Guid CustomerId, DateTime ScheduledAtUtc, string WorkType, int EstimatedMinutes);
 public sealed record RouteRequest(IReadOnlyList<Guid> VisitIds);
 public sealed record ConfigurationRevisionRequest(string BeforeHash, string AfterHash, string Source, string Reason);

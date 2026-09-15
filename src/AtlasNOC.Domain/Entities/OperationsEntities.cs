@@ -14,6 +14,30 @@ public enum InstallationStatus { Planned, Scheduled, InProgress, Completed, Canc
 public enum SupportInteractionChannel { Phone, Chat, Email, Field }
 public enum ServiceCreditStatus { Suggested, Approved, Applied, Rejected }
 public enum ProvisioningStatus { NotRequested, Requested, Provisioning, Applied, Failed, PartiallyApplied, Unsupported }
+public enum ZoneStatus { Planned, Building, Active, CapacityLimited, Saturated, Retired }
+
+public sealed class NetworkZone
+{
+    private NetworkZone() { }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public string Code { get; private set; } = string.Empty;
+    public string Name { get; private set; } = string.Empty;
+    public string? Geography { get; private set; }
+    public ZoneStatus Status { get; private set; } = ZoneStatus.Planned;
+    public int TotalCapacityMbps { get; private set; }
+    public int ReservedCapacityMbps { get; private set; }
+    public int UsedCapacityMbps { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
+    public NetworkZone(string code, string name, string? geography = null, int totalCapacityMbps = 0)
+    {
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Código y nombre de zona son obligatorios.");
+        if (totalCapacityMbps < 0) throw new ArgumentOutOfRangeException(nameof(totalCapacityMbps));
+        Code = code.Trim().ToUpperInvariant(); Name = name.Trim(); Geography = geography?.Trim(); TotalCapacityMbps = totalCapacityMbps;
+    }
+    public void SetStatus(ZoneStatus status) => Status = status;
+    public void Reserve(int mbps) { if (mbps < 0 || ReservedCapacityMbps + mbps > TotalCapacityMbps) throw new InvalidOperationException("Capacidad reservada insuficiente."); ReservedCapacityMbps += mbps; }
+    public void Use(int mbps) { if (mbps < 0 || UsedCapacityMbps + mbps > TotalCapacityMbps) throw new InvalidOperationException("Capacidad disponible insuficiente."); UsedCapacityMbps += mbps; }
+}
 
 public sealed class PaymentReceipt
 {

@@ -56,6 +56,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<SupportInteraction> SupportInteractions => Set<SupportInteraction>();
     public DbSet<ServiceCredit> ServiceCredits => Set<ServiceCredit>();
     public DbSet<PaymentReceipt> PaymentReceipts => Set<PaymentReceipt>();
+    public DbSet<NetworkZone> NetworkZones => Set<NetworkZone>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -89,12 +90,16 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         modelBuilder.Entity<ServiceCredit>().HasIndex(x => new { x.CustomerId, x.Status });
         modelBuilder.Entity<PaymentReceipt>().ToTable("PaymentReceipts").HasKey(x => x.Id);
         modelBuilder.Entity<PaymentReceipt>().HasIndex(x => x.Reference).IsUnique();
+        modelBuilder.Entity<NetworkZone>().ToTable("NetworkZones").HasKey(x => x.Id);
+        modelBuilder.Entity<NetworkZone>().HasIndex(x => x.Code).IsUnique();
+        modelBuilder.Entity<NetworkZone>().Property(x => x.Status).HasConversion<int>();
         modelBuilder.Entity<BillingEntry>().Property(x => x.Period).HasMaxLength(64);
         modelBuilder.Entity<CustomerService>().Property(x => x.Provisioning).HasConversion<int>();
         modelBuilder.Entity<CpeAuthorizationCase>().Property(x => x.Provisioning).HasConversion<int>();
 
         // ─── Shared Guid-backed value-object converters ─────────────────────
         var deviceIdConv = new ValueConverter<DeviceId, Guid>(v => v.Value, v => DeviceId.From(v));
+        var deviceIdNullableConv = new ValueConverter<DeviceId?, Guid>(v => v == null ? Guid.Empty : v.Value, v => v == Guid.Empty ? null : DeviceId.From(v));
         var siteIdConv = new ValueConverter<SiteId, Guid>(v => v.Value, v => SiteId.From(v));
         var siteIdNullableConv = new ValueConverter<SiteId?, Guid>(v => v == null ? Guid.Empty : v.Value, v => v == Guid.Empty ? null : SiteId.From(v));
         var interfaceIdConv = new ValueConverter<InterfaceId, Guid>(v => v.Value, v => InterfaceId.From(v));
@@ -270,7 +275,7 @@ public class AtlasNOCDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             e.Property(x => x.CommunityProtected).HasMaxLength(1024);
             e.Property(x => x.AuthPasswordProtected).HasMaxLength(1024);
             e.Property(x => x.PrivPasswordProtected).HasMaxLength(1024);
-            e.Property(x => x.DeviceId).HasConversion(deviceIdConv);
+            e.Property(x => x.DeviceId).HasConversion(deviceIdNullableConv);
             e.Property(x => x.SiteId).HasConversion(siteIdNullableConv);
             e.Property(x => x.DriverKey).HasMaxLength(64);
             e.HasIndex(x => new { x.DeviceId, x.DriverKey, x.IsPreferred });

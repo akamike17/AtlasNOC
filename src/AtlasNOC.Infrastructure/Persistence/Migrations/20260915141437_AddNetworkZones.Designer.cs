@@ -4,6 +4,7 @@ using AtlasNOC.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AtlasNOC.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AtlasNOCDbContext))]
-    partial class AtlasNOCDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260915141437_AddNetworkZones")]
+    partial class AddNetworkZones
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1140,46 +1143,6 @@ namespace AtlasNOC.Infrastructure.Persistence.Migrations
                     b.HasIndex("ParentSiteId");
 
                     b.ToTable("Sites", (string)null);
-                });
-
-            modelBuilder.Entity("AtlasNOC.Domain.Entities.NetworkZone", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Geography")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("ReservedCapacityMbps")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TotalCapacityMbps")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UsedCapacityMbps")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("NetworkZones", (string)null);
                 });
 
             modelBuilder.Entity("AtlasNOC.Domain.Entities.NotificationChannel", b =>
